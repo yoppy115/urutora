@@ -66,9 +66,13 @@ EffectiveMaxHP         = BaseMaxHP         * ConceptModifier
 
 該当MarkなしはModifier 1.0、ありはv0 default 1.2。EffectiveActionはrepeat、Intent競合、second step、pursuitへ使う。EffectiveCombatはRealityのhit、Damage、Counterattackと自己の主観予測へ使う。EffectiveCommunicationはsendCountへそのまま使い、情報品質計算だけ0〜10へClampする。EffectiveMaxHPはSurvivalNeed、SelfHPRatio、繁殖HP条件、CurrentHP上限へ使う。
 
-Mark取得時にCurrentHPの絶対値を維持し、増えたEffectiveMaxHPまで即時補充しない。例えば100/100の個体が生存Markを得た直後は100/120となり、将来のVitality回復で不足分を回復できる。
+Mark取得時にCurrentHPの絶対値を維持し、増えたEffectiveMaxHPまで即時補充しない。v0.15の例では50/50の個体が生存Markを得た直後は50/60となり、将来のVitality回復で不足分を回復できる。
 
 採用理由は [`ADR-0012`](../decisions/ADR-0012-concept-landmarks-and-selection.md) を参照する。
+
+## v0.15 status
+
+初回RunのMark取得は約9.71年で8件だったが、Combat大量死、TargetAbsent、繁殖不全を含むためConcept Exposure単体の妥当な評価とはみなさない。v0.15ではExposure Range、Exposure Rate、Threshold、1.2倍Modifierを変更しない。Settlement導入後の局所滞在時間変化を観測してから再評価する。
 
 ## Draft: initial difficulties
 

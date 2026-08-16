@@ -30,7 +30,7 @@ daily: Communication +0.05
 initiated Communication: Communication -3.0
 
 before maturity: Reproduction = 0
-after maturity: Reproduction +0.01/day
+after maturity (v0.15): Reproduction +0.04/day
 successful Reproduction: both participants -6.0
 ```
 
@@ -41,6 +41,8 @@ Move、Communication、Attack、Collision Attack、Flee、Reproduction Attempt�
 Restだけは専用のRest -4.0、Activity +1.0を使い、通常能動Actionの変化を重ねない。Counterattack、Pursuit Attack、Reproduction Accept / RejectはReactionであり、通常Action回数を消費せず、Activity / Restの通常変化も適用しない。
 
 Communication Need -3は選択した側だけへ適用する。Reproduction Need -6とCooldown開始はReproduction Success時だけで、Reject時には適用しない。
+
+v0.15でもRest Actionと既存Need変化は変更しない。Reproduction Needの日次増加だけを旧+0.01から+0.04へ変更する。
 
 ## Utility baseline
 
@@ -86,7 +88,7 @@ P_hit_subjective = Clamp(
 
 ExpectedDamage_subjective = max(
   1,
-  8 + 1.8 * EffectiveCombat_self - 0.8 * PerceivedCombat_t)
+  4 + 0.9 * EffectiveCombat_self - 0.4 * PerceivedCombat_t)
 
 ThreatNeutralization(t) = Clamp(
   P_hit_subjective * ExpectedDamage_subjective
@@ -100,7 +102,7 @@ U_attack(t) = SurvivalPressure(t) * ThreatNeutralization(t)
             - (1 - RP) * R_threat(t)
 ```
 
-ExpectedDamageではReality側Damage乱数の期待倍率1.0を使う。無傷でSurvival Needが0でも、Threat RiskをSurvivalPressureへ含めることで明白な脅威へ反応できる。距離1以内の各PerceivedThreatについて個別のAttack Candidateと `U_attack(t)` を生成できる。
+ExpectedDamageではv0.15 Damage係数とReality側Damage乱数の期待倍率1.0を使う。無傷でSurvival Needが0でも、Threat RiskをSurvivalPressureへ含めることで明白な脅威へ反応できる。距離1以内の各PerceivedThreatについて個別のAttack Candidateと `U_attack(t)` を生成できる。
 
 ## Flee utility
 
@@ -131,6 +133,8 @@ Pursuit Reactionの `U_attack` は本節の対象別 `U_attack(t)` を参照す�
 - 候補3件以上: Utility上位3件だけを残す。
 
 有効Action Candidateが1件以上ある場合、Idleを通常候補へ加えない。
+
+Reproduction Candidateの対象条件は主観的Alive、距離1、Matureだけとし、対象RealityのHP、Cooldown、実距離をDecisionへ渡さない。成立条件はResolutionが検証する。
 
 ```text
 weight_i = exp((utility_i - maxUtility) / temperature)

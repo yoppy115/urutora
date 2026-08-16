@@ -6,13 +6,14 @@
 
 | Module | Responsibility | Must not |
 | --- | --- | --- |
-| Simulation Runner | 日次phaseとMicro Roundを調整する | ドメイン規則や全状態を抱える |
+| Simulation Runner | 日次phase、Targeted/Movement/Rest phase、Micro Roundを調整する | Targeted Action内部順を勝手に仕様化する |
 | Reality Store | 客観状態を構成されたstate sliceとして保持する | NPC向け判断APIを直接提供する |
 | Observation | RealityとActionOutcomeから観測事実を生成する | Utilityを評価する |
-| Perception Store | NPCごとの観測・伝聞履歴、Confidence、Threat Memoryを保持・代表値選択する | 未観測Realityを透過参照・最新値で自動上書きする |
+| Perception Store | NPCごとの有限な観測・伝聞履歴、Confidence、LifeStage、Threat Memory、Position invalidationを扱う | 未観測Realityを透過参照・最新値で自動上書きする |
 | Needs | 生存、休息、活動、交流、繁殖の状態を評価する | 行動を直接解決する |
 | Utility Decision | 主観情報から候補を評価しActionIntentを作る | RealityやUIへ依存する |
-| Action Resolution | IntentをRealityで検証しOutcomeを返す | NPCの知識を意思決定前に補完する |
+| Action Resolution | IntentをRealityで検証しTargetAbsent等のOutcomeを返す | NPCの知識を意思決定前後に超能力的に補完する |
+| Interrupt Coordinator | Attack / Reproduction Accept時のIntent破棄と上限付き再評価を調整する | Action枠を増やす、RejectでIntentを消す |
 | Spatial Resolution | Grid占有、Move競合、Collision Attack変換を扱う | UtilityへReality占有状態を漏らす |
 | Combat Resolution | Attack、Damage、Counterattack、Pursuit Attackを扱う | Reactionを無限再帰させる |
 | Communication | Held Information交換と受信時変形を扱う | 未知Reality情報を生成する |
@@ -48,6 +49,8 @@
 - 通常ActionとReactionを別contractにし、ReactionがAction回数や通常Need costを消費しないことを型またはdispatcherで守る。
 - EntityがDeadへ遷移したら後続Intent/Reaction eligibilityとGrid占有を即時無効化し、Event/collection cleanupはtick末へ遅延できる。
 - BirthRequestは受胎時Positionと遺伝入力をimmutableに保持し、batch resolverが希望Cell競合を順序非依存で再抽選する。
+- Held Information capacityはSubject + Propertyごとに3件だが、Eviction Rule確定までは具体選別を実装上の既成事実にしない。
+- Reproduction Candidateには対象PerceptionのAlive / Position / LifeStageだけを渡し、対象RealityのHP / CooldownはResolution portの内側に閉じる。
 
 ## Open architecture work
 

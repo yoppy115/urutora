@@ -60,6 +60,9 @@ flowchart LR
 10. **Base and Effective stats are distinct.** 遺伝・系譜はBase、Resolutionと定義済み主観計算はEffectiveを使い、ConceptMarkはBaseを書き換えない。
 11. **Death is immediately authoritative.** HP 0以下のEntityは同Tickの後続command・reaction対象になれず、Tick末phaseは整理だけを担う。
 12. **Batch arbitration is order-independent.** MoveとBirthの競合を配列・queue・collection順で決めない。
+13. **Targeted actions precede movement.** Attack、Communication、ReproductionをMove、Flee、Restより先に解決するが、Targeted Action内部の固定順序は未決のままにする。
+14. **Outcomes invalidate stale premises.** TargetAbsent等の直接Outcomeを同日中にPerceptionへ戻し、成立しない古いPositionの反復を止める。
+15. **Interrupts replace, not add.** AttackとReproduction Acceptによる再評価は既存Action枠を置換し、追加Actionや無制限再評価を与えない。
 
 ## State layers
 
@@ -93,6 +96,19 @@ Historyは住人の認識を含む世界の語られ方、Psalmは次世界へ�
 v0のPRNGは単一共有列にせず、run seedと `subsystem / tick / entity / purpose` から用途別streamを派生する。描画、ログ整形、診断がSimulation用streamを消費してはならない。
 
 ObservationError、CommunicationTransmission、ThreatSelection、ActionTarget、BirthConflict等も固有purposeを持つ。stable InformationIdやBirthRequest IDをtie-break keyへ使用し、乱数key自体をcollection indexから作らない。
+
+## v0.15 phase dependency
+
+```text
+Plan intents from Perception
+  -> Targeted Action Phase
+  -> Outcome / Interrupt / bounded re-evaluation
+  -> Movement Phase
+  -> Rest
+  -> remaining Reality and Event work
+```
+
+Targeted Action Phaseはひとまとまりのphase contractであり、Attack / Communication / Reproductionの内部順序をrunnerのswitch順やcollection順で暗黙決定してはならない。その判断が必要な実装箇所はunresolvedとして保留する。
 
 ## v0 project boundary
 

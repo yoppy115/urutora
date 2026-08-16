@@ -18,18 +18,42 @@
 5. Action Candidate生成
 6. Utility評価
 7. ActionIntent生成
-8. Intent競合解決
-9. Reality反映
-10. Actionによる追加行動判定
-11. 成功NPCについて3〜9をMicro Roundとして反復
-12. Event確定
-13. Concept Exposure
-14. Vitality / Aging / Lifecycle更新
-15. Birth Queue解決
-16. Death処理
-17. 翌日へ
+8. Targeted Action Phase
+9. Interrupt / Reaction / 必要な再判断
+10. Movement Phase
+11. Rest
+12. Reality / Event処理
+13. Actionによる追加Micro Round判定
+14. 成功NPCについて3〜12を反復
+15. Concept Exposure
+16. Vitality / Aging / Lifecycle更新
+17. Birth Queue解決
+18. Death cleanup
+19. 翌日へ
 
 Observationは原則として日初に一度だけ行い、Micro Roundごとに周囲を完全再観測しない。ただし攻撃を受けた、攻撃が失敗した、交流で情報を受信した、追撃された、対象が死亡した等、本人が直接経験したActionOutcomeは即時にPerceptionへ反映できる。高Action個体が同日中に古い周辺情報で複数行動することは、許容する逸脱要因である。
+
+## v0.15 Micro Round phases
+
+Targeted Action PhaseはAttack、Communication、ReproductionをMove、Flee、Restより先にResolutionする。対象が移動する前に処理してTargetAbsentを減らすためである。
+
+Attack、Communication、Reproduction相互の固定優先順位は未決であり、列挙順や実装都合をBaseline化してはならない。具体順序を必要とする実装は保留する。
+
+Movement PhaseはMoveとFleeを扱い、その後にRestを扱う。各phaseの競合は既存のEffectiveActionとseed付きtie-break規則へ従う。
+
+## Interrupt and intent replacement
+
+Attackを受けたNPCは現在の未実行ActionIntentを破棄し、最新の自己State / Perceptionを使ってUtility AIを1回だけ再評価できる。得たActionは同Micro Roundの元Action枠を置き換え、追加Actionにはならない。同一Micro Roundで複数回AttackされてもAttack由来の再評価は最大1回である。
+
+Reproduction Rejectでは申込対象の未実行Intentを維持する。Acceptでは既存Intentを破棄し、同じAction枠を最大1回だけ再評価する。Rejectを無料の行動キャンセルとして利用できない。
+
+ReactionとIntent置換は追加Micro Round回数を消費せず、既存のReaction非再帰規則を維持する。
+
+## TargetAbsent outcome
+
+Perception上の位置を基準に選んだTargeted ActionのResolution時に、Targetがその位置・距離へ存在しなければTargetAbsent Outcomeを返す。行動者は対象PositionをUnknownまたは無効Confidenceとして即時更新し、次Decisionで同じ古いPositionを根拠に反復できないようにする。
+
+TargetAbsentは対象の死亡や正確な現在位置を自動開示しない。Attack命中/失敗、Communication成立/不成立、Reproduction成立/不成立、Pursuit等も、本人が直接経験したOutcomeとして同日中にPerceptionへ反映できる。
 
 ## Additional actions
 
@@ -86,5 +110,9 @@ Birth解決時点で空いている死亡Cellは利用可能。LandmarkとAlive 
 - Action競合は入力配列順を変えても同じ結果となる。
 - Dead NPCは同Tickの後続行動・Reactionへ参加しない。
 - Birth競合はqueue順を変えても同じ結果となる。
+- Targeted ActionをMove / Flee / Restより先に解決する。
+- Attack InterruptとReproduction Accept Interruptは各由来につき同一Micro Round最大1回で、Action枠を増やさない。
+- Reproduction Rejectは相手の未実行Intentを維持する。
+- TargetAbsent後に同じ古いPositionによるTargeted Actionを反復しない。
 - 同一Code、Config、RunSeedから同じEvent列を得る。
 - UI render頻度を変えてもSimulation結果は変化しない。

@@ -1,0 +1,64 @@
+# v0.15 Ecology Update
+
+**Status:** Baseline boundaries / v0.15 configurable defaults / explicitly unresolved mechanics
+
+## Purpose and evidence
+
+初回v0 Runでは、初期200個体が長期的に約30個体まで減少し、観測された死亡238件は全てCombat由来だった。Reproduction Attempt 24,408件に対してSuccessは68件、Attackの約97.45%、Communicationの約73.31%がResolution時TargetAbsentだった。同日中の古いPosition反復、Realityを必要とする繁殖候補、遅い世代交代、無制限に増えるHeld Informationも確認された。
+
+v0.15はTargeted Action、主観境界、世代時間、情報容量、HP/Damage scaleを修正し、Population・Combat・Reproductionの因果を再観測可能にする。Settlementは含めない。
+
+## Baseline changes
+
+- Attack、Communication、ReproductionをTargeted Action PhaseでMove、Flee、Restより先に解決する。
+- Attackを受けたNPCは未実行Intentを捨て、最新の自己State / Perceptionで同一Action枠を最大1回だけ再評価できる。
+- Reproduction Rejectは相手のIntentを維持し、Acceptだけが相手のIntentを捨てて最大1回再評価させる。
+- TargetAbsentは対象の既知PositionをUnknownまたは無効Confidenceへし、同じ古いPositionを根拠に反復させない。死亡や現在位置は自動開示しない。
+- Reproduction Candidateは対象の主観的Alive、距離1、Matureだけを使い、HP、Cooldown、実距離等はReality Resolutionで検証する。
+- Held Informationは同一Subject + Propertyにつき最大3件とする。
+- 自然寿命scaleを約3年へ短縮し、Vitalityをdata-drivenな滑らかなCubic interpolation curveへ変更する。
+- BaseMaxHPとDamageを旧v0の約0.5倍へ同時に再scaleする。
+
+## v0 to v0.15 defaults
+
+| Parameter | v0 | v0.15 |
+| --- | --- | --- |
+| BaseMaxHP center | about 100 | about 50 |
+| MatureAge | 12 years | 180 days |
+| ReproductionCooldown | 730 days | 90 days |
+| ReproductionNeedGain | +0.01/day | +0.04/day |
+| ThreatMemoryDuration | 365 days | 90 days |
+| InitialAge | 12–29 years | 180–700 days |
+| Natural lifespan target | about 50 years | about 3 years / 1095 ticks |
+| Vitality | linear recovery then linear decay | control-point cubic interpolation |
+| Damage base/coefficients | 8 / 1.8 / -0.8 | 4 / 0.9 / -0.4 |
+
+これらはv0.15 configurable defaultsであり、不変のゲーム思想ではない。1 Tick = 1日、365日 = 1年、InitialPopulation 200、64×64 Map、Hit Rate、ConceptMark、Rest等は変更しない。
+
+## Vitality curve shape baseline
+
+- 0〜0.5歳: 出生直後は比較的脆く、自然回復力が増加する。
+- 0.5〜1.0歳: 強い自然回復期。
+- 1.0〜1.5歳: 回復が徐々に弱まり、1.5歳付近で0へ近づく。
+- 1.5〜2.5歳: 弱い自然HP減衰期。
+- 2.5〜3.0歳: 弱減衰から強減衰へ滑らかに加速する。
+- 3.0歳以降: 強い自然HP減衰期。
+
+複数Age Control Point間を連続かつ滑らかにCubic interpolationし、一部年齢帯の調整が全生涯へ不要に波及しない構造にする。
+
+## Settlement boundary
+
+Settlement生成、所属、Affinity、回復・Rest・Aging・Reproduction Bonus、安全圏、帰巣、Settlement間敵対、Raid、State / Nationはv0.15対象外である。
+
+将来、個体→集落→社会→国家の基盤とし、強い生存・繁殖・社会利益によって結果的に所属が圧倒的に適応的になる方向性だけを維持する。強いSettlementが高密度、疾病、内部対立、資源、階層、競争等の新Difficultyを生むことを許容するが、具体仕様は確定しない。
+
+## Explicitly unresolved
+
+次は重要な未決事項であり、実装者が補完してはならない。
+
+1. 各Vitality Control Pointの具体的DailyVitalChange値。
+2. Subject + Propertyが3件を超えたときのHeld Information Eviction Rule。
+3. Attack、Communication、ReproductionのTargeted Action群内部における固定Resolution順。
+
+採用理由は [`ADR-0013`](../decisions/ADR-0013-targeted-actions-and-interrupts.md)、[`ADR-0014`](../decisions/ADR-0014-short-life-vitality-and-combat-scale.md)、[`ADR-0015`](../decisions/ADR-0015-bounded-held-information.md) を参照する。
+

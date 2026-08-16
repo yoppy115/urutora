@@ -17,6 +17,8 @@ Action関連の確率と競合優先にはEffectiveActionを使う。通常能�
 
 HP 0以下はResolution時点で即時Deadとなり、後続行動資格とCell占有を失う。Tick末Death phaseはEventとcollection cleanupを担う。BirthRequestは受胎時状態を固定し、Tick末に全Requestを順序非依存でbatch解決する。
 
+v0.15ではTargeted Action PhaseをMovement / Restより先に置き、Interruptによる再評価を既存Action枠内で上限付き実行する。詳細は [`ADR-0013`](ADR-0013-targeted-actions-and-interrupts.md) に従う。
+
 ## Consequences
 
 - 高Action個体は古い情報のまま複数行動でき、それを逸脱要因として許容する。

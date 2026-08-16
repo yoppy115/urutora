@@ -6,6 +6,8 @@
 
 通常Utility AIはMove、Rest、Communication、Attack、Flee、ReproductionからActionIntentを作る。Counterattack、Pursuit、Reproduction Accept / Rejectは別のReaction Utilityであり、Micro Round追加回数を消費せず、Reactionから同種Reactionを再帰させない。
 
+v0.15ではAttack、Communication、ReproductionをTargeted Action PhaseでMove、Flee、Restより先にResolutionする。Targeted Action内部の固定順序は未決である。
+
 ## Ranges and space
 
 距離はChebyshev距離。ObservationとFlee用Threat探索は3、Communicationは2、AttackとReproductionは1。NPCとLandmarkは通過できない。
@@ -23,6 +25,12 @@ Collision Attackでは移動をキャンセルする。対象が死亡しても�
 ## Rest
 
 Restは主観上、休息欲求を満たす行動である。v0 defaultではRest -4、Activity +1。HPを直接回復せず、自然回復はVitalityが担当する。位置等のRealityは変えない。
+
+初回Runで長く見えたが、v0.15ではRest Utility、Rest Need、Activity Needの仕様を変更しない。Settlement等の後続設計と合わせて再評価する。
+
+## TargetAbsent
+
+Attack、Communication、Reproduction等でTargetが既知Position / 距離に存在しなければTargetAbsent Outcomeを返す。行動者の対象Position情報をUnknownまたは無効Confidenceへし、同じ古い位置による反復を止める。対象の死亡や現在位置は開示しない。
 
 ## Communication
 
@@ -48,15 +56,17 @@ P(hit) = Clamp(
 
 Damage = max(
   1,
-  8 + 1.8 * EffectiveCombat_attacker - 0.8 * EffectiveCombat_defender)
+  4 + 0.9 * EffectiveCombat_attacker - 0.4 * EffectiveCombat_defender)
          * Random(0.9, 1.1)
 ```
 
-Reality ResolutionではEffectiveCombatを使う。Utility側では自身の正確なEffectiveCombatと、対象のPerceivedCombat / PerceivedHPから主観命中率、期待Damage、ThreatNeutralization、対象別 `U_attack` を計算する。定義は [`UTILITY_AI.md`](UTILITY_AI.md) を正本とし、現実結果と一致しなくてよい。
+v0.15はBaseMaxHP約50への変更に合わせ、DamageのbaseとCombat係数を旧v0の約0.5倍へ再scaleする。Random(0.9,1.1)とHit Rateは変更しない。
+
+Reality ResolutionではEffectiveCombatを使う。Utility側でもv0.15の新Damage係数を用いて、自身の正確なEffectiveCombatと対象のPerceivedCombat / PerceivedHPから主観命中率、期待Damage、ThreatNeutralization、対象別 `U_attack` を計算する。定義は [`UTILITY_AI.md`](UTILITY_AI.md) を正本とし、現実結果と一致しなくてよい。
 
 ## Counterattack
 
-攻撃を受けたNPCがAliveかつ攻撃者と距離1なら1回だけ反撃できる。`ReactionCombat = EffectiveCombat * 0.5` として通常Attack式を使う。CounterattackからCounterattackを発生させない。
+攻撃を受けたNPCがAliveかつ攻撃者と距離1なら1回だけ反撃できる。`ReactionCombat = EffectiveCombat * 0.5` としてv0.15の新Damage式を使う。CounterattackからCounterattackを発生させない。
 
 ## Flee and Pursuit
 

@@ -1,46 +1,50 @@
 # Lifecycle, Vitality, and Aging
 
-**Status:** Baseline boundaries / v0 default and configurable mechanics
+**Status:** Baseline curve shape / v0.15 configurable time scale / Unresolved control-point values
 
 ## Baseline
 
-繁殖と世代交代のため寿命と自然死可能性を必須とし、Lifecycle / Agingが年齢、自然回復、老化、死亡を所有する。RestはHP回復を所有しない。
+繁殖と世代交代のため寿命と自然死可能性を必須とし、Lifecycle / Agingが年齢、自然回復、自然減衰、死亡を所有する。RestはHP回復を所有しない。
 
-v0では自然回復と老化を、AgingStartで0を通る連続的な `DailyVitalChange` として扱う。この具体曲線と数値はv0 defaultであり、上位の不変思想ではない。
+v0.15は約3年、約1095 tickの自然寿命scaleを目標にする。これは現実の人間寿命の再現ではなく、短いSimulationで世代交代と遺伝分布変化を観測するためのconfigurable defaultである。
 
-## Before AgingStart
+## Superseded v0 mechanism
 
-```text
-Age < AgingStartAge:
-DailyVitalChange = HealAtBirth * (1 - Age / AgingStartAge)
-```
+旧v0の「出生時から30歳まで線形に回復を減らし、その後線形に老化Damageを増やす」単純モデルと、AgingStartAge 30歳、HealAtBirth 0.10、AgingSlope 3.75e-6等のdefaultはv0.15で廃止する。判断履歴は [`ADR-0009`](../decisions/ADR-0009-continuous-vitality-curve.md) と、それを置き換える [`ADR-0014`](../decisions/ADR-0014-short-life-vitality-and-combat-scale.md) に残す。
 
-v0 defaultはAgingStartAge 30歳、HealAtBirth +0.10 HP/day。出生時に最大回復し、年齢とともに線形低下して30歳で0となる。CurrentHPはEffectiveMaxHPを超えない。
+## v0.15 data-driven curve
 
-## At and after AgingStart
+DailyVitalChangeを単一の全生涯3次多項式へ固定しない。複数のAge Control Pointを持ち、隣接区間を連続かつ滑らかなCubic interpolationで接続可能なdata-driven curveとする。一部年齢帯の調整を他の年齢帯へ不要に波及させない。
 
-```text
-Age >= AgingStartAge:
-DailyVitalChange = -AgingSlope * (AgeDays - AgingStartDays)
-```
+確定する曲線形状は次の通り。
 
-老化後は通常自然回復を加算せず、日次減少量が年齢とともに線形増加する。v0参考値は `AgingSlope ~= 3.75e-6 HP/day^2`。BaseMaxHP約100の無傷個体が、老化だけでも概ね50歳前後で自然死し得る程度を目標とする。
+| Age | Shape baseline |
+| --- | --- |
+| 0〜0.5歳 | 出生直後は比較的脆く、年齢とともに自然回復力が増す |
+| 0.5〜1.0歳 | 強い自然回復期 |
+| 1.0〜1.5歳 | 回復が徐々に弱まり、1.5歳付近で0へ近づく |
+| 1.5〜2.5歳 | 弱い自然HP減衰期 |
+| 2.5〜3.0歳 | 弱減衰から強減衰へ滑らかに加速する遷移期 |
+| 3.0歳以降 | 強い自然HP減衰期 |
+
+CurrentHPはEffectiveMaxHPを超えない。生存MarkはBaseMaxHPや曲線を変更せずEffectiveMaxHPだけを1.2倍するため、結果として寿命へ影響し得る。
 
 ## Lifecycle defaults
 
-- MatureAge: 12歳。
-- AgingStartAge: 30歳。
-- 想定自然寿命: 概ね50歳前後。
-- ReproductionCooldown: 730日。
+- MatureAge: 180日。
+- ReproductionCooldown: 90日。
+- Natural lifespan target: 約3年前後。
+- InitialAge: 180〜700日。
+- Initial CurrentHP: EffectiveMaxHP。
 
-固定50歳死亡ではない。BaseMaxHP、ConceptMark、Combat Damage、自然回復、老化によって死亡年齢は変化する。生存MarkのEffectiveMaxHP ×1.2はAgingSlope自体を変えないため、結果として長寿になり得る。
+すべてv0.15 configurable defaultで、固定1095日死亡ではない。実際の死亡日はBaseMaxHP、ConceptMark、Combat Damage、Vitality Curve等で変化する。
 
-HealAtBirth、AgingSlope、AgingStartAge、MatureAge、CooldownはConfig化する。
+## Explicitly unresolved
 
-## Tick boundary and tests
+各Control Pointの具体的DailyVitalChange値は未決である。`+0.xx HP/day`、`-0.xx HP/day` をCodex / Workが独自に決めてはならない。曲線形状だけがBaselineである。
 
-Vitality / AgingはConcept Exposure後、Birth Queue前に更新する。CurrentHPが0以下になった時点で即座にDeadとなり、Cell占有と同Tickの行動資格を失う。Tick末Death phaseはDeath Eventとcollection cleanupを確定する。
+## Death boundary and future tests
 
-30歳境界で符号が正→0→負へ連続的に変化すること、EffectiveMaxHP cap、老化だけでも最終的に死亡可能なこと、Deadが後続Micro Roundへ参加しないこと、同seed・同Configの再現をheadless testで検証する。
+CurrentHPが0以下になった時点で即座にDeadとなり、Cell占有と同Tickの行動資格を失う。Tick末Death phaseはDeath Eventとcollection cleanupを確定する。
 
-採用理由は [`ADR-0009`](../decisions/ADR-0009-continuous-vitality-curve.md) を参照する。
+Control Point値が確定するまで、具体的な自然寿命・DailyVitalChange出力を固定する実装テストは作れない。現段階ではcurve schemaが複数Control Pointと滑らかな補間を表現できること、未確定値をdefaultとして捏造しないことを文書上の実装gateとする。

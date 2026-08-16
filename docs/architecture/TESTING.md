@@ -42,7 +42,7 @@
 - MutationとBirthLocationがseedで再現可能。
 - Birth位置競合と空きCellなしの失敗が規則通り解決される。
 - ConceptMarkがBase遺伝値を書き換えない。
-- VitalityがAgingStartで正→0→負へ連続し、老化だけでも最終的に死亡できる。
+- Vitality curve schemaが確定Life Phase形状と滑らかなcontrol-point接続を表現できる。具体DailyVitalChange値と自然死亡時期は仕様確定まで固定しない。
 - Reproduction Reject時にReproduction NeedとCooldownを変えない。
 - CurrentHP 0以下のNPCが後続Micro RoundやReactionへ参加しない。
 - 死亡Cellを後続Micro RoundとBirth解決で利用できる。
@@ -53,5 +53,18 @@
 - 同じCode Version、Config、RunSeedから同じSimulation Event列を得る。
 - render頻度、frame rate、Event Log表示有無を変えてもEvent列が変わらない。
 - 無関係なpurposeの乱数利用追加が、既存purposeのstreamをずらさない。
+
+### v0.15 ecology update
+
+- Targeted ActionをMove / Flee / Restより先に解決する。
+- AttackされたNPCのIntent再評価は同一Micro Round最大1回で、複数Attackでも増えない。
+- Reproduction Rejectは相手の既存Intentを維持し、Acceptは最大1回だけ置換する。
+- TargetAbsent後、同じ古いPositionを使うTargeted Actionを反復しない。
+- Reproduction Candidateが対象RealityのCooldown / HPを読まず、ResolutionがHP / Cooldown / Distanceを検証する。
+- Held InformationはSubject + Propertyごとに3件を超えない。ただしEviction結果は仕様確定まで固定しない。
+- MatureAge 180日、ReproductionCooldown 90日、ThreatMemoryDuration 90日、ReproductionNeedGain +0.04/dayをConfig defaultとして検証する。
+- BaseMaxHP約50 scaleと新Damage係数 `4 + 0.9*AttackCombat - 0.4*DefenseCombat`、Random(0.9,1.1)を検証する。
+- Hit Rate、Counterattack構造、Concept Exposure / Mark値がv0.15で変化していないことを回帰検証する。
+- InitialAgeが180〜700日のConfig範囲からseed付き生成される。
 
 具体的なtest framework、fixture形式、統計的試験のsample数は実装時に決める。

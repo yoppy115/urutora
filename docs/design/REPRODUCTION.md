@@ -2,14 +2,33 @@
 
 **Status:** Baseline boundaries / v0 default and configurable mechanics
 
-## Purpose and candidate boundary
+## Purpose and subjective candidate boundary
 
-繁殖は人口増加装置ではなく、子孫を残した性質が次世代へ伝わる淘汰圧である。v0は性別を持たず、距離1以内で次をすべて満たす相手だけを候補にする。
+繁殖は人口増加装置ではなく、子孫を残した性質が次世代へ伝わる淘汰圧である。v0.15も性別を持たない。
+
+Decision / Candidate生成は対象についてPerception上の情報だけを使う。次を満たすと思っている相手は候補になり得る。
+
+- Perception上Alive。
+- Perception上距離1。
+- Perception上Mature。
+
+相手のReality上のHP、Cooldown、実距離を候補生成で参照しない。
+
+行動者自身については正確な自己Stateを使い、既存のAlive、Mature、HP 50%以上、Cooldown 0、ReproductionNeed 4以上をCandidate前提にできる。主観境界の変更対象は相手側情報である。
+
+Reality Resolutionは次を権威的に検証する。
 
 - 両者Aliveかつ成熟済み。
+- 現在距離1。
 - 両者CurrentHPが各自のEffectiveMaxHPの50%以上。
 - 両者ReproductionCooldownが0。
 - 行動側ReproductionNeedが4以上。
+
+Reality条件を満たさない場合、行動者は「現在はReproductionが成立しなかった」というOutcomeを得る。Cooldown残日数、対象の正確なHP、死亡、現在位置等、直接知り得ない内部理由を自動開示しない。位置不成立にはTargetAbsent規則を適用する。
+
+## Perceived life stage
+
+直接Observation等から対象を最低限Child / Matureとして主観認識できる。Candidate生成に正確なAgeDaysは不要である。Old等の追加LifeStage分類は必要になるまでDraftとする。
 
 ## Acceptance reaction
 
@@ -22,11 +41,13 @@ U_accept = Need_reproduction
 U_reject = 0
 ```
 
-成功時は両者のReproduction Needを6減らし、両者にCooldownを開始し、即時生成せずBirthQueueへ追加する。Cooldownのv0 defaultは730日。数値はConfig化する。
+成功時は両者のReproduction Needを6減らし、両者にCooldownを開始し、即時生成せずBirthQueueへ追加する。Cooldownのv0.15 defaultは90日。数値はConfig化する。
 
 行動側の `U_reproduce = P + 0.50*A - 0.40*S - 0.20*R` は [`UTILITY_AI.md`](UTILITY_AI.md) に定義する。複数の有効対象がある場合はseed付きランダムで選び、相手が受諾しそうかをRealityから先読みしない。
 
 Reproduction Need -6とCooldown開始はSuccess時だけ。Reject時にはReproduction NeedとCooldownを変えない。ただしAttemptは通常能動Actionなので、Rejectを含む失敗でも行動側にActivity -2、Rest +0.5を適用する。Accept / Reject Reactionには適用しない。
+
+Rejectでは対象の既存未実行Intentを維持する。Acceptでは対象のIntentを破棄し、最新の自己State / PerceptionでUtility AIを同一Micro Round最大1回再評価して同じAction枠を置き換える。追加Actionは得ない。
 
 ## Birth queue
 
@@ -67,6 +88,6 @@ ConceptMarkによるEffective補正はBase遺伝値を書き換えず、子へ�
 
 ## Tests
 
-非遺伝情報が子へ移らないこと、各項目の独立blend、Mutation再現性とClamp、MarkがBase値を変更しないこと、Reject時のNeed/Cooldown不変、Birth位置競合のqueue順非依存と失敗時コスト維持をheadless testで検証する。
+非遺伝情報が子へ移らないこと、各項目の独立blend、Mutation再現性とClamp、MarkがBase値を変更しないこと、Candidateが対象RealityのHP/Cooldownを読まないこと、Reality precondition検証、Reject時のIntentとNeed/Cooldown不変、Accept時最大1回のIntent置換、Birth位置競合のqueue順非依存と失敗時コスト維持をheadless testで検証する。
 
 採用理由は [`ADR-0005`](../decisions/ADR-0005-heritable-genotype-scope.md) を参照する。

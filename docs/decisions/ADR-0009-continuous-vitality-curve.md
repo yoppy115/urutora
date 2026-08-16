@@ -1,6 +1,6 @@
 # ADR-0009: v0 uses a continuous vitality curve
 
-- **Status:** Accepted
+- **Status:** Superseded by ADR-0014
 - **Date:** 2026-08-16
 
 ## Context
@@ -17,3 +17,6 @@ v0はAgingStartまで線形に0へ減る自然回復と、その後線形に絶�
 - ConceptMarkはEffectiveMaxHPを変えて寿命へ間接作用できるが、AgingSlopeやBaseMaxHPを書き換えない。
 - 曲線、HP cap、最終的な自然死可能性をheadless testする。
 
+## Supersession
+
+初回Run後、約50年scaleが進化観測に遅すぎると判断した。v0.15では約3年scaleのdata-driven cubic curveへ置き換える。履歴として本ADRを残し、現行仕様には [`ADR-0014`](ADR-0014-short-life-vitality-and-combat-scale.md) を適用する。

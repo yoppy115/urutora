@@ -43,6 +43,22 @@ Decision DebugとWorld Eventは概念的に分離する。Desktop AppのEvent Lo
 - Action Eventは通常ActionかReactionか、Attempt / Success / Failure、target、Utility内訳参照、ActionOutcomeを区別できる。
 - DeathはHP 0以下になったResolution時点を発生tickとして記録し、tick末cleanup時点と混同しない。
 - BirthRequest、希望Cell、競合tie-break、再抽選、BirthFailureを同一のstable request IDで追跡できる。
+- TargetAbsent、Position invalidation、Interrupt理由、Intent replacement、再評価回数を追跡可能にする。
+- Reproduction FailureはReject、Reality precondition failure、TargetAbsent等を機械可読に区別する。ただしNPC向けOutcomeへ非公開precondition値を露出しない。
+
+## v0.15 required run metrics
+
+v0.15 Runでは少なくとも次を集計可能にする。
+
+- Population: 日/年ごとの人口、最低人口、最終人口。
+- Death: Combat、Vitality/Aging、その他、平均死亡年齢。
+- Reproduction: Attempt、Success、Reject、Reality precondition failure、Failure理由別件数。
+- Targeted Action: Attack / Communication / ReproductionのattemptとTargetAbsent。
+- Combat: Collision、Explicit Attack、Counterattack、Pursuit Attack、平均Damage。
+- Perception: TargetAbsentによるPosition invalidation、Held Information総数、NPCあたり平均/最大。
+- Concept: Exposure、ConceptMark取得数。
+
+目的は人口維持値の調整だけでなく、Population、Combat、Reproductionを生む因果を比較可能にすることである。
 
 ## Draft mechanics
 

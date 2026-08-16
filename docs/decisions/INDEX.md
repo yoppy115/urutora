@@ -14,10 +14,13 @@ ADRは、重要で後戻りしづらい判断について「なぜそうした�
 | [`ADR-0006`](ADR-0006-llm-outside-simulation-core.md) | Accepted | LLMを権威的Simulation Coreの外側に置く |
 | [`ADR-0007`](ADR-0007-v0-time-and-micro-rounds.md) | Accepted | 日次tickと上限付きMicro Roundを採用する |
 | [`ADR-0008`](ADR-0008-move-collision-combat.md) | Accepted | NPC占有CellへのMoveをCollision Attackへ変換する |
-| [`ADR-0009`](ADR-0009-continuous-vitality-curve.md) | Accepted | v0の自然回復と老化を連続Vitality曲線で扱う |
+| [`ADR-0009`](ADR-0009-continuous-vitality-curve.md) | Superseded | 旧v0の線形回復・老化曲線。ADR-0014が置換 |
 | [`ADR-0010`](ADR-0010-csharp-core-and-observation-app.md) | Accepted | C# Core、Desktop App、headless testsを分離する |
 | [`ADR-0011`](ADR-0011-partitioned-deterministic-rng.md) | Accepted | 乱数streamを決定論的な用途別keyで分割する |
 | [`ADR-0012`](ADR-0012-concept-landmarks-and-selection.md) | Accepted | LandmarkがMarkを介して淘汰を間接的に歪める |
+| [`ADR-0013`](ADR-0013-targeted-actions-and-interrupts.md) | Accepted | Targeted Action先行、上限付きInterrupt、TargetAbsent無効化 |
+| [`ADR-0014`](ADR-0014-short-life-vitality-and-combat-scale.md) | Accepted | 約3年のcubic VitalityとHP/Damage同時再scale |
+| [`ADR-0015`](ADR-0015-bounded-held-information.md) | Accepted | Held InformationをSubject + Propertyごとに3件へ制限。Evictionは未決 |
 
 ## Future decisions
 
@@ -26,6 +29,9 @@ ADRは、重要で後戻りしづらい判断について「なぜそうした�
 - 永続化形式とschema migration。
 - Desktop UI framework。
 - domain event配送方式とstate sliceの具体API。
+- Vitality Control Pointの具体的DailyVitalChange値。
+- Held Information Eviction Rule。
+- Targeted Action内部Resolution順。
 
 ## Workflow
 

@@ -40,9 +40,11 @@ Reality変更で既存情報を自動更新しない。古い情報を保持で�
 
 Realityの最新値による自動上書きを禁止する。
 
+v0.15では同一Subject + Propertyにつき最大3件だけHeld Informationとして保持できる。4件目以降のEviction Ruleは未決であり、最低Confidence、最古、複合score等のいずれも採用済みとみなさない。World Event LogはNPCの有限Memoryとは別で、長期保存できる。
+
 ## v0 direct observation
 
-最大Chebyshev距離は3。直接Observationで最低限、Subject EntityId、Position、Alive、CurrentHP estimate、Combat estimate、ConceptMark有無を得られる。Action、Communication、RiskPreference等の数値は直接取得しない。
+最大Chebyshev距離は3。直接Observationで最低限、Subject EntityId、Position、Alive、CurrentHP estimate、Combat estimate、ConceptMark有無、Perceived Life StageのChild / Matureを得られる。Action、Communication、RiskPreference、正確なAgeDays等の数値は直接取得しない。Old等の追加LifeStageはDraftである。
 
 Subject EntityIdの取り違えはなく、PositionとAliveはObservation時点で正確に取得する。CurrentHP、Combat等の数値は距離 `d in {1,2,3}` に応じて次の誤差を持つ。
 
@@ -74,13 +76,17 @@ Communication 0で係数0.50、10以上で0.80となり、伝聞を重ねるほ�
 
 Micro Round中にNPCが移動しても、他NPCのPosition認識は自動更新しない。Communication、Attack、Reproduction等は現在のPerceptionから候補を作り、対象がReality上ですでに距離外、死亡、不存在ならResolutionで失敗できる。そのOutcomeは本人へ即時反映できる。
 
+Targeted ActionのResolution時に対象が既知Position / 距離に存在しなければTargetAbsentとなる。行動者はそのTargetのPositionをUnknownまたは無効Confidenceへ即時変更し、次Decisionで同じ古いPositionを根拠に同一Targeted Actionを作れないようにする。TargetAbsentだけから対象の死亡や正確な現在位置を推論・自動開示しない。
+
+Attackされた、Attackが命中/失敗した、Communicationが成立/不成立だった、Reproductionが成立/不成立だった、Pursuitされた等の直接Outcomeも同日中に更新できる。ただしReproductionの非公開precondition値はOutcomeへ含めない。
+
 v0ではNPCは自身のCurrentHP、EffectiveMaxHP、Base/Effective能力、Needs、Ageを正確に把握してよい。他NPCについてはPerceptionを必須とする。
 
 ## Threat Memory
 
 Attack、Collision Attack、Pursuit Attackを直接受けたNPCは相手をPerceivedThreatとして記録する。これはPerception上の情報であり、明示的Attack Candidateは原則として距離1以内の既知Threatに対して生成する。
 
-期限を持てる構造とし、v0 defaultは365日。再度脅威行為を受けるたび更新し、期間はConfig化する。これにより空間競合→最初の暴力→Threat Memory→継続的敵対という因果を作る。
+期限を持てる構造とし、v0.15 defaultは90日。再度脅威行為を受けるたび更新し、期間はConfig化する。これにより空間競合→最初の暴力→Threat Memory→継続的敵対という因果を作る。
 
 直接Threat行為を受けるたびLastThreatTickを更新する。期限切れ後は明示的Attack/Flee Candidate対象から外すが、履歴ログまで削除する必要はない。Attackは距離1以内の各Threat、Fleeは距離3以内で最大 `R_threat` のPrimaryThreat、Pursuitは直前にFleeした対象だけを扱う。
 
@@ -98,6 +104,8 @@ Collision Attackの攻撃側はOutcomeから相手EntityId、相手Position、�
 - 数値変形とSubjectSwapは設定上限を超えず、未知Entityを生成しない。
 - Observation誤差は距離別上限を超えない。
 - Communication受信Confidenceはsource Confidenceを上回らない。
+- Held InformationはSubject + Propertyごとに3件を超えない。ただし未決のEviction結果をテストで固定しない。
+- TargetAbsent後は同じ古いPositionをTargeted Action根拠へ使えない。
 - 隠れたReality差はActionOutcomeだけを変え得る。
 
 採用理由は [`ADR-0002`](../decisions/ADR-0002-subjective-decision-boundary.md) を参照する。

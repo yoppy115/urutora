@@ -36,6 +36,9 @@
 - 遺伝にはBase能力、Simulationの実能力にはEffective能力を使い、ConceptMarkでBase値を変更しない。
 - HP 0以下のNPCは即時に行動不能・非占有とし、tick末cleanupまで行動させない。
 - Move/Birth等の競合結果を配列、queue、生成、collection列挙順で決めない。
+- v0.15ではTargeted ActionをMovement / Restより先に解決するが、Attack / Communication / Reproduction相互の順序を独自決定しない。
+- Vitality Control Point値とHeld Information Eviction Ruleは未決であり、仮defaultを実装・文書化しない。
+- Settlementはv0.15対象外で、将来方向性から具体Bonusや所属規則を発明しない。
 
 ## Change contract
 

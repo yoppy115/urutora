@@ -24,6 +24,8 @@ PerceivedActionCandidate -> ActionIntent -> Reality resolution -> ActionOutcome
 - v0の直接ObservationはEntityId、Position、Alive、HP/Combat推定、ConceptMarkだけを取得し、数値推定へ距離依存誤差を入れる。
 - Communicationはsource Confidenceへ受信者品質由来の減衰を掛け、Realityの最新値で主観履歴を自動上書きしない。
 - NPCは自己のCurrentHP、EffectiveMaxHP、Base/Effective能力、Needs、Ageを正確に把握してよい。
+- Reproduction Candidateは対象PerceptionのAlive / Position / Child-Matureだけを使い、対象RealityのHP / Cooldown / 実距離はResolutionで検証する。
+- TargetAbsentは対象Positionを無効化するが、対象の死亡や現在位置を自動開示しない。
 
 ## Reasons
 
@@ -39,6 +41,7 @@ PerceivedActionCandidate -> ActionIntent -> Reality resolution -> ActionOutcome
 - ActionIntentとActionOutcomeに安定した識別子が必要になる。
 - 古い主観情報のまま同日に複数行動することを許容する。
 - Action対象が移動・死亡していればReality Resolutionで失敗させ、その直接Outcomeだけを即時反映する。
+- NPC向けReproduction FailureへCooldown残日数等の非公開precondition値を含めない。
 
 ## Rejected alternatives
 
