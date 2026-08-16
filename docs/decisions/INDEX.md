@@ -6,7 +6,21 @@ ADRは、重要で後戻りしづらい判断について「なぜそうした�
 
 | ID | Status | Decision |
 | --- | --- | --- |
-| [`ADR-0001`](ADR-0001-utility-ai.md) | Accepted | Utility上位2〜3候補から重み付き確率選択する |
+| [`ADR-0001`](ADR-0001-utility-ai.md) | Accepted | Utility上位2〜3候補から、Utility由来の重みで確率選択する |
+| [`ADR-0002`](ADR-0002-subjective-decision-boundary.md) | Accepted | 主観的意思決定とRealityによる権威的解決を分離する |
+| [`ADR-0003`](ADR-0003-causal-world-lifecycle.md) | Accepted | 困難・適応・副作用の因果連鎖で世界を進行させる |
+| [`ADR-0004`](ADR-0004-dual-psalm-inheritance.md) | Accepted | 上位存在本人と詩篇を別系統で継承する |
+| [`ADR-0005`](ADR-0005-heritable-genotype-scope.md) | Accepted | 遺伝を基礎能力と正式採用済みUtility評価係数に限定する |
+| [`ADR-0006`](ADR-0006-llm-outside-simulation-core.md) | Accepted | LLMを権威的Simulation Coreの外側に置く |
+
+## Future decisions
+
+次は未決のため、まだAccepted ADRを作らない。
+
+- tick内snapshot、競合解決、atomic commit。
+- Utilityから非負の選択重みへの変換。
+- PRNGと名前付き乱数ストリーム。
+- 永続化形式とschema migration。
 
 ## Workflow
 

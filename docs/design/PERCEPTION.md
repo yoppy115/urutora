@@ -1,39 +1,67 @@
 # Perception
 
-**Status:** Baseline
+**Status:** Baseline constraints / Draft mechanics
 
-## Principle
+## Baseline: Reality and subjectivity
 
-Reality（世界の客観状態）とNPC Perception（NPCが知っていると考える主観状態）を、別のデータ層として扱う。
+Reality（世界の客観状態）とNPC Perception（NPCが知っている、または正しいと考える主観状態）を別のデータ層として扱う。
 
-NPCの判断はPerceptionだけを使い、隠されたRealityを直接参照しない。誤認・遅延・不完全な情報を導入する場合も、この境界内で表現する。
+NPCはRealityを直接知ることができない。意思決定はPerceptionだけを使い、隠されたRealityを参照しない。
 
-## Boundary
+## Baseline: sources of subjectivity
+
+主観には、少なくとも次の要素が影響し得る。
+
+- 観測
+- 記憶
+- 噂、伝聞、他者からの情報
+- 誤認
+- 過去経験
+- 関係
+- 文化的解釈
+
+同じ事実を、NPCごとに異なる意味として解釈できる。
+
+## Baseline: decision and resolution boundary
 
 ```text
 Reality
-  -> observation process
+  -> Observation
   -> NPC Perception
+  -> PerceivedActionCandidate
   -> Utility evaluation
-  -> selected action
-  -> Reality update
+  -> ActionIntent
+  -> Reality-side resolution
+  -> ActionOutcome
+  -> observable facts
+  -> NPC Perception update
 ```
 
-- RealityからPerceptionへの変換は明示的な処理にする。
-- Utility評価器はRealityの参照を受け取れないinterfaceにする。
-- 表示層へ内部数値を自動公開しない。プレイヤーが何を観測できるかは別途設計する。
-- デバッグ時の完全状態表示と、製品UIの情報公開は分ける。
+- Utility評価器へ渡せるのはPerception由来の情報だけとする。
+- NPCは「できると思う行動」を候補にできる。
+- Reality側はActionIntentを権威的に検証し、行動を失敗させてもよい。
+- 隠れたRealityを使って、意思決定前に候補を不自然に除外しない。
+- 失敗を含む結果は、観測可能な事実を経由して後のPerceptionへ反映する。
 
-## Not decided yet
+採用理由は [`ADR-0002`](../decisions/ADR-0002-subjective-decision-boundary.md) を参照する。
 
-- 視界、距離、記憶、噂、伝聞をどう表現するか。
+## Baseline: player information
+
+プレイヤーも通常はReality全知ではない。現在の表層状態を中心に観測し、真の原因、完全な内面、全履歴を掘り下げることを主目的にしない。詳細は [`PLAYER_OBSERVATION.md`](PLAYER_OBSERVATION.md) を参照する。
+
+## Draft mechanics
+
+- 視界、距離、記憶容量、忘却の表現。
 - 認識誤差と情報遅延の生成規則。
-- Perceptionの忘却、更新、矛盾解消。
+- 矛盾する記憶・噂の統合方法。
 - NPC間で情報が伝播する際の変形。
-- プレイヤーが得られる情報と、その不確実性の見せ方。
+- 文化的解釈を保持するデータ構造。
+- プレイヤーへ不確実性を見せる具体的UI。
 
-## Minimum tests
+## Minimum invariants
 
 - NPCが観測していないReality変更で、そのNPCのUtilityが変化しない。
 - 同じPerceptionとseedから同じ意思決定が得られる。
-- RealityオブジェクトをUtility評価器へ直接渡せない構造になっている。
+- RealityオブジェクトをUtility評価器へ直接渡せない。
+- 同じPerceptionなら、隠れたRealityの違いは選択前の候補順位を変えず、ActionOutcomeだけを変え得る。
+
