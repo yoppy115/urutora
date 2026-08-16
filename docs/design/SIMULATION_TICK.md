@@ -19,25 +19,27 @@
 6. Utility評価
 7. ActionIntent生成
 8. Targeted Action Phase
-9. Interrupt / Reaction / 必要な再判断
-10. Movement Phase
-11. Rest
-12. Reality / Event処理
-13. Actionによる追加Micro Round判定
-14. 成功NPCについて3〜12を反復
-15. Concept Exposure
-16. Vitality / Aging / Lifecycle更新
-17. Birth Queue解決
-18. Death cleanup
-19. 翌日へ
+   1. Attack Resolution → Outcome / Interrupt / 必要な再判断
+   2. Reproduction Resolution → Outcome / Interrupt / 必要な再判断
+   3. Communication Resolution → Outcome
+9. Movement Phase
+10. Rest
+11. Reality / Event処理
+12. Actionによる追加Micro Round判定
+13. 成功NPCについて3〜11を反復
+14. Concept Exposure
+15. Vitality / Aging / Lifecycle更新
+16. Birth Queue解決
+17. Death cleanup
+18. 翌日へ
 
 Observationは原則として日初に一度だけ行い、Micro Roundごとに周囲を完全再観測しない。ただし攻撃を受けた、攻撃が失敗した、交流で情報を受信した、追撃された、対象が死亡した等、本人が直接経験したActionOutcomeは即時にPerceptionへ反映できる。高Action個体が同日中に古い周辺情報で複数行動することは、許容する逸脱要因である。
 
 ## v0.15 Micro Round phases
 
-Targeted Action PhaseはAttack、Communication、ReproductionをMove、Flee、Restより先にResolutionする。対象が移動する前に処理してTargetAbsentを減らすためである。
+Targeted Action PhaseはAttack → Reproduction → Communicationの固定順で、Move、Flee、Restより先にResolutionする。AttackはHP、Alive、Intentを不可逆的に変え得るため最初、ReproductionはAccept時にIntentを置換し得るため次、情報・Perceptionを主に変えるCommunicationは最後とする。
 
-Attack、Communication、Reproduction相互の固定優先順位は未決であり、列挙順や実装都合をBaseline化してはならない。具体順序を必要とする実装は保留する。
+各後続phaseは先行phase完了後の最新RealityでIntentを再Validationする。Attackで死亡したNPCへのReproduction / Communicationは成立させない。Attack後にHP条件等が崩れたReproductionはFailure Outcome、Reproduction後にDead、距離外、不存在となったCommunicationは不成立とする。
 
 Movement PhaseはMoveとFleeを扱い、その後にRestを扱う。各phaseの競合は既存のEffectiveActionとseed付きtie-break規則へ従う。
 
@@ -48,6 +50,8 @@ Attackを受けたNPCは現在の未実行ActionIntentを破棄し、最新の�
 Reproduction Rejectでは申込対象の未実行Intentを維持する。Acceptでは既存Intentを破棄し、同じAction枠を最大1回だけ再評価する。Rejectを無料の行動キャンセルとして利用できない。
 
 ReactionとIntent置換は追加Micro Round回数を消費せず、既存のReaction非再帰規則を維持する。
+
+再抽選Intentは現在Micro Roundでまだ未処理の適切なphaseに限り実行できる。終了済みphaseへ時間を巻き戻さない。例えばAttack Phase中に再抽選されたAttackは同じAttack Phaseの先頭へ戻して実行せず、そのMicro Roundでは失効する。これによりInterrupt Attackの再帰連鎖を防ぐ。
 
 ## TargetAbsent outcome
 
@@ -111,7 +115,9 @@ Birth解決時点で空いている死亡Cellは利用可能。LandmarkとAlive 
 - Dead NPCは同Tickの後続行動・Reactionへ参加しない。
 - Birth競合はqueue順を変えても同じ結果となる。
 - Targeted ActionをMove / Flee / Restより先に解決する。
+- Targeted ActionはAttack → Reproduction → Communication順で解決し、後続phaseは更新後Realityを再Validationする。
 - Attack InterruptとReproduction Accept Interruptは各由来につき同一Micro Round最大1回で、Action枠を増やさない。
+- 再抽選Intentは終了済みphaseへ巻き戻さず、そのMicro Roundで適切な未処理phaseがなければ失効する。
 - Reproduction Rejectは相手の未実行Intentを維持する。
 - TargetAbsent後に同じ古いPositionによるTargeted Actionを反復しない。
 - 同一Code、Config、RunSeedから同じEvent列を得る。

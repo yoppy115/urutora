@@ -18,9 +18,9 @@ ADRは、重要で後戻りしづらい判断について「なぜそうした�
 | [`ADR-0010`](ADR-0010-csharp-core-and-observation-app.md) | Accepted | C# Core、Desktop App、headless testsを分離する |
 | [`ADR-0011`](ADR-0011-partitioned-deterministic-rng.md) | Accepted | 乱数streamを決定論的な用途別keyで分割する |
 | [`ADR-0012`](ADR-0012-concept-landmarks-and-selection.md) | Accepted | LandmarkがMarkを介して淘汰を間接的に歪める |
-| [`ADR-0013`](ADR-0013-targeted-actions-and-interrupts.md) | Accepted | Targeted Action先行、上限付きInterrupt、TargetAbsent無効化 |
-| [`ADR-0014`](ADR-0014-short-life-vitality-and-combat-scale.md) | Accepted | 約3年のcubic VitalityとHP/Damage同時再scale |
-| [`ADR-0015`](ADR-0015-bounded-held-information.md) | Accepted | Held InformationをSubject + Propertyごとに3件へ制限。Evictionは未決 |
+| [`ADR-0013`](ADR-0013-targeted-actions-and-interrupts.md) | Accepted | Attack→Reproduction→Communication、上限付きInterrupt、phase非巻戻し |
+| [`ADR-0014`](ADR-0014-short-life-vitality-and-combat-scale.md) | Accepted | 約3年のcubic Vitality、Config初期値制約、HP/Damage同時再scale |
+| [`ADR-0015`](ADR-0015-bounded-held-information.md) | Accepted | Held Informationを3件へ制限し、FIFO evictionと直接消滅確認purgeを採用 |
 
 ## Future decisions
 
@@ -29,9 +29,6 @@ ADRは、重要で後戻りしづらい判断について「なぜそうした�
 - 永続化形式とschema migration。
 - Desktop UI framework。
 - domain event配送方式とstate sliceの具体API。
-- Vitality Control Pointの具体的DailyVitalChange値。
-- Held Information Eviction Rule。
-- Targeted Action内部Resolution順。
 
 ## Workflow
 

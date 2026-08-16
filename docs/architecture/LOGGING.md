@@ -45,6 +45,9 @@ Decision DebugとWorld Eventは概念的に分離する。Desktop AppのEvent Lo
 - BirthRequest、希望Cell、競合tie-break、再抽選、BirthFailureを同一のstable request IDで追跡できる。
 - TargetAbsent、Position invalidation、Interrupt理由、Intent replacement、再評価回数を追跡可能にする。
 - Reproduction FailureはReject、Reality precondition failure、TargetAbsent等を機械可読に区別する。ただしNPC向けOutcomeへ非公開precondition値を露出しない。
+- Held InformationのFIFO evictionと、Subject消滅直接確認による全Property purgeを理由付きで診断可能にする。World Event / History Log削除とは分離する。
+- Targeted Action EventはAttack、Reproduction、Communicationのphase ordinalと、先行phase後の再Validation結果を保持できる。
+- Interrupt再抽選Intentが実行、未処理phase待ち、終了済みphaseのため失効のどれになったかを追跡できる。
 
 ## v0.15 required run metrics
 

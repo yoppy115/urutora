@@ -42,7 +42,7 @@
 - MutationとBirthLocationがseedで再現可能。
 - Birth位置競合と空きCellなしの失敗が規則通り解決される。
 - ConceptMarkがBase遺伝値を書き換えない。
-- Vitality curve schemaが確定Life Phase形状と滑らかなcontrol-point接続を表現できる。具体DailyVitalChange値と自然死亡時期は仕様確定まで固定しない。
+- Vitality curve schemaが確定Life Phase形状と滑らかなcontrol-point接続を表現できる。Config初期値は、Phaseごとの符号・強弱、曲線の連続性、BaseMaxHP約50、1.5歳以降は自然回復なし、3歳前後からの強減衰、および不連続な大量死を起こさないという制約を満たす。
 - Reproduction Reject時にReproduction NeedとCooldownを変えない。
 - CurrentHP 0以下のNPCが後続Micro RoundやReactionへ参加しない。
 - 死亡Cellを後続Micro RoundとBirth解決で利用できる。
@@ -61,10 +61,22 @@
 - Reproduction Rejectは相手の既存Intentを維持し、Acceptは最大1回だけ置換する。
 - TargetAbsent後、同じ古いPositionを使うTargeted Actionを反復しない。
 - Reproduction Candidateが対象RealityのCooldown / HPを読まず、ResolutionがHP / Cooldown / Distanceを検証する。
-- Held InformationはSubject + Propertyごとに3件を超えない。ただしEviction結果は仕様確定まで固定しない。
+- Held InformationはSubject + Propertyごとに3件を超えず、4件目で最古をFIFO削除する。
 - MatureAge 180日、ReproductionCooldown 90日、ThreatMemoryDuration 90日、ReproductionNeedGain +0.04/dayをConfig defaultとして検証する。
 - BaseMaxHP約50 scaleと新Damage係数 `4 + 0.9*AttackCombat - 0.4*DefenseCombat`、Random(0.9,1.1)を検証する。
 - Hit Rate、Counterattack構造、Concept Exposure / Mark値がv0.15で変化していないことを回帰検証する。
 - InitialAgeが180〜700日のConfig範囲からseed付き生成される。
+
+### v0.15 resolved patch
+
+- 4件目のHeld Information取得で最古記録を削除し、低Confidenceの新情報でもFIFO順を変えない。
+- Subject死亡を直接確認すると全Propertyを削除する。
+- TargetAbsentではPositionだけを無効化し、Subject全体を削除しない。
+- Communicationによる死亡伝聞だけではSubject全体を削除しない。
+- 同一Micro RoundのTargeted ActionをAttack → Reproduction → Communication順で解決する。
+- Attackで死亡したTargetへの後続Reproduction / Communicationを成立させない。
+- Attack後にHP条件が崩れたReproductionをReality Validationで失敗させる。
+- Interrupt再抽選Attackを終了済みAttack Phaseへ巻き戻して実行しない。
+- Vitality Configが0〜0.5歳の回復力上昇、0.5〜1歳の強回復、1〜1.5歳の回復低下、1.5〜2.5歳の弱減衰、2.5〜3歳の減衰加速、3歳以降の強減衰を満たす。
 
 具体的なtest framework、fixture形式、統計的試験のsample数は実装時に決める。

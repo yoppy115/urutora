@@ -26,6 +26,7 @@ PerceivedActionCandidate -> ActionIntent -> Reality resolution -> ActionOutcome
 - NPCは自己のCurrentHP、EffectiveMaxHP、Base/Effective能力、Needs、Ageを正確に把握してよい。
 - Reproduction Candidateは対象PerceptionのAlive / Position / Child-Matureだけを使い、対象RealityのHP / Cooldown / 実距離はResolutionで検証する。
 - TargetAbsentは対象Positionを無効化するが、対象の死亡や現在位置を自動開示しない。
+- Subject消滅を直接確認した場合はHeld Informationの全Propertyを削除するが、TargetAbsentや死亡伝聞は直接確認とみなさない。
 
 ## Reasons
 
@@ -42,6 +43,7 @@ PerceivedActionCandidate -> ActionIntent -> Reality resolution -> ActionOutcome
 - 古い主観情報のまま同日に複数行動することを許容する。
 - Action対象が移動・死亡していればReality Resolutionで失敗させ、その直接Outcomeだけを即時反映する。
 - NPC向けReproduction FailureへCooldown残日数等の非公開precondition値を含めない。
+- Perception更新はFIFO evictionとSubject purgeをWorld Event / History Log削除から分離する。
 
 ## Rejected alternatives
 

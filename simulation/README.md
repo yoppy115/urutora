@@ -31,19 +31,19 @@
 | Utility effects | Move/Rest/Communication/Attack/Flee/ReproductionのNeed係数、Threat Risk係数 |
 | Observation | 距離別error 5%/7.5%/10%、Confidence 1.00/0.90/0.80 |
 | Communication confidence | factor `0.50 + 0.03 * Clamp(EffectiveCommunication,0,10)` |
-| Targeted phase | Attack / Communication / ReproductionをMove / Flee / Restより先に解決。内部順はUnresolved |
+| Targeted phase | Attack → Reproduction → CommunicationをMove / Flee / Restより先に解決 |
 | Threat | memory 90 days |
 | Reproduction | MatureAge 180 days、Cooldown 90 days、Need gain +0.04/day、Need threshold 4、HP ratio 0.50 |
 | Mutation | chance 0.10、stddev 0.25 |
-| Vitality | 約3年scale、複数Age Control Point間のsmooth cubic curve。具体値Unresolved |
+| Vitality | 約3年scale、複数Age Control Point間のsmooth cubic curve。具体値は制約付きConfig調整 |
 | HP / Damage | BaseMaxHP center about 50、Damage `max(1, 4 + 0.9*A - 0.4*D) * Random(0.9,1.1)` |
 | InitialAge | 180–700 days |
-| Held Information | max 3 records per Subject + Property。Eviction Rule Unresolved |
+| Held Information | max 3 records per Subject + Property、FIFO eviction、直接消滅確認時にSubject purge |
 | Concept | exposure 1.0/0.5/0.25、threshold 100、effective multiplier 1.2 |
 
 Need増減、Utility Effect、Threat Risk、Observation誤差・Confidence、Communication Confidence、Communication変形、Combat、Pursuit、初期分布等の全defaultは各設計文書を正本とする。これらの数値はv0.15 configurableであり、主観境界、Base/Effective分離、即時Dead、TargetAbsent invalidation、順序非依存競合等のBaselineと混同しない。まだコード実装を行わないため、この変更では `default.json` を作らない。
 
-Vitality Control Point値、Held Information Eviction Rule、Targeted Action内部順序はConfig schema作成前に別途確定が必要で、実装者がdefaultを発明してはならない。
+Vitality Control Point値は確定Phase形状と連続性等の制約を満たす保守的なv0.15 Config初期値として設定し、Simulation Run後に再調整する。
 
 ## Run metadata
 

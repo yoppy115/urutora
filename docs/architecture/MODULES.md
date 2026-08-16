@@ -6,7 +6,7 @@
 
 | Module | Responsibility | Must not |
 | --- | --- | --- |
-| Simulation Runner | 日次phase、Targeted/Movement/Rest phase、Micro Roundを調整する | Targeted Action内部順を勝手に仕様化する |
+| Simulation Runner | 日次phase、Attack→Reproduction→Communication、Movement、Rest、Micro Roundを調整する | 終了済みphaseへ再抽選Intentを巻き戻す |
 | Reality Store | 客観状態を構成されたstate sliceとして保持する | NPC向け判断APIを直接提供する |
 | Observation | RealityとActionOutcomeから観測事実を生成する | Utilityを評価する |
 | Perception Store | NPCごとの有限な観測・伝聞履歴、Confidence、LifeStage、Threat Memory、Position invalidationを扱う | 未観測Realityを透過参照・最新値で自動上書きする |
@@ -49,8 +49,9 @@
 - 通常ActionとReactionを別contractにし、ReactionがAction回数や通常Need costを消費しないことを型またはdispatcherで守る。
 - EntityがDeadへ遷移したら後続Intent/Reaction eligibilityとGrid占有を即時無効化し、Event/collection cleanupはtick末へ遅延できる。
 - BirthRequestは受胎時Positionと遺伝入力をimmutableに保持し、batch resolverが希望Cell競合を順序非依存で再抽選する。
-- Held Information capacityはSubject + Propertyごとに3件だが、Eviction Rule確定までは具体選別を実装上の既成事実にしない。
+- Held Information capacityはSubject + Propertyごとに3件とし、4件目で最古をFIFO削除する。Confidence代表値選択と容量管理を分ける。
 - Reproduction Candidateには対象PerceptionのAlive / Position / LifeStageだけを渡し、対象RealityのHP / CooldownはResolution portの内側に閉じる。
+- Subject消滅の直接確認はPerception StoreへSubject全Property削除commandを発行する。TargetAbsentや死亡伝聞では発行しない。
 
 ## Open architecture work
 

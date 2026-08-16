@@ -13,11 +13,12 @@
 
 World Event Logはこの容量制限の対象外である。
 
-## Unresolved
+4件目を取得した場合は、Confidenceに関係なく最も先に取得した記録をFIFOで破棄する。ConfidenceはDecision代表値の選択にだけ使い、容量管理と情報評価を分ける。
 
-4件目以降のEviction Ruleは決めない。最低Confidence、最古、Confidence / Recency複合等を実装者が独自採用してはならない。
+Subjectの消滅を本人が直接ObservationまたはActionOutcomeで確認した場合、そのSubjectの全PropertyをHeld Informationから削除する。TargetAbsent、Position Unknown、死亡伝聞だけでは全削除しない。World Event / History Logは削除しない。
 
 ## Consequences
 
 - capacity不変条件は確定する。
-- どの記録が残るかを固定するテストと実装はEviction Rule確定まで保留する。
+- Eviction結果が単純な取得順で決まり、Confidence調整がMemory容量管理を変えない。
+- Subject消滅の直接確認と伝聞・不在を区別する必要がある。

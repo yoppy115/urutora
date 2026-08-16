@@ -1,6 +1,6 @@
 # v0.15 Ecology Update
 
-**Status:** Baseline boundaries / v0.15 configurable defaults / explicitly unresolved mechanics
+**Status:** Baseline boundaries / v0.15 configurable defaults
 
 ## Purpose and evidence
 
@@ -15,7 +15,7 @@ v0.15はTargeted Action、主観境界、世代時間、情報容量、HP/Damage
 - Reproduction Rejectは相手のIntentを維持し、Acceptだけが相手のIntentを捨てて最大1回再評価させる。
 - TargetAbsentは対象の既知PositionをUnknownまたは無効Confidenceへし、同じ古いPositionを根拠に反復させない。死亡や現在位置は自動開示しない。
 - Reproduction Candidateは対象の主観的Alive、距離1、Matureだけを使い、HP、Cooldown、実距離等はReality Resolutionで検証する。
-- Held Informationは同一Subject + Propertyにつき最大3件とする。
+- Held Informationは同一Subject + Propertyにつき最大3件とし、4件目取得時は最古の記録をFIFOで破棄する。
 - 自然寿命scaleを約3年へ短縮し、Vitalityをdata-drivenな滑らかなCubic interpolation curveへ変更する。
 - BaseMaxHPとDamageを旧v0の約0.5倍へ同時に再scaleする。
 
@@ -52,13 +52,12 @@ Settlement生成、所属、Affinity、回復・Rest・Aging・Reproduction Bonu
 
 将来、個体→集落→社会→国家の基盤とし、強い生存・繁殖・社会利益によって結果的に所属が圧倒的に適応的になる方向性だけを維持する。強いSettlementが高密度、疾病、内部対立、資源、階層、競争等の新Difficultyを生むことを許容するが、具体仕様は確定しない。
 
-## Explicitly unresolved
+## Resolved implementation rules
 
-次は重要な未決事項であり、実装者が補完してはならない。
-
-1. 各Vitality Control Pointの具体的DailyVitalChange値。
-2. Subject + Propertyが3件を超えたときのHeld Information Eviction Rule。
-3. Attack、Communication、ReproductionのTargeted Action群内部における固定Resolution順。
+- Vitality Control Pointの具体的DailyVitalChange値はv0.15 configurable defaultとし、Codexが確定済みPhase形状を守る保守的な初期値をConfigへ設定してよい。
+- Held Informationの4件目取得時はConfidenceに関係なく最古記録をFIFOで破棄する。
+- Subject消滅を直接確認した場合は、そのSubjectのHeld Informationを全削除する。TargetAbsentや死亡伝聞だけでは全削除しない。
+- Targeted Action内部順はAttack → Reproduction → Communicationとする。各後続phaseは先行phase後のRealityで再Validationする。
+- Interruptで再抽選されたIntentは、現在Micro Roundでまだ未処理の適切なphaseだけで実行できる。終了済みphaseへ巻き戻さず、実行機会がなければ失効する。
 
 採用理由は [`ADR-0013`](../decisions/ADR-0013-targeted-actions-and-interrupts.md)、[`ADR-0014`](../decisions/ADR-0014-short-life-vitality-and-combat-scale.md)、[`ADR-0015`](../decisions/ADR-0015-bounded-held-information.md) を参照する。
-

@@ -40,7 +40,13 @@ Reality変更で既存情報を自動更新しない。古い情報を保持で�
 
 Realityの最新値による自動上書きを禁止する。
 
-v0.15では同一Subject + Propertyにつき最大3件だけHeld Informationとして保持できる。4件目以降のEviction Ruleは未決であり、最低Confidence、最古、複合score等のいずれも採用済みとみなさない。World Event LogはNPCの有限Memoryとは別で、長期保存できる。
+v0.15では同一Subject + Propertyにつき最大3件だけHeld Informationとして保持できる。4件目を取得した場合は、最も先に取得した記録をFIFOで破棄し、残り2件と新記録を保持する。Confidenceは代表値選択に使うがEvictionには使わず、Memory容量管理と情報評価を分離する。World Event LogはNPCの有限Memoryとは別で、長期保存できる。
+
+## Directly confirmed subject disappearance
+
+NPCがSubjectの死亡を直接Observationした、自身のActionOutcomeで死亡を確認した等、本人がSubject消滅を直接経験した場合、そのSubjectに属するPosition、HP、Combat、LifeStage、ConceptMark、その他PropertyのHeld Informationを全削除する。
+
+TargetAbsent、Position Unknown、Communicationによる死亡伝聞だけでは直接確認とみなさず、Subject全体は削除しない。TargetAbsentはPositionだけを無効化する。World Event LogとHistory Logは削除しない。
 
 ## v0 direct observation
 
@@ -104,7 +110,8 @@ Collision Attackの攻撃側はOutcomeから相手EntityId、相手Position、�
 - 数値変形とSubjectSwapは設定上限を超えず、未知Entityを生成しない。
 - Observation誤差は距離別上限を超えない。
 - Communication受信Confidenceはsource Confidenceを上回らない。
-- Held InformationはSubject + Propertyごとに3件を超えない。ただし未決のEviction結果をテストで固定しない。
+- Held InformationはSubject + Propertyごとに3件を超えず、4件目ではConfidenceに関係なく最古記録をFIFOで破棄する。
+- Subject消滅を直接確認した場合だけ全Propertyを削除し、TargetAbsentや死亡伝聞だけでは全削除しない。
 - TargetAbsent後は同じ古いPositionをTargeted Action根拠へ使えない。
 - 隠れたReality差はActionOutcomeだけを変え得る。
 

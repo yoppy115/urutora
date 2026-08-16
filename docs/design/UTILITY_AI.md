@@ -136,6 +136,8 @@ Pursuit Reactionの `U_attack` は本節の対象別 `U_attack(t)` を参照す�
 
 Reproduction Candidateの対象条件は主観的Alive、距離1、Matureだけとし、対象RealityのHP、Cooldown、実距離をDecisionへ渡さない。成立条件はResolutionが検証する。
 
+Attack InterruptまたはReproduction Acceptで再評価した場合も同じUtility規則を使うが、新Intentは同一Micro Roundの終了済みphaseへ巻き戻して実行しない。再評価はAction枠の置換であり、追加Actionではない。
+
 ```text
 weight_i = exp((utility_i - maxUtility) / temperature)
 ```

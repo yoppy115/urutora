@@ -6,12 +6,12 @@
 
 ## Current status
 
-- フェーズ: 初回Runを反映したv0.15 Ecology Update仕様／未決3項目を除き文書化
+- フェーズ: 初回Runを反映したv0.15 Ecology Update仕様確定
 - 実装: 初回v0 Run実施済み。v0.15は文書更新段階で、今回はコード未変更
 - 実装基盤: C# / .NET。`Simulation.Core`、`Simulation.App`、`Simulation.Core.Tests` を分離する
 - 外部依存: なし
 
-次段階では、v0.15の未決事項を企画側で確定してから、同一seedで再現可能なheadless Coreと観測用Desktop Applicationへ反映します。UI frameworkは未決ですが、GUIはRealityの権威を持ちません。
+次段階では、確定したv0.15を同一seedで再現可能なheadless Coreと観測用Desktop Applicationへ反映します。UI frameworkは未決ですが、GUIはRealityの権威を持ちません。
 
 ## Source of truth
 
@@ -49,7 +49,7 @@
 
 ## Next decisions
 
-1. Vitality Control Point値、Held Information Eviction、Targeted Action内部順を企画側で決める。
-2. v0.15文書をC#型、interface、Config schemaへ反映する。
+1. v0.15文書をC#型、interface、Config schemaへ反映する。
+2. 保守的なVitality Control Point初期値をConfigへ設定する。
 3. 追加headless testsと必須Run metricsを実装する。
 4. InitialPopulation 200から再実行し、生態系の因果を比較する。

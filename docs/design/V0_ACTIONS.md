@@ -6,7 +6,11 @@
 
 通常Utility AIはMove、Rest、Communication、Attack、Flee、ReproductionからActionIntentを作る。Counterattack、Pursuit、Reproduction Accept / Rejectは別のReaction Utilityであり、Micro Round追加回数を消費せず、Reactionから同種Reactionを再帰させない。
 
-v0.15ではAttack、Communication、ReproductionをTargeted Action PhaseでMove、Flee、Restより先にResolutionする。Targeted Action内部の固定順序は未決である。
+v0.15ではTargeted ActionをAttack → Reproduction → Communicationの順で、Move、Flee、Restより先にResolutionする。後続phaseは先行phase後のRealityで再Validationする。
+
+Attack Phaseは生成済みAttack Intentを処理し、Dead、Intent Interrupt等を即時反映する。Reproduction PhaseはAttack後のAlive、距離、HP等を再検証する。Communication Phaseは両phase後のAlive、距離、存在を再検証し、成立した場合だけ双方向交換する。
+
+Interruptで再抽選されたIntentは終了済みphaseへ巻き戻さない。現在Micro Roundでまだ未処理の適切なphaseがなければ失効する。
 
 ## Ranges and space
 

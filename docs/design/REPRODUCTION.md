@@ -26,6 +26,8 @@ Reality Resolutionは次を権威的に検証する。
 
 Reality条件を満たさない場合、行動者は「現在はReproductionが成立しなかった」というOutcomeを得る。Cooldown残日数、対象の正確なHP、死亡、現在位置等、直接知り得ない内部理由を自動開示しない。位置不成立にはTargetAbsent規則を適用する。
 
+Reproduction PhaseはAttack Phase後、Communication Phase前に処理する。全Reproduction IntentをAttack後の最新Realityで再Validationし、AttackによるTarget死亡、HP条件不成立、距離等のprecondition failureをFailure Outcomeにする。
+
 ## Perceived life stage
 
 直接Observation等から対象を最低限Child / Matureとして主観認識できる。Candidate生成に正確なAgeDaysは不要である。Old等の追加LifeStage分類は必要になるまでDraftとする。
@@ -48,6 +50,8 @@ U_reject = 0
 Reproduction Need -6とCooldown開始はSuccess時だけ。Reject時にはReproduction NeedとCooldownを変えない。ただしAttemptは通常能動Actionなので、Rejectを含む失敗でも行動側にActivity -2、Rest +0.5を適用する。Accept / Reject Reactionには適用しない。
 
 Rejectでは対象の既存未実行Intentを維持する。Acceptでは対象のIntentを破棄し、最新の自己State / PerceptionでUtility AIを同一Micro Round最大1回再評価して同じAction枠を置き換える。追加Actionは得ない。
+
+再抽選Intentは終了済みphaseへ巻き戻さない。Accept後の新Intentが現在Micro Roundの未処理phaseで実行可能な場合だけ実行し、該当Actionのphaseが終了済みならそのMicro Roundでは失効する。
 
 ## Birth queue
 

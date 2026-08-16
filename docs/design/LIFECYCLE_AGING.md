@@ -1,6 +1,6 @@
 # Lifecycle, Vitality, and Aging
 
-**Status:** Baseline curve shape / v0.15 configurable time scale / Unresolved control-point values
+**Status:** Baseline curve shape / v0.15 configurable control-point defaults
 
 ## Baseline
 
@@ -39,12 +39,22 @@ CurrentHPはEffectiveMaxHPを超えない。生存MarkはBaseMaxHPや曲線を�
 
 すべてv0.15 configurable defaultで、固定1095日死亡ではない。実際の死亡日はBaseMaxHP、ConceptMark、Combat Damage、Vitality Curve等で変化する。
 
-## Explicitly unresolved
+## Configurable control-point values
 
-各Control Pointの具体的DailyVitalChange値は未決である。`+0.xx HP/day`、`-0.xx HP/day` をCodex / Workが独自に決めてはならない。曲線形状だけがBaselineである。
+各Control Pointの具体的DailyVitalChange値はゲーム思想上の固定値ではなく、v0.15実験用Configとする。Codexは保守的な初期値をConfigへ設定してよいが、次の制約をすべて守る。
+
+- curveを連続的にする。
+- 確定済みLife Phaseの符号と強弱関係を崩さない。
+- BaseMaxHP約50を前提にする。
+- 若年個体が軽傷から回復可能にする。
+- 1.5歳以降は自然回復させない。
+- 3歳前後から自然死を急速に増やす。
+- 特定年齢で不連続な大量死を生じさせない。
+
+初期値はSimulation Run後に再調整する。
 
 ## Death boundary and future tests
 
 CurrentHPが0以下になった時点で即座にDeadとなり、Cell占有と同Tickの行動資格を失う。Tick末Death phaseはDeath Eventとcollection cleanupを確定する。
 
-Control Point値が確定するまで、具体的な自然寿命・DailyVitalChange出力を固定する実装テストは作れない。現段階ではcurve schemaが複数Control Pointと滑らかな補間を表現できること、未確定値をdefaultとして捏造しないことを文書上の実装gateとする。
+curve schemaが複数Control Pointと滑らかな補間を表現できること、Config値が全Phase形状制約を満たすこと、特定年齢で不連続な大量死を起こさないことをテストする。

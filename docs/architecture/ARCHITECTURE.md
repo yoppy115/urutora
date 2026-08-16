@@ -60,7 +60,7 @@ flowchart LR
 10. **Base and Effective stats are distinct.** 遺伝・系譜はBase、Resolutionと定義済み主観計算はEffectiveを使い、ConceptMarkはBaseを書き換えない。
 11. **Death is immediately authoritative.** HP 0以下のEntityは同Tickの後続command・reaction対象になれず、Tick末phaseは整理だけを担う。
 12. **Batch arbitration is order-independent.** MoveとBirthの競合を配列・queue・collection順で決めない。
-13. **Targeted actions precede movement.** Attack、Communication、ReproductionをMove、Flee、Restより先に解決するが、Targeted Action内部の固定順序は未決のままにする。
+13. **Targeted actions have a fixed phase order.** Attack → Reproduction → CommunicationをMove、Flee、Restより先に解決する。
 14. **Outcomes invalidate stale premises.** TargetAbsent等の直接Outcomeを同日中にPerceptionへ戻し、成立しない古いPositionの反復を止める。
 15. **Interrupts replace, not add.** AttackとReproduction Acceptによる再評価は既存Action枠を置換し、追加Actionや無制限再評価を与えない。
 
@@ -108,7 +108,7 @@ Plan intents from Perception
   -> remaining Reality and Event work
 ```
 
-Targeted Action Phaseはひとまとまりのphase contractであり、Attack / Communication / Reproductionの内部順序をrunnerのswitch順やcollection順で暗黙決定してはならない。その判断が必要な実装箇所はunresolvedとして保留する。
+Targeted Action PhaseはAttack → Reproduction → Communicationの明示的なphase contractとする。各後続phaseは先行phase後のRealityを再Validationする。Interruptで得たIntentは終了済みphaseへ戻さず、未処理phaseで実行できない場合は失効する。
 
 ## v0 project boundary
 

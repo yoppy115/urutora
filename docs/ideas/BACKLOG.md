@@ -13,15 +13,6 @@
 - Future pressure: 高密度が疾病、内部対立、資源、階層、Settlement間競争を生む可能性。
 - Related design: [`V0_15_ECOLOGY.md`](../design/V0_15_ECOLOGY.md)
 
-### v0.15 implementation-blocking design decisions
-
-- Status: Unresolved
-- Vitality Curveの各Control Point DailyVitalChange値。
-- Subject + Propertyが3件を超えた場合のHeld Information Eviction Rule。
-- Attack / Communication / ReproductionのTargeted Action内部Resolution順。
-- Rule: Codex / Workが独自にBaselineまたはdefaultを設定しない。
-- Related design: [`V0_15_ECOLOGY.md`](../design/V0_15_ECOLOGY.md)
-
 ### NPCの思考ラグを能力と接続する
 
 - Status: On hold
@@ -56,6 +47,12 @@
 - Related design: [`PLAYER_OBSERVATION.md`](../design/PLAYER_OBSERVATION.md)
 
 ## Promoted to canon
+
+- v0.15の旧未決3項目を解消した。
+  - Vitality具体値はPhase制約付きConfig調整。
+  - Held InformationはFIFO evictionと直接消滅確認purge。
+  - Targeted ActionはAttack → Reproduction → Communication、phase巻戻しなし。
+  - [`V0_15_ECOLOGY.md`](../design/V0_15_ECOLOGY.md)
 
 - 安定世界の成功を分析し、新しい困難または概念を次世界へ追加する。
   - [`WORLD_LIFECYCLE.md`](../design/WORLD_LIFECYCLE.md)
