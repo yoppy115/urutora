@@ -1,0 +1,47 @@
+name: Build, test, and deterministic replay
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Windows / .NET 10
+    runs-on: windows-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Verify repository hygiene
+        shell: pwsh
+        run: .\tools\Test-RepositoryHygiene.ps1 -RequireClean
+
+      - name: Build and run all tests
+        shell: pwsh
+        run: .\build.ps1 -Configuration Release -RunTests
+
+      - name: Record and verify deterministic replay
+        shell: pwsh
+        run: |
+          $runner = '.\src\Simulation.Runner\bin\Release\net10.0\Simulation.Runner.dll'
+          $config = '.\simulation\configs\v0-default.json'
+          $replay = Join-Path $env:RUNNER_TEMP 'v0.15-ci.replay.json'
+          dotnet $runner record --config $config --seed 8147291 --ticks 10 --output $replay
+          if ($LASTEXITCODE -ne 0) { throw 'Replay record failed.' }
+          dotnet $runner verify --replay $replay
+          if ($LASTEXITCODE -ne 0) { throw 'Replay verification failed.' }

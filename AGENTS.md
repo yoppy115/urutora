@@ -4,11 +4,22 @@
 
 ## Before changing anything
 
-1. `README.md` と `docs/INDEX.md` を読む。
-2. 変更対象に対応する `docs/design/` の文書を読む。
-3. `docs/architecture/` と関連ADRを確認する。
-4. `Draft` や `TBD` を推測で埋めない。不足する判断を明示する。
-5. 文書間に矛盾があれば、実装で片方を黙って選ばず報告する。
+1. `git status --short --branch`、直近の `git log`、tag / branch、前回releaseからのchanged filesを確認し、update内容はGit履歴と差分を一次情報として特定する。ローカルrefが古い場合はGitHub上の更新情報も確認する。
+2. 最新の `main`、`README.md`、`docs/INDEX.md` を確認する。
+3. 変更対象に対応する `docs/design/` の文書を読む。
+4. `docs/architecture/` と関連ADRを確認する。
+5. `Draft` や `TBD` を推測で埋めない。不足する判断を明示する。
+6. 文書間に矛盾があれば、実装で片方を黙って選ばず報告する。
+
+## Execution behavior
+
+- 変更・実装を依頼された場合、必要な調査、影響確認、設計検討はタスク内部で行う。
+- ユーザーが明示的に計画やレビューだけを求めていない限り、事前の実装案や計画を別ターンで提示せず、そのまま変更と検証まで進める。
+- Baselineとの矛盾や、未確定のDraftを決めなければ進められない箇所は勝手に仕様化しない。その箇所だけ保留し、安全に進められる残りの作業は継続する。
+- 結果を大きく変える未決事項、破壊的操作、または新しい外部権限が必要な場合だけ、ユーザーへ判断を求める。
+- update依頼では過去チャットの記憶だけで変更内容を推測せず、Gitのcommit、diff、tag / branchと正史文書を照合する。
+- OS保護領域など管理者権限が不可欠な操作に遭遇した場合、回避策を反復しない。必要操作・対象path・rollbackを限定した管理者用installerを作成し、通常権限でbuild / inspectできる部分と分離する。installerは自動実行しない。
+- 作業後は、変更内容、変更ファイル、検証結果、保留した判断だけを簡潔に報告する。
 
 ## Design principles
 
@@ -16,12 +27,18 @@
 - 巨大な `GameManager` や全状態を握る万能クラスを作らない。
 - Reality（客観状態）とNPC Perception（主観認識）を別のデータ層にする。
 - NPCの判断は主観情報だけを使い、非公開のRealityデータを直接読まない。
-- Utility AIは実行可能な上位2〜3候補から、Utilityを重みにして確率選択する。
-- 確率処理には注入可能なseed付き乱数源を使い、再現に必要なseedを保存する。
+- NPCは主観上可能だと思う行動を選び、Reality側の解決で失敗し得る。
+- v0 Action Utilityは `docs/design/UTILITY_AI.md` の式を正本とし、未記載の情報価値・関係・先読みを独自追加しない。
+- Utility AIは候補が3件以上なら上位3候補へ絞り、Utility由来の重みで確率選択する。候補2件は両方を対象にする。
+- 確率処理にはrun seedから用途別に派生する乱数streamを使い、再現に必要なseedとConfigを保存する。
 - 内部数値を自動的にプレイヤーUIへ露出しない。
 - シミュレーションは表示層やゲームエンジンなしでも実行・テスト可能にする。
 - interface、event、data-driven configuration、交換可能なmoduleを優先する。
 - 無関係なシミュレーションシステム間の直接依存を避ける。
+- LLMをSimulation Coreの権威的な計算へ使用しない。
+- 遺伝にはBase能力、Simulationの実能力にはEffective能力を使い、ConceptMarkでBase値を変更しない。
+- HP 0以下のNPCは即時に行動不能・非占有とし、tick末cleanupまで行動させない。
+- Move/Birth等の競合結果を配列、queue、生成、collection列挙順で決めない。
 
 ## Change contract
 
@@ -37,6 +54,8 @@
 ## Documentation and history
 
 - 文書は日本語を基本とし、コード識別子とファイル形式上のキーは英語を基本とする。
+- Codexが追加した正史外の実装仕様、tooling、workflow、保守的な技術既定値は `docs/IMPLEMENTATION_REGISTER.md` に記録する。ゲーム挙動へ影響する事項は台帳だけで完結させず、対応する正史へも反映する。
+- 文書内でBaselineとDraftが混在する場合、節ごとに状態を明記する。
 - ADRは `docs/decisions/ADR-NNNN-short-title.md` 形式で連番にする。
 - コミット接頭辞は内容に応じて `feat:`, `sim:`, `balance:`, `design:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:` を使う。
 - Gitログは開発変更の履歴、`logs/` は世界内イベントの実行ログとして混同しない。
@@ -47,4 +66,3 @@
 - テストまたは妥当な検証を実行し、結果を報告した。
 - 設定・seed・再現手順が、変更の性質に応じて保存されている。
 - 未決事項を実装上の既成事実にしていない。
-

@@ -1,0 +1,112 @@
+{
+  "schemaVersion": 1,
+  "id": "v0.15-default-1",
+  "world": {
+    "width": 64,
+    "height": 64,
+    "initialPopulation": 200,
+    "daysPerYear": 365,
+    "landmarks": [
+      { "concept": "struggle", "x": 16, "y": 16 },
+      { "concept": "survival", "x": 48, "y": 16 },
+      { "concept": "communication", "x": 32, "y": 48 }
+    ]
+  },
+  "initialPopulation": {
+    "maxHpMean": 50.0,
+    "maxHpStandardDeviation": 5.0,
+    "minimumMaxHp": 1.0,
+    "maximumMaxHp": 100.0,
+    "abilityMean": 5.0,
+    "abilityStandardDeviation": 1.5,
+    "riskPreferenceMean": 0.5,
+    "riskPreferenceStandardDeviation": 0.2,
+    "minimumAgeDays": 180,
+    "maximumAgeDays": 700,
+    "initialNeedMinimum": 0.0,
+    "initialNeedMaximum": 5.0
+  },
+  "action": {
+    "maximumActionsPerDay": 5,
+    "repeatDenominator": 5.0,
+    "secondStepFactor": 0.02,
+    "activeActivityChange": -2.0,
+    "activeRestChange": 0.5,
+    "restRestChange": -4.0,
+    "restActivityChange": 1.0
+  },
+  "needs": {
+    "dailyActivityIncrease": 0.10,
+    "dailyRestIncrease": 0.04,
+    "dailyCommunicationIncrease": 0.05,
+    "dailyReproductionIncrease": 0.04,
+    "initiatedCommunicationChange": -3.0,
+    "successfulReproductionChange": -6.0
+  },
+  "observation": {
+    "maximumDistance": 3,
+    "errorFactor": 0.025,
+    "confidenceByDistance": [1.0, 1.0, 0.9, 0.8],
+    "threatMemoryDays": 90,
+    "heldInformationCapacityPerSubjectProperty": 3
+  },
+  "utility": {
+    "topCandidates": 3,
+    "temperature": 1.0,
+    "move": { "survival": 0.0, "rest": -0.125, "activity": 0.5, "communication": 0.0, "reproduction": 0.0 },
+    "rest": { "survival": 0.0, "rest": 1.0, "activity": -0.25, "communication": 0.0, "reproduction": 0.0 },
+    "communication": { "survival": 0.0, "rest": -0.125, "activity": 0.5, "communication": 0.75, "reproduction": 0.0 },
+    "reproduction": { "survival": -0.4, "rest": -0.2, "activity": 0.5, "communication": 0.0, "reproduction": 1.0 },
+    "attack": { "survival": 1.0, "rest": -0.125, "activity": 0.5, "communication": 0.0, "reproduction": 0.0 },
+    "flee": { "survival": 1.0, "rest": -0.125, "activity": 0.5, "communication": 0.0, "reproduction": 0.0 }
+  },
+  "combat": {
+    "hitChanceBase": 0.70,
+    "hitChancePerCombatDifference": 0.03,
+    "hitChanceMinimum": 0.40,
+    "hitChanceMaximum": 0.95,
+    "damageBase": 4.0,
+    "damageAttackerFactor": 0.9,
+    "damageDefenderFactor": 0.4,
+    "damageMinimum": 1.0,
+    "damageRandomMinimum": 0.9,
+    "damageRandomMaximum": 1.1,
+    "counterattackCombatFactor": 0.5
+  },
+  "communication": {
+    "range": 2,
+    "sendCountAbilityDivisor": 3.0,
+    "errorMaximumBase": 0.10,
+    "subjectSwapChanceBase": 0.03,
+    "confidenceBase": 0.50,
+    "confidencePerAbility": 0.03
+  },
+  "reproduction": {
+    "range": 1,
+    "matureAgeDays": 180,
+    "cooldownDays": 90,
+    "needThreshold": 4.0,
+    "minimumHpRatio": 0.50,
+    "mutationChance": 0.10,
+    "mutationStandardDeviation": 0.25,
+    "maxHpMutationScale": 5.0,
+    "newbornInitialNeed": 0.0
+  },
+  "vitality": {
+    "controlPoints": [
+      { "ageDays": 0, "dailyVitalChange": 0.02 },
+      { "ageDays": 180, "dailyVitalChange": 0.12 },
+      { "ageDays": 365, "dailyVitalChange": 0.08 },
+      { "ageDays": 548, "dailyVitalChange": 0.0 },
+      { "ageDays": 730, "dailyVitalChange": -0.02 },
+      { "ageDays": 913, "dailyVitalChange": -0.05 },
+      { "ageDays": 1095, "dailyVitalChange": -0.35 },
+      { "ageDays": 1278, "dailyVitalChange": -0.40 }
+    ]
+  },
+  "concept": {
+    "exposureByDistance": [0.0, 1.0, 0.5, 0.25],
+    "exposureThreshold": 100.0,
+    "effectiveMultiplier": 1.2
+  }
+}

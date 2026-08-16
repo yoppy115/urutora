@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 3,
+  "defaultSeed": 8147291,
+  "seedIncrement": 1,
+  "logDirectory": "logs",
+  "worldDirectoryPrefix": "world-",
+  "worldNumberPadding": 4,
+  "recentEventDisplayLimit": 300,
+  "chartMaximumPoints": 1096,
+  "npcActionHistoryDisplayLimit": 500,
+  "ageDistributionBinYears": 0.5,
+  "archiveCompletedWorldLogs": true,
+  "deleteOtherReleaseVersionLogs": true
+}
