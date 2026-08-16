@@ -1,0 +1,14 @@
+# Runtime simulation output (keep only the directory marker)
+/logs/*
+!/logs/.gitkeep
+
+# Codex desktop local scratch and deliverable folders
+/work/
+/outputs/
+
+# Operating-system and editor noise
+.DS_Store
+Thumbs.db
+*.swp
+*.tmp
+
