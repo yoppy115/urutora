@@ -27,7 +27,7 @@
 
 評価係数というカテゴリーはBaselineだが、危険選好以外の具体的な係数群は未決である。
 
-現在HP、年齢、記憶、Perception、噂、経験、文化、学習結果、現在の関係、派生説明ラベルは遺伝しない。
+現在HP、年齢、現在Needs、記憶、Perception、Held Information、Threat Memory、噂、経験、文化、学習結果、現在の関係、Concept Exposure、ConceptMark、派生説明ラベルは遺伝しない。
 
 ## Reasons
 
@@ -40,7 +40,7 @@
 
 - 遺伝schemaはallowlistで検証する必要がある。
 - 新しい評価係数の遺伝化は、Utilityモデルへの採用と同時に文書更新が必要になる。
-- 交叉、変異、値域はDraftとして別途設計する。
+- v0では項目ごとの独立RandomBlend、seed付きMutation、値域Clampを用いる。係数はConfigで調整する。
 - 寿命と老化はReproductionから分離して扱う。
 
 ## Rejected alternatives
@@ -48,4 +48,3 @@
 ### Inherit every personality or behavior label
 
 能力、評価、経験、文化の境界が失われ、重複する遺伝要因が増える。
-

@@ -6,21 +6,26 @@ ADRは、重要で後戻りしづらい判断について「なぜそうした�
 
 | ID | Status | Decision |
 | --- | --- | --- |
-| [`ADR-0001`](ADR-0001-utility-ai.md) | Accepted | Utility上位2〜3候補から、Utility由来の重みで確率選択する |
+| [`ADR-0001`](ADR-0001-utility-ai.md) | Accepted | 候補数に応じて最大Top 3をUtility由来の重みで確率選択する |
 | [`ADR-0002`](ADR-0002-subjective-decision-boundary.md) | Accepted | 主観的意思決定とRealityによる権威的解決を分離する |
 | [`ADR-0003`](ADR-0003-causal-world-lifecycle.md) | Accepted | 困難・適応・副作用の因果連鎖で世界を進行させる |
 | [`ADR-0004`](ADR-0004-dual-psalm-inheritance.md) | Accepted | 上位存在本人と詩篇を別系統で継承する |
 | [`ADR-0005`](ADR-0005-heritable-genotype-scope.md) | Accepted | 遺伝を基礎能力と正式採用済みUtility評価係数に限定する |
 | [`ADR-0006`](ADR-0006-llm-outside-simulation-core.md) | Accepted | LLMを権威的Simulation Coreの外側に置く |
+| [`ADR-0007`](ADR-0007-v0-time-and-micro-rounds.md) | Accepted | 日次tickと上限付きMicro Roundを採用する |
+| [`ADR-0008`](ADR-0008-move-collision-combat.md) | Accepted | NPC占有CellへのMoveをCollision Attackへ変換する |
+| [`ADR-0009`](ADR-0009-continuous-vitality-curve.md) | Accepted | v0の自然回復と老化を連続Vitality曲線で扱う |
+| [`ADR-0010`](ADR-0010-csharp-core-and-observation-app.md) | Accepted | C# Core、Desktop App、headless testsを分離する |
+| [`ADR-0011`](ADR-0011-partitioned-deterministic-rng.md) | Accepted | 乱数streamを決定論的な用途別keyで分割する |
+| [`ADR-0012`](ADR-0012-concept-landmarks-and-selection.md) | Accepted | LandmarkがMarkを介して淘汰を間接的に歪める |
 
 ## Future decisions
 
 次は未決のため、まだAccepted ADRを作らない。
 
-- tick内snapshot、競合解決、atomic commit。
-- Utilityから非負の選択重みへの変換。
-- PRNGと名前付き乱数ストリーム。
 - 永続化形式とschema migration。
+- Desktop UI framework。
+- domain event配送方式とstate sliceの具体API。
 
 ## Workflow
 
@@ -37,4 +42,3 @@ ADRは、重要で後戻りしづらい判断について「なぜそうした�
 - `Rejected`
 - `Superseded`
 - `Deprecated`
-

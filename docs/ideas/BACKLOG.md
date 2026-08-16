@@ -8,10 +8,18 @@
 
 - Status: On hold
 - Why it is interesting: 情報遅延とは別に、判断頻度の差が逸脱を生む可能性がある。
-- Why it is not in the current design: tickと意思決定間隔が未決で、能力との重複も整理できていない。
-- Conditions for reconsideration: `SIMULATION_TICK.md` とUtilityのdecision intervalを決める時。
+- Why it is not in the current design: v0では日次ObservationとAction由来Micro Roundを採用し、別の思考頻度能力は入れない。
+- Conditions for reconsideration: v0観測で古い情報による逸脱が不足または過剰と分かった時。
 
 ## Exploring
+
+### v0後の社会・世界システム
+
+- Status: On hold for v0
+- Preserved canon: 国家、宗教、経済、疾病、暴戻、不和、Culture、上位存在の継承、世界フェーズ・再編、詩篇、啓示、動的新概念、LLM Historian。
+- Why it is not in v0: 最小NPC相互作用の観測価値を先に検証するため。
+- Conditions for reconsideration: headless v0と観測Appで創発的逸脱を評価した後。
+- Related design: [`V0_SIMULATION.md`](../design/V0_SIMULATION.md)、[`WORLD_LIFECYCLE.md`](../design/WORLD_LIFECYCLE.md)、[`PSALM_AND_INHERITANCE.md`](../design/PSALM_AND_INHERITANCE.md)
 
 ### 上位存在が自然淘汰を歪める範囲
 
@@ -50,4 +58,3 @@
 - Conditions for reconsideration:
 - Related design or ADR:
 ```
-

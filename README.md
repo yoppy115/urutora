@@ -6,12 +6,12 @@
 
 ## Current status
 
-- フェーズ: 正史の初期移植済み／数式・閾値・データ構造はDraft
+- フェーズ: 最小Simulation v0仕様確定／実装着手前
 - 実装: 未着手
-- ゲームエンジン・言語・テスト基盤: 未決定
+- 実装基盤: C# / .NET。`Simulation.Core`、`Simulation.App`、`Simulation.Core.Tests` を分離する
 - 外部依存: なし
 
-まだゲームエンジンは導入しません。まず仕様の境界を保ち、次段階で固定seedから動く最小のヘッドレス・シミュレーションを作ります。
+次段階では、同一seedで再現可能なヘッドレスCoreと観測用Desktop Applicationを実装します。UI frameworkは未決ですが、GUIはRealityの権威を持ちません。
 
 ## Source of truth
 
@@ -49,9 +49,7 @@
 
 ## Next decisions
 
-1. 世界時間と1 tickの処理順を決める。
-2. Utility scoreから選択確率への変換方式を決める。
-3. Perception、繁殖、老化、ログの最小スキーマを決める。
-4. シミュレーションコアの言語とテスト方法を選ぶ。
-5. 固定seedで動く最小のヘッドレス・シミュレーションを実装する。
-
+1. v0文書を実装可能なC#型、interface、Config schemaへ落とす。
+2. `Simulation.Core` とheadless testsを実装する。
+3. Coreの結果だけを観測する `Simulation.App` を実装する。
+4. 固定seed実験で、創発的逸脱が観測価値を持つか検証する。

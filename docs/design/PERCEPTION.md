@@ -1,67 +1,64 @@
-# Perception
+# Perception and Held Information
 
-**Status:** Baseline constraints / Draft mechanics
+**Status:** Baseline boundaries / v0 default and configurable mechanics
 
-## Baseline: Reality and subjectivity
+## Reality boundary
 
-Reality（世界の客観状態）とNPC Perception（NPCが知っている、または正しいと考える主観状態）を別のデータ層として扱う。
-
-NPCはRealityを直接知ることができない。意思決定はPerceptionだけを使い、隠されたRealityを参照しない。
-
-## Baseline: sources of subjectivity
-
-主観には、少なくとも次の要素が影響し得る。
-
-- 観測
-- 記憶
-- 噂、伝聞、他者からの情報
-- 誤認
-- 過去経験
-- 関係
-- 文化的解釈
-
-同じ事実を、NPCごとに異なる意味として解釈できる。
-
-## Baseline: decision and resolution boundary
+RealityとNPCごとのPerceptionを別データ層にする。NPCはRealityを直接知れず、DecisionはPerceptionだけを使う。NPCは主観上可能なActionを選べるが、ActionIntentはReality側で失敗し得る。失敗もEventと直接経験になり、後のPerceptionへ影響できる。
 
 ```text
-Reality
-  -> Observation
-  -> NPC Perception
-  -> PerceivedActionCandidate
-  -> Utility evaluation
-  -> ActionIntent
-  -> Reality-side resolution
-  -> ActionOutcome
-  -> observable facts
-  -> NPC Perception update
+Reality -> Observation -> Perception
+  -> PerceivedActionCandidate -> ActionIntent
+  -> Reality validation / resolution -> ActionOutcome
+  -> observable fact -> Perception update
 ```
 
-- Utility評価器へ渡せるのはPerception由来の情報だけとする。
-- NPCは「できると思う行動」を候補にできる。
-- Reality側はActionIntentを権威的に検証し、行動を失敗させてもよい。
-- 隠れたRealityを使って、意思決定前に候補を不自然に除外しない。
-- 失敗を含む結果は、観測可能な事実を経由して後のPerceptionへ反映する。
+## v0 information record
 
-採用理由は [`ADR-0002`](../decisions/ADR-0002-subjective-decision-boundary.md) を参照する。
+Perceptionは少なくとも次を保持可能にする。
 
-## Baseline: player information
+- Subject
+- Property
+- EstimatedValue
+- Confidence
+- Source
+- AcquiredBy: `Observation` または `Communication`
+- AcquiredTick
 
-プレイヤーも通常はReality全知ではない。現在の表層状態を中心に観測し、真の原因、完全な内面、全履歴を掘り下げることを主目的にしない。詳細は [`PLAYER_OBSERVATION.md`](PLAYER_OBSERVATION.md) を参照する。
+主観には将来、記憶、噂、誤認、経験、関係、文化的解釈を加えられる。同じ事実を異なる意味として解釈できる上位正史を維持する。
 
-## Draft mechanics
+## Held Information
 
-- 視界、距離、記憶容量、忘却の表現。
-- 認識誤差と情報遅延の生成規則。
-- 矛盾する記憶・噂の統合方法。
-- NPC間で情報が伝播する際の変形。
-- 文化的解釈を保持するデータ構造。
-- プレイヤーへ不確実性を見せる具体的UI。
+Held Informationは、自分でObservationした情報とCommunicationで受け取った情報の集合だけである。Communicationで送れるのも送信者自身のHeld Informationだけで、知らないReality情報を生成してはならない。
+
+Reality変更で既存情報を自動更新しない。古い情報を保持できる。同じSubject / Propertyの複数記録も保持可能で、Decision用代表値は次で選ぶ。
+
+1. Confidenceが最も高い。
+2. 同ConfidenceならAcquiredTickが新しい。
+
+Observation由来の初期ConfidenceはCommunication由来より高くする。初期値と将来の減衰式はv0 Configであり普遍則ではない。
+
+## Observation and immediate experience
+
+日初Observationの最大Chebyshev距離は3。Micro Roundごとに周囲を完全再観測しない。本人が直接経験したAttack、失敗、情報受信、Pursuit、対象死亡等のActionOutcomeだけは即時更新できる。
+
+## Threat Memory
+
+Attack、Collision Attack、Pursuit Attackを直接受けたNPCは相手をPerceivedThreatとして記録する。これはPerception上の情報であり、明示的Attack Candidateは原則として距離1以内の既知Threatに対して生成する。
+
+期限を持てる構造とし、v0 defaultは365日。再度脅威行為を受けるたび更新し、期間はConfig化する。これにより空間競合→最初の暴力→Threat Memory→継続的敵対という因果を作る。
+
+## Player boundary
+
+プレイヤーも通常はReality全知ではない。現在の表層状態を中心に観測し、完全な因果や全履歴の調査を主目的にしない。開発用debug projectionとは分ける。
 
 ## Minimum invariants
 
-- NPCが観測していないReality変更で、そのNPCのUtilityが変化しない。
-- 同じPerceptionとseedから同じ意思決定が得られる。
-- RealityオブジェクトをUtility評価器へ直接渡せない。
-- 同じPerceptionなら、隠れたRealityの違いは選択前の候補順位を変えず、ActionOutcomeだけを変え得る。
+- 未観測Reality変更は、同一Perceptionとseedの候補順位・選択を変えない。
+- Reality型をUtility評価器へ直接渡せない。
+- CommunicationはHeld Information外の情報を生成しない。
+- 数値変形とSubjectSwapは設定上限を超えず、未知Entityを生成しない。
+- 隠れたReality差はActionOutcomeだけを変え得る。
+
+採用理由は [`ADR-0002`](../decisions/ADR-0002-subjective-decision-boundary.md) を参照する。
 

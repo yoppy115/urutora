@@ -44,11 +44,25 @@ visible: 危険を恐れず、困難へ積極的に踏み込む。
 - ピンは原因を断定せず、観測された重要な変化を示す。
 - ピンや説明文の生成がSimulation Coreの結果を変更してはならない。
 
+## v0 Desktop Application
+
+v0はheadless Coreに加え、観測用Desktop Applicationを実装対象とする。AppはCoreを呼び出すだけでSimulation LogicやRealityの権威を持たない。
+
+最低限、次を表示・操作できるようにする。
+
+1. 64×64 World Map。NPC、Empty、闘争・生存・交流Landmarkを視覚的に識別できる。
+2. 現在のYear / Day。
+3. Pause、通常速度、複数の高速化段階。可能ならMax Speed。
+4. 最近のBirth、Death、Attack、CollisionAttack、Communication、Reproduction、ConceptMark Eventのスクロールログ。
+
+具体倍率、配置、UI framework、デザインは実装時の裁量とする。
+
+Simulation TickとUI Render Updateを分離する。高速進行では複数Tick後の最新Stateだけを描画してよく、render頻度、frame rate、UI操作がSimulation Event列を変えてはならない。自動テストはGUIなしで実行可能にする。
+
 ## Draft mechanics
 
 - 数値から文章へ変換する区間、文法、優先順位。
 - ピンの重要度計算、保存上限、統合、寿命。
 - 同時に大量のピンが発生した場合の表示方法。
 - プレイヤーが閲覧できる過去情報の範囲。
-- 最終UIと操作方法。
-
+- v0最低要件を超える最終UIと操作方法。

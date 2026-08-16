@@ -1,78 +1,73 @@
 # Utility AI
 
-**Status:** Baseline constraints / Draft mechanics
+**Status:** Baseline boundaries / v0 default and configurable mechanics
 
-## Purpose
-
-NPCの行動に合理的な因果を残しながら、常に同じ最大Utility行動だけを選ぶ予測容易性を避ける。
-
-## Baseline: decision pipeline
+## Decision pipeline
 
 ```text
-Reality
-  -> Observation
-  -> Perception
-  -> Needs
-  -> PerceivedActionCandidate
-  -> Utility evaluation
-  -> top 2-3 candidates
-  -> weighted stochastic selection
-  -> ActionIntent
-  -> Reality-side resolution
-  -> ActionOutcome
+Reality -> Observation -> Perception -> Needs
+  -> PerceivedActionCandidate -> Utility evaluation
+  -> top candidates -> weighted stochastic selection
+  -> ActionIntent -> Reality-side resolution -> ActionOutcome
 ```
 
-上位候補数は2または3の範囲で設定可能にする。最大Utility行動を必ず実行せず、合理性、個体差、小さな逸脱を両立する。
+DecisionはPerception、自身のNeeds、自身が利用可能な内部状態だけを使う。Reality非公開値を読まず、「実際に勝てるか」ではなく「自分は勝てると思うか」を評価する。
 
-## Baseline: initial needs
+## Needs baseline
 
-- 生存
-- 休息
-- 活動
-- 交流
-- 繁殖
+Survival、Rest、Activity、Communication、Reproductionを0〜10へClampする。NeedはActionではなく、複数Needを同時に各ActionのUtilityへ寄与させる。最大Need一つだけでActionを決めない。
 
-## Baseline: capability and evaluation
+## v0 need defaults
 
-基礎能力は「何ができるか」を表す。
+```text
+Survival = Clamp(10 * (1 - CurrentHP / EffectiveMaxHP), 0, 10)
 
-- 最大HP
-- 行動力
-- 戦闘
-- コミュニケーション
+daily: Activity +0.10, Rest +0.04
+active Action: Activity -2.0, Rest +0.5
+Rest Action: Rest -4.0, Activity +1.0
 
-Utility評価係数は「予測した結果をどう評価するか」を表す。評価係数というカテゴリーを遺伝対象にできることはBaselineとする。
+daily: Communication +0.05
+initiated Communication: Communication -3.0
 
-具体的にBaselineとして確認されている係数は危険選好だけである。将来割引、損失回避、不確実性回避、他者重視などはUtilityモデル設計時の候補であり、現時点ではDraftとする。
+before maturity: Reproduction = 0
+after maturity: Reproduction +0.01/day
+successful Reproduction: both participants -6.0
+```
 
-基礎能力から自然に生じる行動傾向を、同じ意味の独立遺伝パラメータとして重複させない。
+受動的な会話参加者のCommunication Needは減らさない。ActivityとRestは完全な対称系にしない。将来は性格や必要人数等でNeed Weightや増加量を変えられる構造にする。
 
-## Baseline: theoretical direction
+## Utility baseline
 
-Utility評価の構築では、行動経済学と意思決定理論を参考にする。参照点依存、損失回避、将来割引、主観確率、不確実性回避、他者利益評価は候補要素だが、具体的な採用と式はDraftである。
+```text
+Utility(action) =
+  sum(Need_n * SubjectiveExpectedEffect(action, n))
+  - RiskCost(action)
+```
 
-## Information boundary
+RiskCostへRiskPreferenceを作用させる。v0で遺伝可能な具体的Utility評価係数はRiskPreferenceだけ。0は危険回避的、1は危険をほぼ評価コストへ入れない。Loss Aversion、Future Discounting、Uncertainty Aversion、Other-regarding Preference等は将来Draftでありv0へ追加しない。
 
-- 評価器へ渡せるのはPerception由来の主観情報だけとする。
-- NPCは「実際に勝てるか」ではなく「自分は勝てると思うか」を評価する。
-- Realityの非公開値を参照する抜け道を作らない。
-- Reality側の成立判定は選択後のActionIntentに対して行う。
+## Candidate choice
 
-## Randomness and replay
+- 候補0件: Idle。
+- 候補1件: その候補で確定。
+- 候補2件: 2件を抽選対象にする。
+- 候補3件以上: Utility上位3件だけを残す。
 
-- 選択に使う乱数源は外部から注入可能にする。
-- 実行ごとにseedを保存する。
-- 同じ初期状態、設定、seed、コード版から同じ選択列を再現できることを目標とする。
-- 候補、Utility、Utility由来の重み、選択結果を診断可能にする。
+```text
+weight_i = exp((utility_i - maxUtility) / temperature)
+```
 
-## Draft mechanics
+Configのtemperatureとseed付き乱数で重み付き選択する。最大Utilityを常に選ばず、通常はTop 3外を選ばない。候補の安定tie-breakを定義し、列挙順に依存させない。
 
-- Utility式、正規化範囲、各理論要素の採否。
-- Utilityから非負の選択重みへの変換。softmaxは有力候補だが未採用。
-- temperature等の調整値。
-- Utilityが0以下、同点、候補不足、候補なしの場合の規則。
-- NPCごとの意思決定間隔。
-- 危険選好以外の具体的な評価係数。
+## Capability and inheritance boundary
+
+MaxHP、Action、Combat、Communicationは「何ができるか」、Utility評価係数は「結果をどう評価するか」である。基礎能力から自然に生じる行動傾向を同義の独立遺伝子として重複させない。
+
+行動経済学・意思決定理論は将来の評価式設計に利用できるが、v0の具体式以外を採用済みとみなさない。
+
+## Diagnostics and tests
+
+候補、Utility、重み、選択結果、乱数purposeを診断可能にする。Reality非参照、同じPerceptionとseedの再現、候補0/1/2件、同点、temperature境界、Top 3外非選択をheadless testで検証する。
 
 採用理由は [`ADR-0001`](../decisions/ADR-0001-utility-ai.md) と [`ADR-0002`](../decisions/ADR-0002-subjective-decision-boundary.md) を参照する。
 

@@ -4,7 +4,7 @@
 
 ## Directories
 
-- `configs/`: 基本設定。人口、意思決定間隔、突然変異率、老化等。
+- `configs/`: v0 default。人口、Need、Utility、行動、戦闘、繁殖、突然変異、老化、Concept等。
 - `presets/`: 初期状態や実験条件の名前付き組み合わせ。
 - `concepts/`: 概念と困難のデータ定義。
 
@@ -19,25 +19,26 @@
 - 単位をキー名またはschemaで明示する。
 - mutation rate、Utility選択、老化等の調整値をコードへ埋め込まない。
 
-## Values mentioned in source conversations
+## v0 adopted defaults
 
-次のJSONは過去の会話に登場した**例**であり、採用済みのバランス値ではない。
+次は最初のSimulation用に採用したConfig値であり、不変のゲーム思想ではない。実装時にschema化し、実験結果に応じて調整できるようにする。
 
-```json
-{
-  "population": 150,
-  "mutationRate": 0.03,
-  "decisionInterval": 2.0,
-  "topUtilityCandidates": 3,
-  "agingHpDecay": 0.002
-}
-```
+| Area | Defaults |
+| --- | --- |
+| World | 64×64、InitialPopulation 200、1 tick/day、365 days/year |
+| Action | max 5/day、repeat `Action/(Action+5)`、second step `0.02*Action` |
+| Utility | Top 3、softmax temperature configurable |
+| Threat | memory 365 days |
+| Reproduction | MatureAge 12 years、Cooldown 730 days、Need threshold 4、HP ratio 0.50 |
+| Mutation | chance 0.10、stddev 0.25 |
+| Vitality | AgingStart 30 years、HealAtBirth 0.10 HP/day、AgingSlope about 3.75e-6 HP/day^2 |
+| Concept | exposure 1.0/0.5/0.25、threshold 100、effective multiplier 1.2 |
 
-寿命が必要であることはBaselineだが、`agingHpDecay` を含む具体的な老化方式と値はDraftである。そのため現時点では `default.json` を作らない。
+Need増減、Communication変形、Combat、Pursuit、初期分布等の全defaultは各設計文書を正本とする。まだコード実装を行わないため、この変更では `default.json` を作らない。
 
 ## Run metadata
 
-将来の各実行では、最低限次を保存する。
+将来、再現用metadataを保存する場合は最低限次を扱えるようにする。ただしファイル出力自体はv0初期必須要件ではない。
 
 ```json
 {
@@ -51,4 +52,3 @@
 ```
 
 完全なconfig、初期状態、外部入力列を参照または同梱できるようにする。保存形式はDraftである。
-

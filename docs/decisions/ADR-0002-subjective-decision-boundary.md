@@ -19,6 +19,8 @@ PerceivedActionCandidate -> ActionIntent -> Reality resolution -> ActionOutcome
 - NPCは主観上可能だと思う行動を選べる。
 - Reality側はActionIntentを検証し、成功・失敗をActionOutcomeとして返す。
 - ActionOutcomeは観測可能な事実を経由してPerceptionへ反映する。
+- 日初以外の完全再観測は行わないが、本人が直接経験したOutcomeは即時にPerceptionへ反映できる。
+- Communicationで扱える情報は、当事者がObservationまたはCommunicationで得たHeld Informationに限定する。
 
 ## Reasons
 
@@ -32,6 +34,7 @@ PerceivedActionCandidate -> ActionIntent -> Reality resolution -> ActionOutcome
 - 行動の主観的前提条件と客観的成立条件を分ける必要がある。
 - 未観測Reality変更がUtilityを変えないことをテストする。
 - ActionIntentとActionOutcomeに安定した識別子が必要になる。
+- 古い主観情報のまま同日に複数行動することを許容する。
 
 ## Rejected alternatives
 
@@ -42,4 +45,3 @@ NPCが知り得ない情報で候補が除外され、隠れた情報が意思�
 ### Perception directly mutates Reality
 
 客観的な競合や成立条件を検証できない。
-

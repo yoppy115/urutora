@@ -5,6 +5,7 @@
 ## Status labels
 
 - **Baseline**: 現時点で採用済みの設計原則または仕様。
+- **v0 default / configurable**: 最初の実験を成立させる採用済み初期値。Configで変更でき、普遍的な世界法則ではない。
 - **Baseline constraints / Draft mechanics**: 境界と目的は確定しているが、数式、閾値、データ構造、アルゴリズムが未決。
 - **Draft**: 実装に必要な判断が残り、現時点では仕様として固定しない内容。
 - **Proposed**: 合意前の提案。ADRでは採用候補を示す。
@@ -21,11 +22,13 @@
 | [`PERCEPTION.md`](design/PERCEPTION.md) | Baseline constraints / Draft mechanics | Reality、主観、意思決定境界 |
 | [`PLAYER_OBSERVATION.md`](design/PLAYER_OBSERVATION.md) | Baseline constraints / Draft mechanics | 現在中心UI、文章表現、ピン |
 | [`WORLD_LIFECYCLE.md`](design/WORLD_LIFECYCLE.md) | Baseline constraints / Draft mechanics | 世界フェーズ、困難、再編、継承 |
-| [`SIMULATION_TICK.md`](design/SIMULATION_TICK.md) | Draft | 1 tickの処理順と競合解決 |
+| [`V0_SIMULATION.md`](design/V0_SIMULATION.md) | Baseline / v0 configurable | v0の目的、範囲、初期世界、実装基盤 |
+| [`SIMULATION_TICK.md`](design/SIMULATION_TICK.md) | Baseline / v0 configurable | 日、Micro Round、競合解決、乱数 |
+| [`V0_ACTIONS.md`](design/V0_ACTIONS.md) | Baseline / v0 configurable | Move、Communication、Combat、Flee、Pursuit |
 | [`CONCEPTS.md`](design/CONCEPTS.md) | Baseline constraints / Draft mechanics | 概念と困難、初期3概念 |
-| [`UTILITY_AI.md`](design/UTILITY_AI.md) | Baseline constraints / Draft mechanics | 欲求、主観評価、確率選択 |
-| [`REPRODUCTION.md`](design/REPRODUCTION.md) | Baseline constraints / Draft mechanics | 繁殖、遺伝境界、突然変異 |
-| [`LIFECYCLE_AGING.md`](design/LIFECYCLE_AGING.md) | Baseline constraints / Draft mechanics | 寿命、老化、自然死 |
+| [`UTILITY_AI.md`](design/UTILITY_AI.md) | Baseline / v0 configurable | 欲求、主観評価、上位3候補softmax |
+| [`REPRODUCTION.md`](design/REPRODUCTION.md) | Baseline / v0 configurable | 繁殖、出生、遺伝、突然変異 |
+| [`LIFECYCLE_AGING.md`](design/LIFECYCLE_AGING.md) | Baseline / v0 configurable | 寿命、連続Vitality曲線、自然死 |
 | [`PSALM_AND_INHERITANCE.md`](design/PSALM_AND_INHERITANCE.md) | Baseline constraints / Draft mechanics | 歴史、詩篇、啓示、上位存在、継承 |
 
 ## Architecture
@@ -33,6 +36,7 @@
 - [`ARCHITECTURE.md`](architecture/ARCHITECTURE.md)（Baseline constraints / Draft mechanics）: レイヤー、依存方向、再現性の境界。
 - [`MODULES.md`](architecture/MODULES.md)（Draft）: 想定モジュールと責務。
 - [`LOGGING.md`](architecture/LOGGING.md)（Baseline constraints / Draft mechanics）: 機械可読ログと研究保存。
+- [`TESTING.md`](architecture/TESTING.md)（Baseline test obligations / Draft implementation）: v0のheadless不変条件。
 
 ## Decisions
 
@@ -55,4 +59,3 @@ ChatGPTで議論
 ```
 
 設計文書は「今どう動くべきか」、ADRは「なぜその判断をしたか」を記録します。
-

@@ -9,11 +9,11 @@
 
 ## Decision
 
-NPCがPerception上で実行可能だと考える行動をUtilityで順位付けし、上位2〜3候補を取り出す。その候補内で、Utilityから導出した非負の重みにより確率的に1行動を選択する。
+NPCがPerception上で実行可能だと考える行動をUtilityで順位付けする。候補0件はIdle、1件は確定、2件は両方、3件以上は上位3件を抽選対象とする。
 
 意思決定にはNPCの主観情報だけを使う。選択後のActionIntentはReality側で解決し、失敗し得る。
 
-このADRは、Utilityの生値をそのまま確率重みにすることや、softmax等の具体的変換を決定しない。
+v0 defaultでは数値安定化したsoftmax `exp((utility - maxUtility) / temperature)` を使い、temperatureをConfig化する。上位候補から確率選択する境界はBaseline、softmaxとtemperature値は交換可能なv0 mechanismである。
 
 ## Reasons
 
@@ -25,7 +25,7 @@ NPCがPerception上で実行可能だと考える行動をUtilityで順位付け
 
 - 選択に使う乱数seedを保存し、挙動を再現可能にする必要がある。
 - 同じ初期状態、設定、seedから同じ選択列になるテストが必要になる。
-- Utilityから非負重みへの変換、負値、ゼロ、同点、候補不足、候補なしを実装前に別途決める。
+- 負値、ゼロ、同点とtemperature不正値に対する明示的規則とテストが必要になる。
 - 候補、Utility、導出重み、選択結果を診断可能にする。
 
 ## Rejected alternatives
@@ -37,4 +37,3 @@ NPCがPerception上で実行可能だと考える行動をUtilityで順位付け
 ### Choose randomly from every action
 
 逸脱は増えるが、状況と行動の因果が薄くなる。
-

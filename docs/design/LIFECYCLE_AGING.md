@@ -1,40 +1,44 @@
-# Lifecycle and Aging
+# Lifecycle, Vitality, and Aging
 
-**Status:** Baseline constraints / Draft mechanics
+**Status:** Baseline boundaries / v0 default and configurable mechanics
 
 ## Baseline
 
-- 繁殖と世代交代を成立させるため、個体には寿命が必要である。
-- 個体は寿命によって最終的に自然死し得る。
-- 老化はReproductionではなく、独立したLifecycle / Aging責務で管理する。
-- 初期候補は、年齢による軽微な継続HP減少である。
+繁殖と世代交代のため寿命と自然死可能性を必須とし、Lifecycle / Agingが年齢、自然回復、老化、死亡を所有する。RestはHP回復を所有しない。
 
-## Draft mechanics
+v0では自然回復と老化を、AgingStartで0を通る連続的な `DailyVitalChange` として扱う。この具体曲線と数値はv0 defaultであり、上位の不変思想ではない。
 
-具体的な老化方式はまだ固定しない。候補には次を含む。
+## Before AgingStart
 
-- 最大HP低下
-- 回復不能な老化ダメージ
-- Aging蓄積値
-- 年齢による自然死確率
-- 一定年齢以降の急激な衰弱
-- 上記の組み合わせ
+```text
+Age < AgingStartAge:
+DailyVitalChange = HealAtBirth * (1 - Age / AgingStartAge)
+```
 
-次もDraftとする。
+v0 defaultはAgingStartAge 30歳、HealAtBirth +0.10 HP/day。出生時に最大回復し、年齢とともに線形低下して30歳で0となる。CurrentHPはEffectiveMaxHPを超えない。
 
-- 老化開始年齢、進行曲線、単位。
-- 回復と老化の相互作用。
-- 行動、繁殖、老化、死亡判定のtick内順序。
-- 上位存在、加護、疾病が寿命へ及ぼす作用。
+## At and after AgingStart
 
-数値例として登場した `agingHpDecay = 0.002` は採用済みの値ではない。
+```text
+Age >= AgingStartAge:
+DailyVitalChange = -AgingSlope * (AgeDays - AgingStartDays)
+```
 
-## Definition of ready
+老化後は通常自然回復を加算せず、日次減少量が年齢とともに線形増加する。v0参考値は `AgingSlope ~= 3.75e-6 HP/day^2`。BaseMaxHP約100の無傷個体が、老化だけでも概ね50歳前後で自然死し得る程度を目標とする。
 
-実装前に、少なくとも次を決める。
+## Lifecycle defaults
 
-- 通常回復が寿命機構を無効化しない方法。
-- 年齢と死亡可能性の関係。
-- 固定時間刻みに対して同じ老化結果を再現する方法。
-- 死亡時に発行するイベントと、繁殖・系譜との整合性。
+- MatureAge: 12歳。
+- AgingStartAge: 30歳。
+- 想定自然寿命: 概ね50歳前後。
+- ReproductionCooldown: 730日。
 
+固定50歳死亡ではない。BaseMaxHP、ConceptMark、Combat Damage、自然回復、老化によって死亡年齢は変化する。生存MarkのEffectiveMaxHP ×1.2はAgingSlope自体を変えないため、結果として長寿になり得る。
+
+HealAtBirth、AgingSlope、AgingStartAge、MatureAge、CooldownはConfig化する。
+
+## Tick boundary and tests
+
+Vitality / AgingはConcept Exposure後、Birth Queue前に更新し、Death処理は出生解決後に確定する。30歳境界で符号が正→0→負へ連続的に変化すること、HP cap、老化だけでも最終的に死亡可能なこと、同seed・同Configの再現をheadless testで検証する。
+
+採用理由は [`ADR-0009`](../decisions/ADR-0009-continuous-vitality-curve.md) を参照する。

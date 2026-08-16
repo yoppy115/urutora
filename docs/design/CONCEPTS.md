@@ -30,6 +30,31 @@
 | 生存 | 最大HP | 存在し続け、耐える |
 | 交流 | コミュニケーション | 他者と情報・意図を交換する |
 
+## v0 Concept Landmarks
+
+3概念を1 Cell占有の固定Landmarkとして置く。NPCはLandmark Cellへ侵入・通過できない。これは通常NPCではなく、世界を支える杭の最小表現である。
+
+v0 defaultではLandmarkからのChebyshev距離に応じて、1日ごとにConcept Exposureを加える。
+
+| Distance | Daily exposure |
+| --- | --- |
+| 1 | +1.00 |
+| 2 | +0.50 |
+| 3 | +0.25 |
+| 4以上 | 0 |
+
+Exposure 100以上で対応する永久ConceptMarkを取得する。閾値と増加量はConfig。同一Markはstackせず、異種Markは併存できる。ExposureとMarkは遺伝しない。
+
+## v0 ConceptMark effects
+
+- 闘争: `EffectiveAction = BaseAction * 1.2`、`EffectiveCombat = BaseCombat * 1.2`。
+- 生存: `EffectiveMaxHP = BaseMaxHP * 1.2`。
+- 交流: `EffectiveCommunication = BaseCommunication * 1.2`。
+
+倍率はv0 configurable。Base遺伝値を書き換えない。Mark自体は遺伝しないが、生存、戦闘、行動、情報交換、繁殖機会へ影響し、その個体のBase形質を次世代へ残しやすくすることで淘汰環境を歪め得る。
+
+採用理由は [`ADR-0012`](../decisions/ADR-0012-concept-landmarks-and-selection.md) を参照する。
+
 ## Draft: initial difficulties
 
 現時点の有力候補は次の通りだが、最終名称ではない。
@@ -53,10 +78,9 @@
 ## Draft mechanics
 
 - 共通schema、型、schema version。
-- 概念・困難がNPC、世界、啓示へ作用する方法。
+- v0 Landmark以外で概念・困難がNPC、世界、啓示へ作用する方法。
 - 競合、合成、進化の計算方法。
 - 新概念・新困難の生成アルゴリズム。
 - LLMを用いる場合の出力検証と安定ID付与。
 
 実データは将来 `simulation/concepts/` に置く。
-
