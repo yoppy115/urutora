@@ -36,14 +36,14 @@ Observationは原則として日初に一度だけ行い、Micro Roundごとに�
 初回Actionは通常通り可能。以後の参加確率はv0 defaultとして次を使う。
 
 ```text
-P(repeat) = Action / (Action + 5)
+P(repeat) = EffectiveAction / (EffectiveAction + 5)
 ```
 
-Action 0で0%、5で50%、10で約66.7%。1 NPC 1日最大5 Actionとし、上限はConfig化する。追加判定に成功したNPCだけが次Micro Roundへ進む。
+EffectiveAction 0で0%、5で50%、10で約66.7%。ConceptMarkでBase scaleの10を超えることを許容する。1 NPC 1日最大5 Actionとし、上限はConfig化する。追加判定に成功したAlive NPCだけが次Micro Roundへ進む。
 
 ## Conflict ordering
 
-同じ資源・Cellを競合するIntentはAction値の高いNPCを優先し、完全同値だけseed付き乱数で解決する。Entity配列順、生成順、Dictionary列挙順に依存してはならない。
+同じ資源・Cellを競合するIntentはEffectiveAction値の高いNPCを優先し、完全同値だけseed付き乱数で解決する。Entity配列順、生成順、Dictionary列挙順に依存してはならない。
 
 同一空きCellを選んだMove競合の敗者はUtility AIへ戻らず、残る有効移動先だけを再抽選する。再抽選先がNPC占有CellならCollision Attackへ変換し、候補が尽きればMoveFailedとする。
 
@@ -52,7 +52,7 @@ Action 0で0%、5で50%、10で約66.7%。1 NPC 1日最大5 Actionとし、上�
 MoveまたはFleeの1マス目の後、次のv0 defaultで2マス目を試みる。
 
 ```text
-P(secondStep) = 0.02 * Action
+P(secondStep) = Clamp(0.02 * EffectiveAction, 0, 1)
 ```
 
 通常Moveは原則同方向、Fleeは主観上のThreatからさらに離れる方向を選ぶ。2マス目が不可能なら1マス地点で終了する。
@@ -63,6 +63,20 @@ P(secondStep) = 0.02 * Action
 
 用途例はUtilityChoice、Mutation、MoveDirection、MoveConflict、CommunicationDistortion、SubjectSwap、CombatHit、CombatDamage、BirthLocationである。無関係な乱数利用追加が既存の全結果をずらさない構造を目標とする。
 
+## Immediate death and end-of-day cleanup
+
+Reality ResolutionでCurrentHPが0以下になった時点から即座にDeadとして扱う。同Tickの新Action、Micro Round、Counterattack、Pursuit、Reproduction、Communicationへ参加できない。Corpseは持たず、Cell占有を即時解除するため、後続Micro Roundの別MoveはそのCellを利用できる。
+
+攻撃者は相手を倒したAttackまたはCollision Attackと同じAction内でそのCellへ移動しない。Tick末Death phaseはDeath Event確定、Lifecycle cleanup、index / collection cleanupを担当する。
+
+## Birth queue arbitration
+
+Reproduction Success時に両親ID、受胎時Position、GeneticData / seed informationをBirthRequestへ固定する。後の親の移動やBirth解決前の死亡でRequestを移動・キャンセルしない。
+
+Tick末には全BirthRequestをまとめ、各Requestが受胎時の両親隣接Cell和集合から有効な希望Cellをseed付きで選ぶ。同一Cell競合はseed付き決定論的tie-breakで1件だけ勝者とし、敗者は残る候補から再抽選する。全候補が尽きた場合だけBirth Failureとなる。queue順、Entity生成順、collection列挙順に依存させない。
+
+Birth解決時点で空いている死亡Cellは利用可能。LandmarkとAlive NPC占有Cellは利用できない。
+
 採用理由は [`ADR-0007`](../decisions/ADR-0007-v0-time-and-micro-rounds.md) と [`ADR-0011`](../decisions/ADR-0011-partitioned-deterministic-rng.md) を参照する。
 
 ## Headless invariants
@@ -70,6 +84,7 @@ P(secondStep) = 0.02 * Action
 - DecisionはRealityを直接読まない。
 - 未観測Reality変更は同じPerceptionとseedのDecisionを変えない。
 - Action競合は入力配列順を変えても同じ結果となる。
+- Dead NPCは同Tickの後続行動・Reactionへ参加しない。
+- Birth競合はqueue順を変えても同じ結果となる。
 - 同一Code、Config、RunSeedから同じEvent列を得る。
 - UI render頻度を変えてもSimulation結果は変化しない。
-

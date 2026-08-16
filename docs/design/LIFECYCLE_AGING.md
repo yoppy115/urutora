@@ -39,6 +39,8 @@ HealAtBirth、AgingSlope、AgingStartAge、MatureAge、CooldownはConfig化す�
 
 ## Tick boundary and tests
 
-Vitality / AgingはConcept Exposure後、Birth Queue前に更新し、Death処理は出生解決後に確定する。30歳境界で符号が正→0→負へ連続的に変化すること、HP cap、老化だけでも最終的に死亡可能なこと、同seed・同Configの再現をheadless testで検証する。
+Vitality / AgingはConcept Exposure後、Birth Queue前に更新する。CurrentHPが0以下になった時点で即座にDeadとなり、Cell占有と同Tickの行動資格を失う。Tick末Death phaseはDeath Eventとcollection cleanupを確定する。
+
+30歳境界で符号が正→0→負へ連続的に変化すること、EffectiveMaxHP cap、老化だけでも最終的に死亡可能なこと、Deadが後続Micro Roundへ参加しないこと、同seed・同Configの再現をheadless testで検証する。
 
 採用理由は [`ADR-0009`](../decisions/ADR-0009-continuous-vitality-curve.md) を参照する。

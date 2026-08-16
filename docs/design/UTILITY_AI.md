@@ -36,22 +36,101 @@ successful Reproduction: both participants -6.0
 
 受動的な会話参加者のCommunication Needは減らさない。ActivityとRestは完全な対称系にしない。将来は性格や必要人数等でNeed Weightや増加量を変えられる構造にする。
 
+Move、Communication、Attack、Collision Attack、Flee、Reproduction Attemptは通常の能動Actionである。1 Micro Roundを消費した時点で、成功、失敗、miss、Rejectに関係なくActivity -2.0、Rest +0.5を適用する。
+
+Restだけは専用のRest -4.0、Activity +1.0を使い、通常能動Actionの変化を重ねない。Counterattack、Pursuit Attack、Reproduction Accept / RejectはReactionであり、通常Action回数を消費せず、Activity / Restの通常変化も適用しない。
+
+Communication Need -3は選択した側だけへ適用する。Reproduction Need -6とCooldown開始はReproduction Success時だけで、Reject時には適用しない。
+
 ## Utility baseline
 
 ```text
-Utility(action) =
-  sum(Need_n * SubjectiveExpectedEffect(action, n))
-  - RiskCost(action)
+U(action) = sum(Need_n * Effect(action, n))
+          - (1 - RiskPreference) * Risk(action)
 ```
 
-RiskCostへRiskPreferenceを作用させる。v0で遺伝可能な具体的Utility評価係数はRiskPreferenceだけ。0は危険回避的、1は危険をほぼ評価コストへ入れない。Loss Aversion、Future Discounting、Uncertainty Aversion、Other-regarding Preference等は将来Draftでありv0へ追加しない。
+Needは `S=Survival`、`R=Rest`、`A=Activity`、`C=Communication`、`P=Reproduction`。Effectは原則 `[-1,1]` 程度で、正はNeedを満たす期待、負は悪化させる期待を表す。Riskは0〜10で状況自体の主観的危険度を表し、RiskPreferenceを含めない。
+
+v0で遺伝可能な具体的Utility評価係数はRiskPreferenceだけ。0は強い危険回避、1は危険をほぼUtilityコストへ入れない。Loss Aversion、Future Discounting、Uncertainty Aversion、Other-regarding Preference等は将来Draftでありv0へ追加しない。
+
+## v0 action utilities
+
+次の係数はv0 default / configurableであり、Baselineではない。
+
+```text
+U_move          = 0.50 * A - 0.125 * R
+U_rest          = 1.00 * R - 0.25 * A
+U_communication = 0.75 * C + 0.50 * A - 0.125 * R
+U_reproduce     = 1.00 * P + 0.50 * A - 0.40 * S - 0.20 * R
+```
+
+Move自体にRiskCostを置かず、方向はPerceptionに占有NPCが見えていてもseed付きランダムのままとする。Reality占有状態でMove Utilityや方向を変えず、Collision AttackはResolutionで発生させる。
+
+CommunicationとReproductionに複数の有効対象がある場合、v0は対象をseed付きランダムで選ぶ。情報価値や相手の受諾見込みをUtilityへ入れず、Realityから先読みしない。
+
+## Threat risk and subjective attack prediction
+
+NPCは自身のCurrentHP、EffectiveMaxHP、Base/Effective能力、Needs、Ageを正確に把握してよい。他NPCのCombat、HP、Position等はPerception経由だけで使う。
+
+```text
+SelfHPRatio = CurrentHP_self / EffectiveMaxHP_self
+
+R_threat(t) = Clamp(
+  5 + 0.5 * (PerceivedCombat_t - EffectiveCombat_self)
+    + 5 * (1 - SelfHPRatio),
+  0, 10)
+
+P_hit_subjective = Clamp(
+  0.70 + 0.03 * (EffectiveCombat_self - PerceivedCombat_t),
+  0.40, 0.95)
+
+ExpectedDamage_subjective = max(
+  1,
+  8 + 1.8 * EffectiveCombat_self - 0.8 * PerceivedCombat_t)
+
+ThreatNeutralization(t) = Clamp(
+  P_hit_subjective * ExpectedDamage_subjective
+  / max(PerceivedHP_t, 1),
+  0, 1)
+
+SurvivalPressure(t) = max(S, R_threat(t))
+
+U_attack(t) = SurvivalPressure(t) * ThreatNeutralization(t)
+            + 0.50 * A - 0.125 * R
+            - (1 - RP) * R_threat(t)
+```
+
+ExpectedDamageではReality側Damage乱数の期待倍率1.0を使う。無傷でSurvival Needが0でも、Threat RiskをSurvivalPressureへ含めることで明白な脅威へ反応できる。距離1以内の各PerceivedThreatについて個別のAttack Candidateと `U_attack(t)` を生成できる。
+
+## Flee utility
+
+距離3以内で `R_threat` 最大のPerceivedThreatをPrimaryThreatとし、同値はseed付き乱数で選ぶ。
+
+```text
+P_second = Clamp(0.02 * EffectiveAction, 0, 1)
+ExpectedDistanceGain = 1 + P_second
+FleeSafetyEffect = Clamp(ExpectedDistanceGain / 2, 0, 1)
+
+R_pursuit = Clamp(
+  5 + 0.5 * (PerceivedCombat_target - EffectiveCombat_self)
+    + 5 * (1 - SelfHPRatio),
+  0, 10)
+
+U_flee = SurvivalPressure(PrimaryThreat) * FleeSafetyEffect
+       + 0.50 * A - 0.125 * R
+       - (1 - RP) * R_pursuit
+```
+
+Pursuit Reactionの `U_attack` は本節の対象別 `U_attack(t)` を参照する。
 
 ## Candidate choice
 
-- 候補0件: Idle。
+- 候補0件: Idle。Idleはこの場合だけ生成する。
 - 候補1件: その候補で確定。
 - 候補2件: 2件を抽選対象にする。
 - 候補3件以上: Utility上位3件だけを残す。
+
+有効Action Candidateが1件以上ある場合、Idleを通常候補へ加えない。
 
 ```text
 weight_i = exp((utility_i - maxUtility) / temperature)
@@ -67,7 +146,6 @@ MaxHP、Action、Combat、Communicationは「何ができるか」、Utility評�
 
 ## Diagnostics and tests
 
-候補、Utility、重み、選択結果、乱数purposeを診断可能にする。Reality非参照、同じPerceptionとseedの再現、候補0/1/2件、同点、temperature境界、Top 3外非選択をheadless testで検証する。
+候補、対象、Utility内訳、重み、選択結果、乱数purposeを診断可能にする。Reality非参照、同じNeed/Perception/seedの再現、候補0/1/2件、同点、temperature境界、Top 3外非選択、PerceivedCombat変更によるAttack/Flee Utility変化、Pursuitが同じ `U_attack` を使うことをheadless testで検証する。
 
 採用理由は [`ADR-0001`](../decisions/ADR-0001-utility-ai.md) と [`ADR-0002`](../decisions/ADR-0002-subjective-decision-boundary.md) を参照する。
-

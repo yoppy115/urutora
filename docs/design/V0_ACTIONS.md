@@ -4,6 +4,8 @@
 
 すべての候補は主観情報から作り、ActionIntent確定後だけRealityで成立判定する。調整式の係数はv0 Configであり、普遍的な世界法則ではない。
 
+通常Utility AIはMove、Rest、Communication、Attack、Flee、ReproductionからActionIntentを作る。Counterattack、Pursuit、Reproduction Accept / Rejectは別のReaction Utilityであり、Micro Round追加回数を消費せず、Reactionから同種Reactionを再帰させない。
+
 ## Ranges and space
 
 距離はChebyshev距離。ObservationとFlee用Threat探索は3、Communicationは2、AttackとReproductionは1。NPCとLandmarkは通過できない。
@@ -16,7 +18,7 @@ MoveはMap内のLandmarkではない隣接Cellを候補とし、NPC占有Cellを
 - NPC occupied: Move IntentをCollision Attackへ変換し、通常Attack Resolutionを使う。
 - Landmark: 無効。
 
-Collision Attackでは移動をキャンセルする。対象が死亡しても同じAction内ではそのCellへ進入せず、後続Micro Round等で新しいMoveが必要となる。これはv0で最初の暴力を生じさせる主要機構である。採用理由は [`ADR-0008`](../decisions/ADR-0008-move-collision-combat.md) を参照する。
+Collision Attackでは移動をキャンセルする。対象が死亡しても同じAction内ではそのCellへ進入せず、後続Micro Round等で新しいMoveが必要となる。通常Attack Resolutionを使うため、条件を満たす被攻撃者はCounterattackできる。攻撃側はOutcomeから相手EntityId、Position、戦闘結果を知り、被攻撃側は攻撃者をPerceivedThreatへ登録する。これはv0で最初の暴力を生じさせる主要機構である。採用理由は [`ADR-0008`](../decisions/ADR-0008-move-collision-combat.md) を参照する。
 
 ## Rest
 
@@ -24,28 +26,33 @@ Restは主観上、休息欲求を満たす行動である。v0 defaultではRes
 
 ## Communication
 
-距離2以内のAがBへCommunicationを選ぶと、A→BとB→Aの双方向で情報を交換する。Communication Needが3減るのは選択したAだけ。各送信者は自身のHeld Informationからseed付きランダムで選ぶ。
+距離2以内のAがBへCommunicationを選ぶと、A→BとB→Aの双方向で情報を交換する。Communication Needが3減るのは選択したAだけ。各送信者は自身のHeld Informationからseed付きランダムで選ぶ。複数targetは有効候補からseed付きランダムで選び、情報価値はv0 Utilityへ加えない。
 
 ```text
-sendCount = 1 + floor(EffectiveCommunication / 3)
-ErrorMax = 0.10 * (1 - ReceiverEffectiveCommunication / 10)
-P(SubjectSwap) = 0.03 * (1 - ReceiverEffectiveCommunication / 10)
+sendCount = 1 + floor(EffectiveCommunication_sender / 3)
+CommQuality = Clamp(EffectiveCommunication_receiver, 0, 10)
+ErrorMax = 0.10 * (1 - CommQuality / 10)
+P(SubjectSwap) = 0.03 * (1 - CommQuality / 10)
 ```
 
-sendCountは0〜2で1件、3〜5で2件、6〜8で3件、9〜10で4件。数値誤差は `[-ErrorMax,+ErrorMax]`。Subject取り違えは別判定で、受信者が既に認識する合理的なSubjectから置換し、未知Reality Entityを生成しない。将来、重要度、感情、利害、文化、虚偽で選択を歪められる構造にする。
+sendCountはBase scaleの0〜2で1件、3〜5で2件、6〜8で3件、9〜10で4件。ConceptMarkによりEffectiveCommunicationが10を超えた場合は4件超を許容する。一方、品質は10へClampするため、誤差率やSubjectSwap率は負にならない。数値誤差は `[-ErrorMax,+ErrorMax]`。Subject取り違えは別判定で、受信者が既に認識する合理的なSubjectから置換し、未知Reality Entityを生成しない。Confidence伝送は [`PERCEPTION.md`](PERCEPTION.md) に従う。
 
 ## Attack
 
 明示的Attack Candidateは原則、距離1以内の既知のPerceivedThreatに対してだけ生成する。Collision AttackはMove Resolutionから直接発生する。
 
 ```text
-P(hit) = Clamp(0.70 + 0.03 * (Combat_attacker - Combat_defender), 0.40, 0.95)
+P(hit) = Clamp(
+  0.70 + 0.03 * (EffectiveCombat_attacker - EffectiveCombat_defender),
+  0.40, 0.95)
 
-Damage = max(1, 8 + 1.8 * Combat_attacker - 0.8 * Combat_defender)
+Damage = max(
+  1,
+  8 + 1.8 * EffectiveCombat_attacker - 0.8 * EffectiveCombat_defender)
          * Random(0.9, 1.1)
 ```
 
-Reality ResolutionではEffectiveCombatを使う。Utility側ではPerception上の推定値から主観命中率と主観Damageを計算し、現実結果と一致しなくてよい。
+Reality ResolutionではEffectiveCombatを使う。Utility側では自身の正確なEffectiveCombatと、対象のPerceivedCombat / PerceivedHPから主観命中率、期待Damage、ThreatNeutralization、対象別 `U_attack` を計算する。定義は [`UTILITY_AI.md`](UTILITY_AI.md) を正本とし、現実結果と一致しなくてよい。
 
 ## Counterattack
 
@@ -53,14 +60,14 @@ Reality ResolutionではEffectiveCombatを使う。Utility側ではPerception上
 
 ## Flee and Pursuit
 
-Flee Candidateは距離3以内にPerceivedThreatがある場合に生成できる。主観上のThreatとのChebyshev距離を最大化し、同率をseed付き乱数で選ぶ。1マス後にAction由来の2マス目判定を行う。
+Flee Candidateは距離3以内にPerceivedThreatがある場合に生成できる。複数Threatでは `R_threat` 最大をPrimaryThreatとし、同値はseed付き乱数。PrimaryThreatとのChebyshev距離を最大化し、同率をseed付き乱数で選ぶ。1マス後にEffectiveAction由来の2マス目判定を行う。
 
 Flee後、元のThreatはPursueとDisengageをsoftmaxで評価できる。
 
 ```text
 R_pursuit = Clamp(
-  5 + 0.5 * (PerceivedCombat_target - PerceivedCombat_self)
-    + 5 * (1 - HPRatio_self),
+  5 + 0.5 * (PerceivedCombat_target - EffectiveCombat_self)
+    + 5 * (1 - SelfHPRatio),
   0, 10)
 
 U_pursue = 0.5 * U_attack
@@ -72,11 +79,17 @@ U_disengage = 0.25 * Need_rest
             + (1 - RiskPreference) * R_pursuit
 
 P(pursuit) = Clamp(
-  0.50 + 0.05 * (Action_pursuer - Action_fleeing),
+  0.50 + 0.05 * (EffectiveAction_pursuer - EffectiveAction_fleeing),
   0.20, 0.80)
 ```
 
 Pursue選択後に成立判定し、成功時だけ通常Attack Resolutionを1回行う。Pursuit AttackからCounterattack、新Flee、新Pursuitを発生させず、Reactionの無限再帰を禁止する。
+
+ここで `U_attack` は [`UTILITY_AI.md`](UTILITY_AI.md) が定義する、直前にFleeした対象に対する対象別Attack Utilityである。Pursuitは他のThreatへ対象を切り替えない。
+
+## Active action costs
+
+Move、Communication、Attack、Collision Attack、Flee、Reproduction Attemptは、成功・失敗に関係なく1 Micro Roundを消費した時点でActivity -2.0、Rest +0.5を受ける。Restは専用効果だけを使う。Counterattack、Pursuit Attack、Accept / Rejectには通常Action用Need変化を適用しない。
 
 ## Required events and tests
 

@@ -19,14 +19,14 @@
 | Document | Status | Purpose |
 | --- | --- | --- |
 | [`VISION.md`](design/VISION.md) | Baseline | 制作目的、中核体験、逸脱、三層進化 |
-| [`PERCEPTION.md`](design/PERCEPTION.md) | Baseline constraints / Draft mechanics | Reality、主観、意思決定境界 |
+| [`PERCEPTION.md`](design/PERCEPTION.md) | Baseline / v0 configurable | Reality境界、観測誤差、Confidence、Held Information |
 | [`PLAYER_OBSERVATION.md`](design/PLAYER_OBSERVATION.md) | Baseline constraints / Draft mechanics | 現在中心UI、文章表現、ピン |
 | [`WORLD_LIFECYCLE.md`](design/WORLD_LIFECYCLE.md) | Baseline constraints / Draft mechanics | 世界フェーズ、困難、再編、継承 |
 | [`V0_SIMULATION.md`](design/V0_SIMULATION.md) | Baseline / v0 configurable | v0の目的、範囲、初期世界、実装基盤 |
-| [`SIMULATION_TICK.md`](design/SIMULATION_TICK.md) | Baseline / v0 configurable | 日、Micro Round、競合解決、乱数 |
-| [`V0_ACTIONS.md`](design/V0_ACTIONS.md) | Baseline / v0 configurable | Move、Communication、Combat、Flee、Pursuit |
+| [`SIMULATION_TICK.md`](design/SIMULATION_TICK.md) | Baseline / v0 configurable | 日、Micro Round、即時Death、Birth競合、乱数 |
+| [`V0_ACTIONS.md`](design/V0_ACTIONS.md) | Baseline / v0 configurable | Action/Reaction、Move、Communication、Combat、Flee、Pursuit |
 | [`CONCEPTS.md`](design/CONCEPTS.md) | Baseline constraints / Draft mechanics | 概念と困難、初期3概念 |
-| [`UTILITY_AI.md`](design/UTILITY_AI.md) | Baseline / v0 configurable | 欲求、主観評価、上位3候補softmax |
+| [`UTILITY_AI.md`](design/UTILITY_AI.md) | Baseline / v0 configurable | Action別主観Utility、Threat Risk、上位3候補softmax |
 | [`REPRODUCTION.md`](design/REPRODUCTION.md) | Baseline / v0 configurable | 繁殖、出生、遺伝、突然変異 |
 | [`LIFECYCLE_AGING.md`](design/LIFECYCLE_AGING.md) | Baseline / v0 configurable | 寿命、連続Vitality曲線、自然死 |
 | [`PSALM_AND_INHERITANCE.md`](design/PSALM_AND_INHERITANCE.md) | Baseline constraints / Draft mechanics | 歴史、詩篇、啓示、上位存在、継承 |

@@ -57,6 +57,9 @@ flowchart LR
 7. **Logging observes behavior.** ロガーやNarrative Generatorがドメイン結果を変えない。
 8. **The runner coordinates, but does not own domain rules.** 処理順とlifecycleだけを担当する。
 9. **LLM has no simulation authority.** ログ・主観・ピンから人間可読出力を作る交換可能なadapterに限定する。
+10. **Base and Effective stats are distinct.** 遺伝・系譜はBase、Resolutionと定義済み主観計算はEffectiveを使い、ConceptMarkはBaseを書き換えない。
+11. **Death is immediately authoritative.** HP 0以下のEntityは同Tickの後続command・reaction対象になれず、Tick末phaseは整理だけを担う。
+12. **Batch arbitration is order-independent.** MoveとBirthの競合を配列・queue・collection順で決めない。
 
 ## State layers
 
@@ -88,6 +91,8 @@ Historyは住人の認識を含む世界の語られ方、Psalmは次世界へ�
 - プレイヤー介入を含む外部入力列
 
 v0のPRNGは単一共有列にせず、run seedと `subsystem / tick / entity / purpose` から用途別streamを派生する。描画、ログ整形、診断がSimulation用streamを消費してはならない。
+
+ObservationError、CommunicationTransmission、ThreatSelection、ActionTarget、BirthConflict等も固有purposeを持つ。stable InformationIdやBirthRequest IDをtie-break keyへ使用し、乱数key自体をcollection indexから作らない。
 
 ## v0 project boundary
 

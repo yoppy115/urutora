@@ -41,6 +41,8 @@
 - 遺伝schemaはallowlistで検証する必要がある。
 - 新しい評価係数の遺伝化は、Utilityモデルへの採用と同時に文書更新が必要になる。
 - v0では項目ごとの独立RandomBlend、seed付きMutation、値域Clampを用いる。係数はConfigで調整する。
+- BirthRequestは受胎時の親ID、Position、遺伝入力を固定し、親の後続移動・死亡から独立して解決する。
+- 複数BirthRequestのCell競合はqueue順ではなくseed付き決定論的batch arbitrationで解決する。
 - 寿命と老化はReproductionから分離して扱う。
 
 ## Rejected alternatives

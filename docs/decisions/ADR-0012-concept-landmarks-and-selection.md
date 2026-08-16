@@ -11,7 +11,8 @@
 
 闘争、生存、交流を固定・進入不可のLandmarkとして置き、距離別Exposureから永久ConceptMarkを与える。MarkはEffective能力だけを補正し、Base遺伝値を変更せず、Mark自体も遺伝しない。
 
+遺伝は常にBase値、Simulation上の実能力はEffective値を使う。EffectiveActionは行動頻度・競合・移動・追撃、EffectiveCombatはReality戦闘、EffectiveCommunicationは送信量とClamp済み品質、EffectiveMaxHPはNeed・HP比・繁殖条件・HP上限へ使う。MaxHP Mark取得時はCurrentHP絶対値を維持し、増加分を即時補充しない。
+
 ## Consequences
 
 Mark個体の生存・行動・戦闘・交流・繁殖機会が変わり、その個体のBase形質が間接的に残りやすくなる。効果倍率、Exposure速度、閾値、配置はv0 configurableである。
-

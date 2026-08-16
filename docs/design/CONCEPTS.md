@@ -53,6 +53,21 @@ Exposure 100以上で対応する永久ConceptMarkを取得する。閾値と増
 
 倍率はv0 configurable。Base遺伝値を書き換えない。Mark自体は遺伝しないが、生存、戦闘、行動、情報交換、繁殖機会へ影響し、その個体のBase形質を次世代へ残しやすくすることで淘汰環境を歪め得る。
 
+## Base and Effective baseline
+
+遺伝には常にBase値、Simulation上の実能力にはEffective値を使う。
+
+```text
+EffectiveAction        = BaseAction        * ConceptModifier
+EffectiveCombat        = BaseCombat        * ConceptModifier
+EffectiveCommunication = BaseCommunication * ConceptModifier
+EffectiveMaxHP         = BaseMaxHP         * ConceptModifier
+```
+
+該当MarkなしはModifier 1.0、ありはv0 default 1.2。EffectiveActionはrepeat、Intent競合、second step、pursuitへ使う。EffectiveCombatはRealityのhit、Damage、Counterattackと自己の主観予測へ使う。EffectiveCommunicationはsendCountへそのまま使い、情報品質計算だけ0〜10へClampする。EffectiveMaxHPはSurvivalNeed、SelfHPRatio、繁殖HP条件、CurrentHP上限へ使う。
+
+Mark取得時にCurrentHPの絶対値を維持し、増えたEffectiveMaxHPまで即時補充しない。例えば100/100の個体が生存Markを得た直後は100/120となり、将来のVitality回復で不足分を回復できる。
+
 採用理由は [`ADR-0012`](../decisions/ADR-0012-concept-landmarks-and-selection.md) を参照する。
 
 ## Draft: initial difficulties

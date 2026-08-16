@@ -21,6 +21,9 @@ PerceivedActionCandidate -> ActionIntent -> Reality resolution -> ActionOutcome
 - ActionOutcomeは観測可能な事実を経由してPerceptionへ反映する。
 - 日初以外の完全再観測は行わないが、本人が直接経験したOutcomeは即時にPerceptionへ反映できる。
 - Communicationで扱える情報は、当事者がObservationまたはCommunicationで得たHeld Informationに限定する。
+- v0の直接ObservationはEntityId、Position、Alive、HP/Combat推定、ConceptMarkだけを取得し、数値推定へ距離依存誤差を入れる。
+- Communicationはsource Confidenceへ受信者品質由来の減衰を掛け、Realityの最新値で主観履歴を自動上書きしない。
+- NPCは自己のCurrentHP、EffectiveMaxHP、Base/Effective能力、Needs、Ageを正確に把握してよい。
 
 ## Reasons
 
@@ -35,6 +38,7 @@ PerceivedActionCandidate -> ActionIntent -> Reality resolution -> ActionOutcome
 - 未観測Reality変更がUtilityを変えないことをテストする。
 - ActionIntentとActionOutcomeに安定した識別子が必要になる。
 - 古い主観情報のまま同日に複数行動することを許容する。
+- Action対象が移動・死亡していればReality Resolutionで失敗させ、その直接Outcomeだけを即時反映する。
 
 ## Rejected alternatives
 

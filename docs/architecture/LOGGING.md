@@ -40,6 +40,9 @@ Decision DebugとWorld Eventは概念的に分離する。Desktop AppのEvent Lo
 - Perception LogはReality Logの単なる複製にしない。
 - Event生成や表示頻度がSimulationの乱数消費・結果・処理順を変えない。
 - `run.json`、`yearly_stats.csv`、`final_map.txt` 等のファイル出力はv0初期必須要件ではない。将来追加できる構造だけを保つ。
+- Action Eventは通常ActionかReactionか、Attempt / Success / Failure、target、Utility内訳参照、ActionOutcomeを区別できる。
+- DeathはHP 0以下になったResolution時点を発生tickとして記録し、tick末cleanup時点と混同しない。
+- BirthRequest、希望Cell、競合tie-break、再抽選、BirthFailureを同一のstable request IDで追跡できる。
 
 ## Draft mechanics
 

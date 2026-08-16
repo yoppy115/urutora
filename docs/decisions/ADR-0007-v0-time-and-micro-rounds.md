@@ -13,9 +13,13 @@ Actionを介入速度として機能させつつ、日次の観測と老化を�
 
 競合はAction優先、完全同値は用途別seed付き乱数で解決し、コレクション順に依存しない。
 
+Action関連の確率と競合優先にはEffectiveActionを使う。通常能動Actionは成否に関係なくMicro RoundとNeed costを消費し、Reactionは消費しない。
+
+HP 0以下はResolution時点で即時Deadとなり、後続行動資格とCell占有を失う。Tick末Death phaseはEventとcollection cleanupを担う。BirthRequestは受胎時状態を固定し、Tick末に全Requestを順序非依存でbatch解決する。
+
 ## Consequences
 
 - 高Action個体は古い情報のまま複数行動でき、それを逸脱要因として許容する。
 - 日次phaseごとのread/write setとReaction深さを実装で明示する。
 - 競合の順序非依存と最大Action数をheadless testする。
-
+- 即時Death eligibility、死亡Cell再利用、Birth queue順非依存をheadless testする。

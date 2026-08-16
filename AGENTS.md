@@ -25,6 +25,7 @@
 - Reality（客観状態）とNPC Perception（主観認識）を別のデータ層にする。
 - NPCの判断は主観情報だけを使い、非公開のRealityデータを直接読まない。
 - NPCは主観上可能だと思う行動を選び、Reality側の解決で失敗し得る。
+- v0 Action Utilityは `docs/design/UTILITY_AI.md` の式を正本とし、未記載の情報価値・関係・先読みを独自追加しない。
 - Utility AIは候補が3件以上なら上位3候補へ絞り、Utility由来の重みで確率選択する。候補2件は両方を対象にする。
 - 確率処理にはrun seedから用途別に派生する乱数streamを使い、再現に必要なseedとConfigを保存する。
 - 内部数値を自動的にプレイヤーUIへ露出しない。
@@ -32,6 +33,9 @@
 - interface、event、data-driven configuration、交換可能なmoduleを優先する。
 - 無関係なシミュレーションシステム間の直接依存を避ける。
 - LLMをSimulation Coreの権威的な計算へ使用しない。
+- 遺伝にはBase能力、Simulationの実能力にはEffective能力を使い、ConceptMarkでBase値を変更しない。
+- HP 0以下のNPCは即時に行動不能・非占有とし、tick末cleanupまで行動させない。
+- Move/Birth等の競合結果を配列、queue、生成、collection列挙順で決めない。
 
 ## Change contract
 

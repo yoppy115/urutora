@@ -26,15 +26,18 @@
 | Area | Defaults |
 | --- | --- |
 | World | 64×64、InitialPopulation 200、1 tick/day、365 days/year |
-| Action | max 5/day、repeat `Action/(Action+5)`、second step `0.02*Action` |
+| Action | max 5/day、repeat `EffectiveAction/(EffectiveAction+5)`、second step `Clamp(0.02*EffectiveAction,0,1)` |
 | Utility | Top 3、softmax temperature configurable |
+| Utility effects | Move/Rest/Communication/Attack/Flee/ReproductionのNeed係数、Threat Risk係数 |
+| Observation | 距離別error 5%/7.5%/10%、Confidence 1.00/0.90/0.80 |
+| Communication confidence | factor `0.50 + 0.03 * Clamp(EffectiveCommunication,0,10)` |
 | Threat | memory 365 days |
 | Reproduction | MatureAge 12 years、Cooldown 730 days、Need threshold 4、HP ratio 0.50 |
 | Mutation | chance 0.10、stddev 0.25 |
 | Vitality | AgingStart 30 years、HealAtBirth 0.10 HP/day、AgingSlope about 3.75e-6 HP/day^2 |
 | Concept | exposure 1.0/0.5/0.25、threshold 100、effective multiplier 1.2 |
 
-Need増減、Communication変形、Combat、Pursuit、初期分布等の全defaultは各設計文書を正本とする。まだコード実装を行わないため、この変更では `default.json` を作らない。
+Need増減、Utility Effect、Threat Risk、Observation誤差・Confidence、Communication Confidence、Communication変形、Combat、Pursuit、初期分布等の全defaultは各設計文書を正本とする。これらの数値はv0 configurableであり、主観境界、Base/Effective分離、即時Dead、順序非依存競合等のBaselineと混同しない。まだコード実装を行わないため、この変更では `default.json` を作らない。
 
 ## Run metadata
 
