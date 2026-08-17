@@ -6,12 +6,12 @@
 
 ## Current status
 
-- フェーズ: Simulation v0.15実装・観測実験
-- 実装: headless Core、Desktop観測App、自動テストを実装済み
+- フェーズ: v0.2 Settlement / Order Update実装・観測実験
+- 実装: headless Core、Windows Desktop観測App、SimRunner、全自動testを実装済み
 - 実装基盤: C# / .NET 10。`Simulation.Core`、`Simulation.App`、`Simulation.Runner`、各Testsを分離
 - 外部依存: test-onlyのFsCheck 3.3.4。Production Core / App / Runnerは外部packageなし
 
-Desktop AppはWindows FormsをPresentation Adapterとして使用する。GUIはRealityの権威を持たず、同一seedのCore結果はrender頻度から独立する。
+v0.15の個体生態系を維持したまま、v0.2のGeneration、Settlement、Order、Invasion、Aura、Statisticsを同一seedで再現可能なCoreへ実装した。Windows Formsは交換可能なPresentation Adapterであり、GUIはRealityの権威を持たない。
 
 ## Source of truth
 
@@ -44,7 +44,8 @@ Desktop AppはWindows FormsをPresentation Adapterとして使用する。GUIは
 
 - すべての確率的な実行で乱数seedを保存する。
 - 調整値はコードから `simulation/configs/` へ分離する。
-- 通常の巨大ログは `logs/` に出力し、完了Worldは検証済みZIPへ圧縮してGitへコミットしない。
+- 通常の巨大ログは `logs/` に出力し、Gitへコミットしない。
+- 完了Worldは同release directory内の検証済みZIPとSHA-256 sidecarへ圧縮する。
 - 残す価値のある実験だけ、設定・要約・注目イベント・所見を `research/` に保存する。
 
 ## Build and run
@@ -56,41 +57,24 @@ Desktop AppはWindows FormsをPresentation Adapterとして使用する。GUIは
 dotnet run --project src\Simulation.App\Simulation.App.csproj -c Release --no-build
 ```
 
-配布用EXEを生成する場合:
+配布用EXEはclean Git commitから次で生成する。
 
 ```powershell
 .\publish.ps1
 ```
 
-成果物は `outputs\World Sim v0.15\Simulation.App.exe` と `outputs\World Sim v0.15\tools\Simulation.Runner\Simulation.Runner.exe` に生成される。`World Sim v0.15` フォルダ全体を保持すれば、リポジトリ外へ移動してもAppは同梱Configで起動し、同フォルダ配下の `logs/` へWorldログを保存する。
+成果物は `outputs\World Sim v0.2\Simulation.App.exe` と `outputs\World Sim v0.2\tools\Simulation.Runner\Simulation.Runner.exe`。同梱Configを使い、ログはreleaseごとに `logs/v0.2/world-NNNN/`、完了後はZIPへ保存する。
 
-headlessで同じCoreを実行する場合:
-
-```powershell
-dotnet run --project src\Simulation.App\Simulation.App.csproj -c Release --no-build -- --headless --ticks 100 --seed 8147291
-```
-
-決定論的replayを記録・照合する場合:
+headless実行と決定論的replay:
 
 ```powershell
-dotnet run --project src\Simulation.Runner\Simulation.Runner.csproj -c Release --no-build -- record --config simulation\configs\v0-default.json --seed 8147291 --ticks 100 --output work\replays\v0.15-seed-8147291.json
-dotnet run --project src\Simulation.Runner\Simulation.Runner.csproj -c Release --no-build -- verify --replay work\replays\v0.15-seed-8147291.json
+dotnet run --project src\Simulation.App\Simulation.App.csproj -c Release --no-build -- --headless --ticks 120 --seed 8147291
+dotnet run --project src\Simulation.Runner\Simulation.Runner.csproj -c Release --no-build -- record --config simulation\configs\v0-default.json --seed 8147291 --ticks 120 --output work\replays\v0.2-seed-8147291.json
+dotnet run --project src\Simulation.Runner\Simulation.Runner.csproj -c Release --no-build -- verify --replay work\replays\v0.2-seed-8147291.json
 ```
 
-GitHub Actionsはpush、pull request、手動実行でWindows/.NET 10 build、Core/App/Runner test、10 tick replay smokeを行う。
-
-Simulation Configは `simulation/configs/v0-default.json`、観測App Configは `simulation/configs/observation-app.json`。Appは世界生成、Pause、1日進行、通常・高速・Max速度、Map、Year / Day、主要Event、NPCクリック詳細、移動を除くNPC行動履歴、人口・平均年齢graph、選択Action集計、死因、現在年齢分布、およびv0.15の繁殖・TargetAbsent・Combat・Perception・Concept診断表を提供する。graphは表示期間、開始比、観測範囲、現在値を表示し、pointerを重ねると日別の正確な値と変化量を確認できる。
-
-生成Worldはreleaseごとに `world-0001` から番号付けされ、観測中は`logs/vX.Y/world-NNNN/`にrun metadata、使用Config、`events.jsonl`、`daily-stats.csv`、`diagnostics.jsonl`を保存する。完了後は`world-NNNN.zip`とSHA-256 sidecarへ圧縮し、ZIPも連番へ含める。現行release以外のlog directoryはApp Configに従って削除する。これらは生ログのためGit管理外である。
-
-ログ整理だけを明示実行する場合:
-
-```powershell
-dotnet run --project src\Simulation.App\Simulation.App.csproj -c Release --no-build -- --maintain-logs --repository-root .
-```
-
-`publish.ps1`はclean Git worktreeをrelease条件とし、commit・tree state・成果物SHA-256を`release-manifest.json`へ保存する。dirtyな診断buildだけが必要な場合は`-AllowDirty`を明示する。
+Appは世界生成、速度制御、Settlement / Core / Influence / Invasion Map、NPC詳細、移動以外の行動履歴、人口・所属率・平均年齢graph、社会・戦闘・繁殖・死因・年齢分布診断を提供する。
 
 ## Next validation
 
-固定seed実験で、空間競合、誤認、情報変形、淘汰が「次を見たい」逸脱を生むか観測する。永続化、世界再編、詩篇等のDraftはv0へ先取りしない。
+固定seed実験でGeneration→Order前後、Settlement形成率、所属率、個人暴力からFrictionへの移行、CrowdingとInvasion、Auraの生態系影響を比較する。永続snapshot、国家、占領統治、反乱等はv0.2へ先取りしない。

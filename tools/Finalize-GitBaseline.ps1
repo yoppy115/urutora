@@ -1,8 +1,8 @@
 [CmdletBinding()]
 param(
-    [string]$Branch = 'codex/v015-storage-provenance',
-    [string]$CommitMessage = 'refactor: establish v0.15 storage and provenance baseline',
-    [string]$Tag = 'v0.15.0',
+    [string]$Branch = 'codex/v02-settlement-order',
+    [string]$CommitMessage = 'feat: implement v0.2 settlement and order',
+    [string]$Tag = 'v0.2.0',
     [switch]$SkipTests,
     [switch]$Publish
 )
@@ -58,7 +58,7 @@ if (-not [string]::IsNullOrWhiteSpace($Tag)) {
             throw "Tag $Tag already points to another commit: $tagCommit"
         }
     } else {
-        & $gitCommand.Source -C $repoRoot tag -a $Tag -m 'World Sim v0.15 provenance baseline'
+        & $gitCommand.Source -C $repoRoot tag -a $Tag -m "World Sim $Tag release"
         if ($LASTEXITCODE -ne 0) { throw "Unable to create tag $Tag." }
     }
 }

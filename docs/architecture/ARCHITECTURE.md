@@ -2,7 +2,7 @@
 
 **Status:** Baseline constraints / Draft mechanics
 
-**Technology:** v0はC# / .NET。UI frameworkは未決定。
+**Technology:** v0はC# / .NET 10。現行Desktop AdapterはWindows Formsだが、Simulation Coreから分離された交換可能な実装とする。
 
 ## Baseline constraints
 
@@ -12,7 +12,7 @@
 - 同じ初期状態、設定、seed、コード版、外部入力から実行を再現できる。
 - 個別システムは理解可能にしつつ、相互作用による創発を許す。
 - LLMとPresentationをSimulation Coreの外側に置く。
-- `Simulation.Core`、`Simulation.App`、`Simulation.Runner`、各Testsの依存方向を `App/Runner/Tests -> Core` に限定する。
+- `Simulation.Core`、`Simulation.App`、`Simulation.Core.Tests` の依存方向を `App/Tests -> Core` に限定する。
 - GUIのrender loopとSimulation tickを分離し、CoreだけをRealityの権威とする。
 
 ## Decision and action flow
@@ -63,6 +63,9 @@ flowchart LR
 13. **Targeted actions have a fixed phase order.** Attack → Reproduction → CommunicationをMove、Flee、Restより先に解決する。
 14. **Outcomes invalidate stale premises.** TargetAbsent等の直接Outcomeを同日中にPerceptionへ戻し、成立しない古いPositionの反復を止める。
 15. **Interrupts replace, not add.** AttackとReproduction Acceptによる再評価は既存Action枠を置換し、追加Actionや無制限再評価を与えない。
+16. **Settlement formation and order are separate.** Generation中からSettlement関係stateを形成し、社会RuleはOrderから明示的に有効化する。
+17. **Social conflict is typed state.** Affiliation、Friction、Hostility、Invasionを個人ThreatやSpatial Resolutionへ暗黙に埋め込まない。
+18. **Statistics are read-only projections.** 集計、UI、logging量はSimulation state、乱数、phase順を変えない。
 
 ## State layers
 
@@ -97,10 +100,6 @@ v0のPRNGは単一共有列にせず、run seedと `subsystem / tick / entity / 
 
 ObservationError、CommunicationTransmission、ThreatSelection、ActionTarget、BirthConflict等も固有purposeを持つ。stable InformationIdやBirthRequest IDをtie-break keyへ使用し、乱数key自体をcollection indexから作らない。
 
-`Simulation.Runner` はCore外側のCLI adapterとしてこのenvelopeを記録・検証する。v0.15では新規Worldを完全Config、RunSeed、tick数から再実行し、Event fingerprint列と最終内部stateのSHA-256を照合する。recorded code versionが異なる場合は通知するが、挙動driftの判定はhashと主要集計値で行う。未実装の外部入力適用を推測で追加せず、`externalInputs` が空でないenvelopeは拒否する。
-
-Buildはrepository commitとGit tree stateをassembly metadataへ埋め込む。release publishはclean treeだけを既定で許可し、成果物別SHA-256を含む`release-manifest.json`を生成する。dirty診断buildを実行した場合は`dirty`を明示し、clean commitと同等の再現可能releaseとして扱わない。
-
 ## v0.15 phase dependency
 
 ```text
@@ -114,13 +113,28 @@ Plan intents from Perception
 
 Targeted Action PhaseはAttack → Reproduction → Communicationの明示的なphase contractとする。各後続phaseは先行phase後のRealityを再Validationする。Interruptで得たIntentは終了済みphaseへ戻さず、未処理phaseで実行できない場合は失効する。
 
+## v0.2 social dependency
+
+```text
+ReproductionSuccess events -> Settlement Formation -> Affinity / Affiliation
+Daily population series    -> World Phase
+Affiliation + Phase         -> Order Policies -> Spatial / Utility / Vitality modifiers
+Crowding + Relations        -> Invasion -> Move Bias / Combat / Integration
+ConceptMark + Affiliation   -> Aura projection -> temporary Effective modifiers
+Domain events / snapshots   -> Statistics projection -> App
+```
+
+Settlement Formation、Affiliation、World Phase、Order Policy、Friction / Hostility、Invasion、Auraを一つの万能SettlementManagerへ集約しない。Order Policyは既存Spatial、Utility、Lifecycleへ明示的なpolicy inputを渡し、各domainの権威的計算を奪わない。
+
+Settlement構造変更は固定順のTick末Maintenanceでcommitする。日中即時Eventと日末集約を分け、新規Settlement、WorldPhase、Invasion開始を原則翌Tickから有効化する。Hotspot Candidateは同一immutable snapshotから生成し、Reproduction Success数とnamed seed tie-breakで順序非依存に解決する。
+
+Statisticsはdomain eventとread-only snapshotを購読するterminal observerであり、Settlement / Invasion判定の入力stateを所有しない。
+
 ## v0 project boundary
 
 ```text
 Simulation.App --------> Simulation.Core
-Simulation.Runner -----> Simulation.Core
 Simulation.Core.Tests -> Simulation.Core
-Simulation.Runner.Tests -> Simulation.Runner -> Simulation.Core
 Simulation.Core -------> no Presentation dependency
 ```
 

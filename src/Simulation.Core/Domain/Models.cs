@@ -36,6 +36,25 @@ public enum ConceptKind
     Communication
 }
 
+public enum WorldPhase
+{
+    Generation,
+    Order
+}
+
+public enum InvasionRole
+{
+    Attacker,
+    Defender
+}
+
+public enum InvasionOutcome
+{
+    None,
+    AttackVictory,
+    DefenseVictory
+}
+
 public static class ConceptKindParser
 {
     public static ConceptKind Parse(string value) => value switch
@@ -146,17 +165,31 @@ public sealed class NpcState
     public List<InformationRecord> HeldInformation { get; } = new();
     public long NextInformationSequence { get; set; }
     public Dictionary<long, ThreatMemory> ThreatMemory { get; } = new();
+    public Dictionary<int, double> SettlementAffinity { get; } = new();
+    public int? SettlementId { get; set; }
+    public int? InvasionId { get; set; }
+    public InvasionRole? InvasionRole { get; set; }
+    public bool HasAdvanceBias { get; set; }
+    public bool HasDefenseBias { get; set; }
+    public HashSet<int> WithdrawnInvasionIds { get; } = new();
+    public HashSet<ConceptKind> ActiveAuras { get; } = new();
+    public int? SettlementAtDeathId { get; set; }
+    public int? DeathAgeDays { get; set; }
+    public string? DeathCause { get; set; }
     public long? ParentAId { get; init; }
     public long? ParentBId { get; init; }
 
     public EffectiveStats EffectiveStats(SimulationConfig config)
     {
-        var multiplier = config.Concept.EffectiveMultiplier;
+        var markMultiplier = config.Concept.EffectiveMultiplier;
+        double Multiplier(ConceptKind concept) => ConceptMarks.Contains(concept)
+            ? markMultiplier
+            : ActiveAuras.Contains(concept) ? config.Aura.EffectiveMultiplier : 1;
         return new EffectiveStats(
-            BaseStats.MaxHp * (ConceptMarks.Contains(ConceptKind.Survival) ? multiplier : 1),
-            BaseStats.Action * (ConceptMarks.Contains(ConceptKind.Struggle) ? multiplier : 1),
-            BaseStats.Combat * (ConceptMarks.Contains(ConceptKind.Struggle) ? multiplier : 1),
-            BaseStats.Communication * (ConceptMarks.Contains(ConceptKind.Communication) ? multiplier : 1));
+            BaseStats.MaxHp * Multiplier(ConceptKind.Survival),
+            BaseStats.Action * Multiplier(ConceptKind.Struggle),
+            BaseStats.Combat * Multiplier(ConceptKind.Struggle),
+            BaseStats.Communication * Multiplier(ConceptKind.Communication));
     }
 
     public bool IsMature(SimulationConfig config) =>
@@ -168,11 +201,121 @@ public sealed record Landmark(ConceptKind Concept, Position Position);
 public sealed class WorldState
 {
     public int Tick { get; set; }
+    public WorldPhase Phase { get; set; } = WorldPhase.Generation;
+    public WorldPhase? PendingPhase { get; set; }
+    public int GenerationStartTick { get; set; }
+    public int? OrderStartTick { get; set; }
+    public int StabilityConsecutiveDays { get; set; }
+    public double PopulationCv { get; set; }
+    public double DemographicImbalance { get; set; }
     public Dictionary<long, NpcState> Npcs { get; } = new();
     public List<Landmark> Landmarks { get; } = new();
     public List<BirthRequest> BirthRequests { get; } = new();
+    public Dictionary<int, SettlementState> Settlements { get; } = new();
+    public Dictionary<SettlementPair, SettlementFriction> Frictions { get; } = new();
+    public HashSet<HostilityEdge> Hostilities { get; } = new();
+    public Dictionary<int, InvasionState> Invasions { get; } = new();
+    public List<ReproductionSuccessRecord> ReproductionSuccesses { get; } = new();
+    public List<DailyPopulationRecord> PopulationHistory { get; } = new();
     public long NextNpcId { get; set; } = 1;
+    public int NextSettlementId { get; set; } = 1;
+    public int NextInvasionId { get; set; } = 1;
+    public long SettlementCandidateCount { get; set; }
+    public long SettlementCandidateConflictCount { get; set; }
+    public long SettlementCandidateRejectionCount { get; set; }
+    public long AuraSelfMarkSuppressionCount { get; set; }
+    public long AttackCandidateSuppressionCount { get; set; }
+    public long UnaffiliatedThreatExceptionAttackCount { get; set; }
 }
+
+public sealed class SettlementState
+{
+    public required int Id { get; init; }
+    public required Position Center { get; init; }
+    public required int FormedTick { get; init; }
+    public required int EffectiveTick { get; init; }
+    public required IReadOnlyList<long> FounderIds { get; init; }
+    public int? DissolvedTick { get; set; }
+    public string? DissolutionReason { get; set; }
+    public int? IntegratedIntoSettlementId { get; set; }
+    public double CoreOccupancy { get; set; }
+    public double BlockedMovementRate { get; set; }
+    public double CrowdingPressure { get; set; }
+    public List<double> CrowdingHistory { get; } = new();
+    public int CrowdingConsecutiveDays { get; set; }
+    public int LowPopulationConsecutiveDays { get; set; }
+
+    public bool IsActive(int tick) => DissolvedTick is null && tick >= EffectiveTick;
+}
+
+public readonly record struct SettlementPair(int FirstId, int SecondId)
+{
+    public static SettlementPair Create(int firstId, int secondId)
+    {
+        if (firstId == secondId)
+        {
+            throw new ArgumentException("A Settlement pair requires distinct IDs.");
+        }
+
+        return firstId < secondId ? new SettlementPair(firstId, secondId) : new SettlementPair(secondId, firstId);
+    }
+}
+
+public sealed class SettlementFriction
+{
+    public required SettlementPair Pair { get; init; }
+    public double CurrentFriction { get; set; }
+    public int LastFrictionEventTick { get; set; }
+    public long LifetimeFrictionEvents { get; set; }
+    public long CollisionEvents { get; set; }
+    public long ExplicitThreatEvents { get; set; }
+    public double LifetimeDecay { get; set; }
+}
+
+public readonly record struct HostilityEdge(int SourceSettlementId, int TargetSettlementId);
+
+public sealed class InvasionState
+{
+    public required int Id { get; init; }
+    public required int AttackSettlementId { get; init; }
+    public required int DefenseSettlementId { get; init; }
+    public required int CreatedTick { get; init; }
+    public required int EffectiveTick { get; init; }
+    public required double TriggerCrowdingPressure { get; init; }
+    public required string TargetReason { get; init; }
+    public required IReadOnlyList<long> AttackParticipantIds { get; init; }
+    public required IReadOnlyList<long> CoreCohortIds { get; init; }
+    public required IReadOnlyList<long> FrontierCohortIds { get; init; }
+    public List<long> DefenseParticipantIds { get; } = new();
+    public int? EndTick { get; set; }
+    public InvasionOutcome Outcome { get; set; }
+    public double MaximumCoreOccupationRate { get; set; }
+    public bool CenterOccupied { get; set; }
+    public int RestWithdrawals { get; set; }
+    public int DeathWithdrawals { get; set; }
+
+    public bool IsPending(int tick) => EndTick is null && tick < EffectiveTick;
+    public bool IsActive(int tick) => EndTick is null && tick >= EffectiveTick;
+}
+
+public sealed record ReproductionSuccessRecord(
+    string EventId,
+    int Tick,
+    Position Position,
+    long ParentAId,
+    long ParentBId);
+
+public sealed record DailyPopulationRecord(
+    int Tick,
+    int Population,
+    int Births,
+    int Deaths,
+    int CombatDeaths,
+    int CollisionAttacks,
+    int ReproductionAttempts,
+    int ReproductionSuccesses,
+    double AverageAgeYears,
+    double AffiliationRate);
 
 public sealed record GeneticSnapshot(BaseStats BaseStats, double RiskPreference);
 
@@ -211,12 +354,33 @@ public enum SimulationEventType
     ReproductionAttempt,
     ReproductionSuccess,
     ReproductionFailure,
+    Rest,
     Birth,
     BirthFailure,
     Death,
     ConceptMarkAcquired,
     TargetPositionInvalidated,
-    IntentReplaced
+    IntentReplaced,
+    SettlementCandidateEvaluated,
+    SettlementCandidateRejected,
+    SettlementFormed,
+    SettlementDissolved,
+    SettlementIntegrated,
+    AffinityChanged,
+    AffiliationChanged,
+    WorldPhaseChanged,
+    CollisionSuppressed,
+    AttackSuppressed,
+    SettlementFrictionChanged,
+    InitialHostilityEstablished,
+    InvasionStarted,
+    InvasionParticipantJoined,
+    InvasionParticipantWithdrew,
+    InvasionEnded,
+    AuraApplied,
+    AuraExpired,
+    TemporaryMaxHpNormalized,
+    SettlementMaintenance
 }
 
 public sealed record SimulationEvent(
@@ -228,7 +392,9 @@ public sealed record SimulationEvent(
     long? TargetId,
     Position? Position,
     bool Success,
-    string Detail)
+    string Detail,
+    int? ActorSettlementId = null,
+    int? TargetSettlementId = null)
 {
     public string Fingerprint() => string.Join("|",
         EventId,
@@ -239,8 +405,19 @@ public sealed record SimulationEvent(
         TargetId?.ToString() ?? "-",
         Position?.ToString() ?? "-",
         Success ? "1" : "0",
-        Detail);
+        Detail,
+        ActorSettlementId?.ToString() ?? "-",
+        TargetSettlementId?.ToString() ?? "-");
 }
+
+public delegate void DomainEventEmitter(
+    int microRound,
+    SimulationEventType type,
+    long? actorId,
+    long? targetId,
+    Position? position,
+    bool success,
+    string detail);
 
 public static class DomainMath
 {

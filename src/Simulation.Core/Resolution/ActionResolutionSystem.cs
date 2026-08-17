@@ -6,6 +6,7 @@ using Simulation.Core.Needs;
 using Simulation.Core.Perception;
 using Simulation.Core.Randomness;
 using Simulation.Core.Reproduction;
+using Simulation.Core.Social;
 
 namespace Simulation.Core.Resolution;
 
@@ -36,6 +37,8 @@ public sealed class ActionResolutionSystem
     private readonly CommunicationSystem _communication;
     private readonly ReproductionSystem _reproduction;
     private readonly NeedsSystem _needs;
+    private readonly InvasionSystem _invasion;
+    private readonly ConceptAuraSystem _aura;
 
     public ActionResolutionSystem(
         SimulationConfig config,
@@ -45,6 +48,21 @@ public sealed class ActionResolutionSystem
         CommunicationSystem communication,
         ReproductionSystem reproduction,
         NeedsSystem needs)
+        : this(config, random, perception, decision, communication, reproduction, needs,
+            new InvasionSystem(config, random), new ConceptAuraSystem(config, random))
+    {
+    }
+
+    public ActionResolutionSystem(
+        SimulationConfig config,
+        RandomStreamFactory random,
+        PerceptionSystem perception,
+        UtilityDecisionSystem decision,
+        CommunicationSystem communication,
+        ReproductionSystem reproduction,
+        NeedsSystem needs,
+        InvasionSystem invasion,
+        ConceptAuraSystem aura)
     {
         _config = config;
         _random = random;
@@ -53,6 +71,8 @@ public sealed class ActionResolutionSystem
         _communication = communication;
         _reproduction = reproduction;
         _needs = needs;
+        _invasion = invasion;
+        _aura = aura;
     }
 
     public void ResolveRound(
@@ -66,6 +86,7 @@ public sealed class ActionResolutionSystem
         var executed = new HashSet<long>();
         var attackInterruptUsed = new HashSet<long>();
         var reproductionInterruptUsed = new HashSet<long>();
+        var restInterruptUsed = new HashSet<long>();
 
         ResolveTargetedPhase(AttackPhase);
         ResolveTargetedPhase(ReproductionPhase);
@@ -73,7 +94,17 @@ public sealed class ActionResolutionSystem
         ResolveMovementPhase();
         ResolveSimplePhase(RestPhase);
         ResolveSimplePhase(IdlePhase);
+        _invasion.ResolveVictories(world, EmitDomain, microRound);
         return;
+
+        void EmitDomain(
+            int round,
+            SimulationEventType type,
+            long? actorId,
+            long? targetId,
+            Position? position,
+            bool success,
+            string detail) => Emit(emit, round, type, actorId, targetId, position, success, detail);
 
         void ResolveTargetedPhase(int phase)
         {
@@ -152,6 +183,12 @@ public sealed class ActionResolutionSystem
                     }
                 }
 
+                var collisionTarget = intent.Destination.HasValue
+                    ? FindAliveAt(world, intent.Destination.Value)
+                    : null;
+                var collisionPolicy = collisionTarget is null
+                    ? CollisionPolicy.Combat
+                    : SettlementQueries.Collision(world, actor, collisionTarget, _config);
                 var attacked = ResolveMovement(
                     world, actor, intent, microRound, intent.Kind == ActionKind.Flee, emit);
                 _needs.ApplyActiveActionCost(actor, intent.Kind);
@@ -159,6 +196,15 @@ public sealed class ActionResolutionSystem
                 {
                     ReplaceUnexecutedIntent(
                         victimId, MovementPhase, "attack", attackInterruptUsed, world, pending, executed,
+                        microRound, emit, recordInterruptDecision);
+                }
+
+                if (collisionTarget is { IsAlive: true } && collisionPolicy != CollisionPolicy.Combat &&
+                    SettlementQueries.IsInsideAnyRestCollisionRegion(world, collisionTarget.Position, _config) &&
+                    pending.TryGetValue(collisionTarget.Id, out var restIntent) && restIntent.Kind == ActionKind.Rest)
+                {
+                    ReplaceUnexecutedIntent(
+                        collisionTarget.Id, MovementPhase, "rest-collision", restInterruptUsed, world, pending, executed,
                         microRound, emit, recordInterruptDecision);
                 }
             }
@@ -178,7 +224,12 @@ public sealed class ActionResolutionSystem
                 pending.Remove(actor.Id);
                 if (intent.Kind == ActionKind.Rest)
                 {
-                    _needs.ApplyRest(actor);
+                    var orderCore = world.Phase == WorldPhase.Order &&
+                                    SettlementQueries.FindActiveCore(world, actor.Position, _config) is not null;
+                    _needs.ApplyRest(actor, orderCore ? _config.Settlement.OrderRestMultiplier : 1);
+                    Emit(emit, microRound, SimulationEventType.Rest, actor.Id, null, actor.Position, true,
+                        orderCore ? "order-core" : "standard");
+                    _invasion.WithdrawForRest(world, actor, EmitDomain, microRound);
                 }
                 else
                 {
@@ -306,7 +357,33 @@ public sealed class ActionResolutionSystem
         var occupant = FindAliveAt(world, destination);
         if (occupant is not null)
         {
-            ResolveAttack(world, actor, occupant, microRound, SimulationEventType.CollisionAttack, true, 1, emit, attacked);
+            var policy = SettlementQueries.Collision(world, actor, occupant, _config);
+            if (policy == CollisionPolicy.Combat)
+            {
+                ResolveAttack(world, actor, occupant, microRound, SimulationEventType.CollisionAttack, true, 1, emit, attacked);
+            }
+            else
+            {
+                var reason = policy switch
+                {
+                    CollisionPolicy.SameSettlementSuppressed => "same-settlement",
+                    CollisionPolicy.UnaffiliatedProtected => "unaffiliated-protected",
+                    CollisionPolicy.OtherSettlementFriction => "other-settlement-friction",
+                    _ => throw new ArgumentOutOfRangeException()
+                };
+                Emit(emit, microRound, SimulationEventType.CollisionSuppressed, actor.Id, occupant.Id, actor.Position, true,
+                    $"reason={reason}");
+                if (policy == CollisionPolicy.OtherSettlementFriction && actor.SettlementId.HasValue &&
+                    occupant.SettlementId.HasValue)
+                {
+                    SettlementQueries.AddFriction(
+                        world, actor.SettlementId.Value, occupant.SettlementId.Value,
+                        _config.Settlement.FrictionCollisionIncrease, "collision",
+                        (round, type, actorId, targetId, position, success, detail) =>
+                            Emit(emit, round, type, actorId, targetId, position, success, detail),
+                        microRound);
+                }
+            }
             return attacked;
         }
 
@@ -374,6 +451,31 @@ public sealed class ActionResolutionSystem
             Emit(emit, microRound, SimulationEventType.Attack, actor.Id, intent.TargetId, actor.Position, false,
                 "target-absent");
             return attacked;
+        }
+
+        var protection = SettlementQueries.ExplicitAttackProtection(world, actor, target, _config);
+        if (protection is not null)
+        {
+            Emit(emit, microRound, SimulationEventType.AttackSuppressed, actor.Id, target.Id, actor.Position, false,
+                $"reason={protection}");
+            return attacked;
+        }
+
+        if (world.Phase == WorldPhase.Order && actor.SettlementId.HasValue && target.SettlementId.HasValue &&
+            actor.SettlementId != target.SettlementId && !SettlementQueries.AreInvasionOpponents(world, actor, target))
+        {
+            SettlementQueries.AddFriction(
+                world, actor.SettlementId.Value, target.SettlementId.Value,
+                _config.Settlement.FrictionExplicitThreatIncrease, "explicit-threat",
+                (round, type, actorId, targetId, position, success, detail) =>
+                    Emit(emit, round, type, actorId, targetId, position, success, detail),
+                microRound);
+        }
+        else if (world.Phase == WorldPhase.Order && actor.SettlementId.HasValue && !target.SettlementId.HasValue &&
+                 SettlementQueries.IsInsideInfluence(world, actor.SettlementId.Value, target.Position, _config) &&
+                 SettlementQueries.HasActiveThreat(actor, target.Id, world.Tick, _config))
+        {
+            world.UnaffiliatedThreatExceptionAttackCount++;
         }
 
         ResolveAttack(world, actor, target, microRound, SimulationEventType.Attack, true, 1, emit, attacked);
@@ -460,8 +562,17 @@ public sealed class ActionResolutionSystem
                 FormattableString.Invariant($"damage={damage:F4}"));
             if (died)
             {
+                defender.SettlementAtDeathId = defender.SettlementId;
+                defender.DeathAgeDays = defender.AgeDays;
+                defender.DeathCause = $"combat:{eventType}";
                 Emit(emit, microRound, SimulationEventType.Death, defender.Id, attacker.Id, defender.Position, true,
                     $"combat:{eventType}");
+                _invasion.NotifyDeath(
+                    world,
+                    defender,
+                    (round, type, actorId, targetId, position, success, detail) =>
+                        Emit(emit, round, type, actorId, targetId, position, success, detail),
+                    microRound);
             }
         }
 
@@ -548,25 +659,34 @@ public sealed class ActionResolutionSystem
         int microRound,
         Action<EventDraft> emit)
     {
-        Emit(emit, microRound, SimulationEventType.ReproductionAttempt, actor.Id, intent.TargetId, actor.Position, true, "attempt");
         if (!TryResolveTarget(world, actor, intent, _config.Reproduction.Range, microRound, emit, out var target))
         {
+            Emit(emit, microRound, SimulationEventType.ReproductionAttempt, actor.Id, intent.TargetId, actor.Position, true,
+                "attempt;scope=unknown");
             Emit(emit, microRound, SimulationEventType.ReproductionFailure, actor.Id, intent.TargetId, actor.Position, false,
                 "target-absent");
             return new ReproductionResolution(false, intent.TargetId);
         }
 
-        if (!_reproduction.CanParticipate(actor) || !_reproduction.CanParticipate(target) ||
-            actor.Needs.Reproduction < _config.Reproduction.NeedThreshold)
+        var sameCore = world.Phase != WorldPhase.Order ||
+                       SettlementQueries.SameActiveCore(world, actor.Position, target.Position, _config);
+        var scope = sameCore ? "same-core" : "outside-penalty";
+        Emit(emit, microRound, SimulationEventType.ReproductionAttempt, actor.Id, target.Id, actor.Position, true,
+            $"attempt;scope={scope}");
+
+        var failure = ReproductionFailureReason(actor, target);
+        if (failure is not null)
         {
             Emit(emit, microRound, SimulationEventType.ReproductionFailure, actor.Id, target.Id, actor.Position, false,
-                "reality-precondition");
+                $"{failure};scope={scope}");
             return new ReproductionResolution(false, target.Id);
         }
 
-        if (!_reproduction.Accepts(target, world.Tick, microRound, actor.Id))
+        var acceptancePenalty = sameCore ? 0 : _config.Settlement.OutsideReproductionUtilityPenalty;
+        if (!_reproduction.Accepts(target, world.Tick, microRound, actor.Id, acceptancePenalty))
         {
-            Emit(emit, microRound, SimulationEventType.ReproductionFailure, actor.Id, target.Id, actor.Position, false, "rejected");
+            Emit(emit, microRound, SimulationEventType.ReproductionFailure, actor.Id, target.Id, actor.Position, false,
+                $"rejected;scope={scope}");
             return new ReproductionResolution(false, target.Id);
         }
 
@@ -578,16 +698,67 @@ public sealed class ActionResolutionSystem
         target.ReproductionCooldownDays = _config.Reproduction.CooldownDays;
         world.BirthRequests.Add(_reproduction.CreateRequest(actor, target, world.Tick, microRound));
         Emit(emit, microRound, SimulationEventType.ReproductionSuccess, actor.Id, target.Id, actor.Position, true,
-            "birth request queued");
+            $"birth request queued;scope={scope}");
         return new ReproductionResolution(true, target.Id);
+    }
+
+    private string? ReproductionFailureReason(NpcState actor, NpcState target)
+    {
+        if (!actor.IsAlive || !target.IsAlive)
+        {
+            return "target-absent";
+        }
+
+        if (!actor.IsMature(_config) || !target.IsMature(_config))
+        {
+            return "maturity";
+        }
+
+        if (actor.ReproductionCooldownDays > 0 || target.ReproductionCooldownDays > 0)
+        {
+            return "cooldown";
+        }
+
+        if (actor.CurrentHp < actor.EffectiveStats(_config).MaxHp * _config.Reproduction.MinimumHpRatio ||
+            target.CurrentHp < target.EffectiveStats(_config).MaxHp * _config.Reproduction.MinimumHpRatio)
+        {
+            return "hp";
+        }
+
+        if (actor.Needs.Reproduction < _config.Reproduction.NeedThreshold)
+        {
+            return "other-reality-failure";
+        }
+
+        return null;
     }
 
     private DecisionContext CreateDecisionContext(WorldState world, NpcState npc)
     {
+        var activeCores = SettlementQueries.ActiveSettlements(world)
+            .Select(item => new SettlementCoreRule(item.Id, item.Center, _config.Settlement.CoreRadius))
+            .ToArray();
+        var suppressedTargets = world.Npcs.Values
+            .Where(item => item.IsAlive && item.Id != npc.Id &&
+                           SettlementQueries.ExplicitAttackProtection(world, npc, item, _config) is not null)
+            .Select(item => item.Id)
+            .ToHashSet();
+        var movementTarget = _invasion.MovementTarget(world, npc);
         var rules = new WorldDecisionRules(
             _config.World.Width,
             _config.World.Height,
-            world.Landmarks.Select(item => item.Position).ToHashSet());
+            world.Landmarks.Select(item => item.Position).ToHashSet(),
+            activeCores,
+            suppressedTargets,
+            movementTarget,
+            npc.HasAdvanceBias ? _config.Invasion.AdvanceBiasWeight :
+                npc.HasDefenseBias ? _config.Invasion.DefenseBiasWeight : 0,
+            _aura.FindCohesionTarget(world, npc),
+            _config.Invasion.AuraCohesionWeight,
+            world.Phase == WorldPhase.Order);
+        var perception = _perception.CreateView(npc, world.Tick);
+        world.AttackCandidateSuppressionCount += perception.Threats.LongCount(item =>
+            rules.IsAttackSuppressed(item.EntityId));
         return new DecisionContext(
             npc.Id,
             npc.Position,
@@ -597,7 +768,7 @@ public sealed class ActionResolutionSystem
             npc.AgeDays,
             npc.ReproductionCooldownDays,
             npc.Needs.Snapshot(),
-            _perception.CreateView(npc, world.Tick),
+            perception,
             rules);
     }
 

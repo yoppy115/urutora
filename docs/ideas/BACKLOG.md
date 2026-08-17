@@ -4,6 +4,14 @@
 
 ## On hold
 
+### Settlement以後の社会制度
+
+- Status: On hold after v0.2
+- Adopted in v0.2: Settlement生成、Affinity / 所属、Order Bonus、治安、Friction、Invasion、統合、Aura。
+- Still on hold: 国家、属国、占領統治、反乱・忠誠、内部階層、資源、疾病、Settlement間の恒常的外交。
+- Future pressure: Settlementの成功が疾病、内部対立、資源不足、階層等の新Difficultyを生む。
+- Related design: [`V0_2_SETTLEMENT_ORDER.md`](../design/V0_2_SETTLEMENT_ORDER.md)
+
 ### NPCの思考ラグを能力と接続する
 
 - Status: On hold
@@ -38,6 +46,22 @@
 - Related design: [`PLAYER_OBSERVATION.md`](../design/PLAYER_OBSERVATION.md)
 
 ## Promoted to canon
+
+- v0.2の重要未決事項解消パッチを採用した。
+  - Tick末Settlement Maintenance、Hotspot arbitration、Friction、Unaffiliated保護、同一Core繁殖判定を確定。
+  - Aura / temporary MaxHP、利用可能Core占有率、Rest / FleeのInvasion離脱境界を確定。
+  - [`V0_2_SETTLEMENT_ORDER.md`](../design/V0_2_SETTLEMENT_ORDER.md)
+
+- v0.2 Settlement / Order Updateを採用した。
+  - Generation中の繁殖HotspotからSettlementが発生し、人口安定後のOrderで社会Ruleを解禁する。
+  - 同SettlementのCollision抑制、異SettlementのFriction、Crowding由来Invasion、Concept Auraを追加する。
+  - [`V0_2_SETTLEMENT_ORDER.md`](../design/V0_2_SETTLEMENT_ORDER.md)
+
+- v0.15の旧未決3項目を解消した。
+  - Vitality具体値はPhase制約付きConfig調整。
+  - Held InformationはFIFO evictionと直接消滅確認purge。
+  - Targeted ActionはAttack → Reproduction → Communication、phase巻戻しなし。
+  - [`V0_15_ECOLOGY.md`](../design/V0_15_ECOLOGY.md)
 
 - 安定世界の成功を分析し、新しい困難または概念を次世界へ追加する。
   - [`WORLD_LIFECYCLE.md`](../design/WORLD_LIFECYCLE.md)

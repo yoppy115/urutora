@@ -12,6 +12,7 @@ using Simulation.Core.Perception;
 using Simulation.Core.Randomness;
 using Simulation.Core.Reproduction;
 using Simulation.Core.Resolution;
+using Simulation.Core.Social;
 
 namespace Simulation.Core.Tests;
 
@@ -20,7 +21,7 @@ internal static class Program
     private static readonly (string Name, Action Test)[] Tests =
     {
         ("configuration schema is strict", ConfigurationSchemaIsStrict),
-        ("v0.15 defaults and initial ages are applied", V015DefaultsAndInitialAges),
+        ("v0.2 defaults preserve v0.15 ecology", V02DefaultsAndInitialAges),
         ("partitioned RNG is deterministic and local", PartitionedRandomIsDeterministicAndLocal),
         ("utility candidate count and edge rules", UtilityCandidateRules),
         ("decision public API cannot receive Reality", DecisionApiCannotReceiveReality),
@@ -40,6 +41,16 @@ internal static class Program
         ("NPC detail projection exposes stable lineage", NpcDetailProjectionExposesStableLineage),
         ("NPC action history excludes movement events", NpcActionHistoryExcludesMovementEvents),
         ("world statistics count selected action commands", WorldStatisticsCountSelectedActions),
+        ("Generation hotspot forms a deterministic Settlement", GenerationHotspotFormsSettlement),
+        ("Order transition commits on the following tick", OrderTransitionCommitsNextTick),
+        ("Order collision policies suppress and convert combat", OrderCollisionPolicies),
+        ("Order protects unaffiliated NPC until an active Threat exists", UnaffiliatedProtectionRules),
+        ("Generation keeps Order Rest bonus disabled", GenerationKeepsOrderRestBonusDisabled),
+        ("outside-Core reproduction applies both utility penalties", OutsideCoreReproductionPenalty),
+        ("Concept Aura is non-stacking and normalizes temporary MaxHP", ConceptAuraRules),
+        ("Friction decay is symmetric and bounded", FrictionDecayRules),
+        ("Invasion Rest withdraws while Flee state remains", InvasionWithdrawalRules),
+        ("Core occupation denominator excludes unusable cells", CoreOccupationDenominator),
         ("whole run and render frequency are deterministic", WholeRunAndRenderDeterminism),
         ("FsCheck generated runs remain deterministic", FsCheckGeneratedRunsRemainDeterministic),
         ("daily Micro Rounds respect maximum actions", MaximumActionsPerDay)
@@ -75,7 +86,7 @@ internal static class Program
         var invalidPath = Path.Combine(Path.GetTempPath(), $"world-sim-invalid-{Guid.NewGuid():N}.json");
         try
         {
-            File.WriteAllText(invalidPath, original.Replace("\"schemaVersion\": 1", "\"schemaVersion\": 1, \"unknown\": true", StringComparison.Ordinal));
+            File.WriteAllText(invalidPath, original.Replace("\"schemaVersion\": 2", "\"schemaVersion\": 2, \"unknown\": true", StringComparison.Ordinal));
             Throws<ConfigurationException>(() => SimulationConfigLoader.Load(invalidPath));
         }
         finally
@@ -87,10 +98,12 @@ internal static class Program
         }
     }
 
-    private static void V015DefaultsAndInitialAges()
+    private static void V02DefaultsAndInitialAges()
     {
         var config = LoadConfig();
-        Equal("v0.15-default-1", config.Id);
+        Equal("v0.2-default-1", config.Id);
+        Equal(4, config.Settlement.HotspotWindowSize);
+        Equal(0.125, config.Concept.ExposureByDistance[4], 0);
         Equal(180, config.Reproduction.MatureAgeDays);
         Equal(90, config.Reproduction.CooldownDays);
         Equal(90, config.Observation.ThreatMemoryDays);
@@ -338,7 +351,7 @@ internal static class Program
         var intent = decision.CreateIntent(trace);
         var events = ResolveRound(config, world, new[] { intent });
         True(events.Any(item => item.Type == SimulationEventType.ReproductionFailure &&
-                                item.Detail == "reality-precondition"),
+                                item.Detail.StartsWith("cooldown;", StringComparison.Ordinal)),
             "Reality did not reject the subjectively valid candidate.");
     }
 
@@ -687,6 +700,292 @@ internal static class Program
         Throws<ArgumentOutOfRangeException>(() => engine.GetCurrentAgeDistribution(0));
     }
 
+    private static void GenerationHotspotFormsSettlement()
+    {
+        var config = LoadConfig();
+        config.Settlement.HotspotSuccessThreshold = 4;
+        var first = HotspotWorld(config, reverse: false);
+        var second = HotspotWorld(config, reverse: true);
+        var firstEvents = new List<EventDraft>();
+        var secondEvents = new List<EventDraft>();
+        var firstSystem = new SettlementFormationSystem(config, new RandomStreamFactory(9441));
+        var secondSystem = new SettlementFormationSystem(config, new RandomStreamFactory(9441));
+        var firstResult = firstSystem.EvaluateAndForm(first, Capture(firstEvents));
+        var secondResult = secondSystem.EvaluateAndForm(second, Capture(secondEvents));
+
+        Equal(1, firstResult.FormedSettlementIds.Count);
+        Equal(first.Settlements.Single().Value.Center, second.Settlements.Single().Value.Center);
+        SequenceEqual(
+            first.Settlements.Single().Value.FounderIds,
+            second.Settlements.Single().Value.FounderIds);
+        Equal(WorldPhase.Generation, first.Phase);
+        True(first.Settlements.Single().Value.EffectiveTick == first.Tick + 1,
+            "Settlement did not use next-tick activation.");
+        True(first.Npcs.Values.All(item => item.SettlementAffinity.Values.Any(value => value >= 10)),
+            "Founders did not receive formation Affinity.");
+        True(firstEvents.Any(item => item.Type == SimulationEventType.SettlementFormed),
+            "Settlement formation was not logged.");
+    }
+
+    private static void OrderTransitionCommitsNextTick()
+    {
+        var config = LoadConfig();
+        config.Settlement.StabilityWindowDays = 2;
+        config.Settlement.StabilityConsecutiveDays = 2;
+        config.Settlement.EvaluationIntervalDays = 1000;
+        var world = EmptyWorld(config);
+        world.Npcs.Add(1, Npc(1, new Position(10, 10), 5, 5, 5, 100));
+        var random = new RandomStreamFactory(77);
+        var invasion = new InvasionSystem(config, random);
+        var maintenance = new SettlementMaintenanceCoordinator(config, random, invasion);
+        var events = new List<EventDraft>();
+        var emit = Capture(events);
+
+        for (var tick = 0; tick < 3; tick++)
+        {
+            world.Tick = tick;
+            maintenance.RunEndOfDay(world, Array.Empty<SimulationEvent>(), emit);
+        }
+
+        Equal(WorldPhase.Generation, world.Phase);
+        Equal(WorldPhase.Order, world.PendingPhase!.Value);
+        Equal(3, world.OrderStartTick!.Value);
+        world.Tick = 3;
+        maintenance.ActivatePending(world, emit);
+        Equal(WorldPhase.Order, world.Phase);
+        True(events.Any(item => item.Type == SimulationEventType.WorldPhaseChanged),
+            "Order activation event was not emitted.");
+    }
+
+    private static void OrderCollisionPolicies()
+    {
+        var config = LoadConfig();
+        var same = SocialWorld(config);
+        same.Npcs.Add(1, Npc(1, new Position(1, 1), 5, 5, 5, 100));
+        same.Npcs.Add(2, Npc(2, new Position(2, 1), 5, 5, 5, 100));
+        same.Npcs[1].SettlementId = 1;
+        same.Npcs[2].SettlementId = 1;
+        var suppressed = ResolveRound(config, same, new[] { MoveIntent(1, new Position(2, 1)) });
+        True(suppressed.Any(item => item.Type == SimulationEventType.CollisionSuppressed &&
+                                    item.Detail.Contains("same-settlement", StringComparison.Ordinal)),
+            "Same-Settlement collision was not suppressed.");
+        True(suppressed.All(item => item.Type != SimulationEventType.CollisionAttack),
+            "Same-Settlement collision leaked into Combat.");
+
+        var different = SocialWorld(config);
+        different.Npcs.Add(1, Npc(1, new Position(1, 1), 5, 5, 5, 100));
+        different.Npcs.Add(2, Npc(2, new Position(2, 1), 5, 5, 5, 100));
+        different.Npcs[1].SettlementId = 1;
+        different.Npcs[2].SettlementId = 2;
+        var friction = ResolveRound(config, different, new[] { MoveIntent(1, new Position(2, 1)) });
+        Equal(1d, different.Frictions[SettlementPair.Create(1, 2)].CurrentFriction, 0);
+        True(friction.Any(item => item.Type == SimulationEventType.SettlementFrictionChanged),
+            "Other-Settlement collision did not create Friction.");
+    }
+
+    private static void OutsideCoreReproductionPenalty()
+    {
+        var config = LoadConfig();
+        var random = new RandomStreamFactory(188);
+        var perception = new PerceptionSystem(config, random);
+        var actor = Npc(1, new Position(3, 0), 5, 5, 5, 100);
+        actor.AgeDays = config.Reproduction.MatureAgeDays;
+        actor.Needs.Reproduction = 10;
+        actor.HeldInformation.AddRange(PerceivedPositionRecords(actor.Id, 2, new Position(4, 0), 0));
+        actor.HeldInformation.Add(new InformationRecord(
+            "mature-outside", 2, InformationProperty.LifeStage, (double)PerceivedLifeStage.Mature, 1, actor.Id,
+            InformationAcquisition.Observation, 0));
+        var core = new[] { new SettlementCoreRule(1, new Position(0, 0), config.Settlement.CoreRadius) };
+        var noPenaltyRules = new WorldDecisionRules(8, 8, new HashSet<Position>(), core,
+            OutsideReproductionPenaltyEnabled: false);
+        var penaltyRules = noPenaltyRules with { OutsideReproductionPenaltyEnabled = true };
+        var decision = new UtilityDecisionSystem(config, random);
+        var view = perception.CreateView(actor, 0);
+        var baseline = decision.BuildCandidates(DecisionContextFor(actor, config, view, noPenaltyRules), 0, 1)
+            .Single(item => item.Kind == ActionKind.Reproduction);
+        var penalized = decision.BuildCandidates(DecisionContextFor(actor, config, view, penaltyRules), 0, 1)
+            .Single(item => item.Kind == ActionKind.Reproduction);
+        Equal(config.Settlement.OutsideReproductionUtilityPenalty, baseline.Utility - penalized.Utility, 1e-12);
+
+        var target = Npc(2, new Position(4, 0), 5, 5, 5, 100);
+        target.Needs.Reproduction = 8;
+        Equal(config.Settlement.OutsideReproductionUtilityPenalty,
+            ReproductionSystem.AcceptanceUtility(target) -
+            ReproductionSystem.AcceptanceUtility(target, config.Settlement.OutsideReproductionUtilityPenalty), 1e-12);
+    }
+
+    private static void UnaffiliatedProtectionRules()
+    {
+        var config = LoadConfig();
+        config.Combat.HitChanceBase = 0;
+        config.Combat.HitChanceMinimum = 0;
+        config.Combat.HitChanceMaximum = 0;
+        var world = SocialWorld(config);
+        var resident = Npc(1, new Position(1, 1), 5, 5, 5, 100);
+        resident.SettlementId = 1;
+        var unaffiliated = Npc(2, new Position(2, 1), 5, 5, 5, 100);
+        world.Npcs.Add(1, resident);
+        world.Npcs.Add(2, unaffiliated);
+        var protectedEvents = ResolveRound(config, world, new[]
+        {
+            TargetedIntent(1, ActionKind.Attack, 2, unaffiliated.Position)
+        });
+        True(protectedEvents.Any(item => item.Type == SimulationEventType.AttackSuppressed &&
+                                         item.Detail.Contains("unaffiliated-protected", StringComparison.Ordinal)),
+            "Unaffiliated protection was not revalidated at Resolution.");
+
+        resident.ThreatMemory[2] = new ThreatMemory(2, world.Tick);
+        var threatEvents = ResolveRound(config, world, new[]
+        {
+            TargetedIntent(1, ActionKind.Attack, 2, unaffiliated.Position)
+        });
+        True(threatEvents.Any(item => item.Type == SimulationEventType.Attack),
+            "Active Threat did not lift unaffiliated protection.");
+        Equal(1L, world.UnaffiliatedThreatExceptionAttackCount);
+    }
+
+    private static void GenerationKeepsOrderRestBonusDisabled()
+    {
+        var config = LoadConfig();
+        var generation = SocialWorld(config);
+        generation.Phase = WorldPhase.Generation;
+        var generationNpc = Npc(1, new Position(2, 2), 5, 5, 5, 100);
+        generationNpc.Needs.Rest = 7;
+        generation.Npcs.Add(1, generationNpc);
+        ResolveRound(config, generation, new[] { SimpleIntent(1, ActionKind.Rest) });
+        Equal(3d, generationNpc.Needs.Rest, 1e-12);
+
+        var order = SocialWorld(config);
+        var orderNpc = Npc(1, new Position(2, 2), 5, 5, 5, 100);
+        orderNpc.Needs.Rest = 7;
+        order.Npcs.Add(1, orderNpc);
+        ResolveRound(config, order, new[] { SimpleIntent(1, ActionKind.Rest) });
+        Equal(1d, orderNpc.Needs.Rest, 1e-12);
+    }
+
+    private static void ConceptAuraRules()
+    {
+        var config = LoadConfig();
+        var world = SocialWorld(config);
+        var holder = Npc(1, new Position(1, 1), 5, 5, 5, 100);
+        holder.SettlementId = 1;
+        holder.ConceptMarks.Add(ConceptKind.Survival);
+        var secondHolder = Npc(2, new Position(1, 2), 5, 5, 5, 100);
+        secondHolder.SettlementId = 1;
+        secondHolder.ConceptMarks.Add(ConceptKind.Survival);
+        var target = Npc(3, new Position(2, 1), 5, 5, 5, 90);
+        target.SettlementId = 1;
+        world.Npcs.Add(holder.Id, holder);
+        world.Npcs.Add(secondHolder.Id, secondHolder);
+        world.Npcs.Add(target.Id, target);
+        var events = new List<EventDraft>();
+        var aura = new ConceptAuraSystem(config, new RandomStreamFactory(90));
+        aura.Refresh(world, Capture(events), 1);
+        Equal(90d, target.CurrentHp, 0);
+        Equal(110d, target.EffectiveStats(config).MaxHp, 1e-9);
+
+        target.ConceptMarks.Add(ConceptKind.Survival);
+        aura.Refresh(world, Capture(events), 1);
+        True(!target.ActiveAuras.Contains(ConceptKind.Survival), "Self Mark incorrectly stacked with the same Aura.");
+        Equal(120d, target.EffectiveStats(config).MaxHp, 1e-9);
+
+        target.ConceptMarks.Remove(ConceptKind.Survival);
+        aura.Refresh(world, Capture(events), 1);
+        target.CurrentHp = 105;
+        target.Position = new Position(20, 20);
+        aura.Refresh(world, Capture(events), 1);
+        Equal(100d, target.CurrentHp, 1e-9);
+        True(events.Any(item => item.Type == SimulationEventType.TemporaryMaxHpNormalized),
+            "Aura expiry did not log non-damage HP normalization.");
+        True(events.All(item => item.Type != SimulationEventType.Attack && item.Type != SimulationEventType.Death),
+            "Aura normalization produced a Combat reaction.");
+    }
+
+    private static void FrictionDecayRules()
+    {
+        var config = LoadConfig();
+        var world = EmptyWorld(config);
+        var pair = SettlementPair.Create(2, 1);
+        world.Frictions[pair] = new SettlementFriction
+        {
+            Pair = pair,
+            CurrentFriction = 2,
+            LastFrictionEventTick = 0
+        };
+        var random = new RandomStreamFactory(71);
+        var maintenance = new SettlementMaintenanceCoordinator(config, random, new InvasionSystem(config, random));
+        var events = new List<EventDraft>();
+        world.Tick = 30;
+        maintenance.RunEndOfDay(world, Array.Empty<SimulationEvent>(), Capture(events));
+        Equal(1d, world.Frictions[SettlementPair.Create(1, 2)].CurrentFriction, 0);
+        world.Tick = 60;
+        maintenance.RunEndOfDay(world, Array.Empty<SimulationEvent>(), Capture(events));
+        Equal(0d, world.Frictions[pair].CurrentFriction, 0);
+        world.Tick = 90;
+        maintenance.RunEndOfDay(world, Array.Empty<SimulationEvent>(), Capture(events));
+        Equal(0d, world.Frictions[pair].CurrentFriction, 0);
+    }
+
+    private static void InvasionWithdrawalRules()
+    {
+        var config = LoadConfig();
+        var world = SocialWorld(config);
+        var participant = Npc(1, new Position(1, 1), 5, 5, 5, 100);
+        participant.SettlementId = 1;
+        participant.InvasionId = 1;
+        participant.InvasionRole = InvasionRole.Attacker;
+        participant.HasAdvanceBias = true;
+        world.Npcs.Add(participant.Id, participant);
+        world.Invasions.Add(1, new InvasionState
+        {
+            Id = 1,
+            AttackSettlementId = 1,
+            DefenseSettlementId = 2,
+            CreatedTick = 0,
+            EffectiveTick = 0,
+            TriggerCrowdingPressure = 0.8,
+            TargetReason = "test",
+            AttackParticipantIds = new[] { 1L },
+            CoreCohortIds = new[] { 1L },
+            FrontierCohortIds = Array.Empty<long>()
+        });
+        var selected = new ActionCandidate(ActionKind.Flee, null, new Position(0, 1), 1, "flee-test",
+            new Dictionary<string, double>());
+        var trace = new DecisionTrace(1, 0, 1, selected, Array.Empty<CandidateWeight>(), 0, "test");
+        ResolveRound(config, world, new[]
+        {
+            new ActionIntent("flee-intent", 1, ActionKind.Flee, null, new Position(0, 1), trace)
+        });
+        Equal(1, participant.InvasionId!.Value);
+        True(participant.HasAdvanceBias, "Flee incorrectly removed Advance Bias.");
+
+        var events = new List<EventDraft>();
+        var invasion = new InvasionSystem(config, new RandomStreamFactory(73));
+        invasion.WithdrawForRest(world, participant, Capture(events), 2);
+        True(!participant.InvasionId.HasValue && !participant.HasAdvanceBias,
+            "Rest did not withdraw the invasion participant.");
+        True(participant.WithdrawnInvasionIds.Contains(1), "Rest withdrawal did not prevent same-event rejoin.");
+    }
+
+    private static void CoreOccupationDenominator()
+    {
+        var config = LoadConfig();
+        var world = EmptyWorld(config);
+        var settlement = new SettlementState
+        {
+            Id = 1,
+            Center = new Position(16, 16),
+            FormedTick = 0,
+            EffectiveTick = 0,
+            FounderIds = Array.Empty<long>()
+        };
+        world.Settlements.Add(1, settlement);
+        var cells = SettlementQueries.UsableCoreCells(world, settlement, config);
+        Equal(48, cells.Count);
+        True(!cells.Contains(new Position(16, 16)), "Landmark was included in usable Core denominator.");
+        True(cells.Contains(new Position(15, 16)), "Ordinary occupiable Core cell was excluded.");
+    }
+
     private static void MaximumActionsPerDay()
     {
         var config = LoadConfig();
@@ -741,6 +1040,45 @@ internal static class Program
         return world;
     }
 
+    private static WorldState HotspotWorld(SimulationConfig config, bool reverse)
+    {
+        var world = EmptyWorld(config);
+        world.Tick = 14;
+        world.Npcs.Add(1, Npc(1, new Position(5, 5), 5, 5, 5, 100));
+        world.Npcs.Add(2, Npc(2, new Position(6, 5), 5, 5, 5, 100));
+        var records = Enumerable.Range(0, 4).Select(index => new ReproductionSuccessRecord(
+            $"success-{index}", 10 + index, new Position(5, 5), 1, 2)).ToArray();
+        world.ReproductionSuccesses.AddRange(reverse ? records.Reverse() : records);
+        return world;
+    }
+
+    private static WorldState SocialWorld(SimulationConfig config)
+    {
+        var world = EmptyWorld(config);
+        world.Phase = WorldPhase.Order;
+        world.Settlements.Add(1, new SettlementState
+        {
+            Id = 1,
+            Center = new Position(2, 2),
+            FormedTick = -1,
+            EffectiveTick = 0,
+            FounderIds = Array.Empty<long>()
+        });
+        world.Settlements.Add(2, new SettlementState
+        {
+            Id = 2,
+            Center = new Position(8, 8),
+            FormedTick = -1,
+            EffectiveTick = 0,
+            FounderIds = Array.Empty<long>()
+        });
+        return world;
+    }
+
+    private static DomainEventEmitter Capture(ICollection<EventDraft> events) =>
+        (microRound, type, actorId, targetId, position, success, detail) =>
+            events.Add(new EventDraft(microRound, type, actorId, targetId, position, success, detail));
+
     private static NpcState Npc(long id, Position position, double action, double combat, double communication, double hp)
     {
         return new NpcState
@@ -788,6 +1126,7 @@ internal static class Program
             new() { Concept = "survival", X = 2, Y = 0 },
             new() { Concept = "communication", X = 0, Y = 2 }
         };
+        config.Settlement.HotspotWindowSize = 3;
     }
 
     private static BirthRequest BirthRequest(string id, long first, long second, Position firstPosition, Position secondPosition)
@@ -824,6 +1163,14 @@ internal static class Program
             new Dictionary<string, double>());
         var trace = new DecisionTrace(actorId, 0, 1, selected, Array.Empty<CandidateWeight>(), 0, "test");
         return new ActionIntent($"intent-{actorId}", actorId, ActionKind.Move, null, destination, trace);
+    }
+
+    private static ActionIntent SimpleIntent(long actorId, ActionKind kind)
+    {
+        var selected = new ActionCandidate(kind, null, null, 1, $"{kind}-{actorId}",
+            new Dictionary<string, double>());
+        var trace = new DecisionTrace(actorId, 0, 1, selected, Array.Empty<CandidateWeight>(), 0, "test");
+        return new ActionIntent($"intent-{actorId}-{kind}", actorId, kind, null, null, trace);
     }
 
     private static ActionIntent TargetedIntent(

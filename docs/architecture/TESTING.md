@@ -1,19 +1,8 @@
 # v0 Headless Verification
 
-**Status:** Baseline test obligations / Implemented test tooling
+**Status:** Baseline test obligations / Draft test implementation
 
 `Simulation.Core.Tests` はGUIなしでCoreを高速実行する。失敗時にはCode Version、Config、RunSeed、tick、関係Entity ID、random purposeを再現可能な範囲で報告する。
-
-## Implemented tooling
-
-- `Simulation.Core.Tests`: 例示・境界・回帰testに加え、test-onlyのFsCheck 3.3.4を使用する。
-- FsCheckは固定replay seedから32 caseのRunSeed、実行日数、途中観測位置を生成し、Event列と最終state fingerprintが一致することを検証する。失敗時はFsCheckの縮小counterexampleとreplay seedを出力する。
-- `Simulation.Runner.Tests`: replay記録と再検証、Event hash drift、埋め込みConfig改変拒否を検証する。
-- GitHub ActionsはWindows + .NET 10で全testを実行し、その後SimRunner CLIで10 tickのrecord / verify smokeを行う。
-
-## Deterministic replay commands
-
-`Simulation.Runner` は完全Config、RunSeed、tick数、code version、空の外部入力列、期待Event hash、期待最終state hashをJSON envelopeへ保存する。`verify` は埋め込みConfigだけで新規Worldを再実行し、主要集計値とSHA-256を比較する。hash drift時は終了code 2、入力・schema不正時は終了code 1を返す。
 
 ## Required invariant groups
 
@@ -90,4 +79,65 @@
 - Interrupt再抽選Attackを終了済みAttack Phaseへ巻き戻して実行しない。
 - Vitality Configが0〜0.5歳の回復力上昇、0.5〜1歳の強回復、1〜1.5歳の回復低下、1.5〜2.5歳の弱減衰、2.5〜3歳の減衰加速、3歳以降の強減衰を満たす。
 
-追加の統計的試験sample数と、意図的なSimulation変更時に保存するgolden replayの運用は未決である。
+### v0.2 Settlement / Order Update
+
+- A. Generation中でもReproduction HotspotからSettlementが生成される。
+- B. Generation中はSettlementのRest、Vitality、Aging、Reproduction、治安Bonusが無効である。
+- C. PopulationCVとDemographicImbalanceの安定条件が連続成立した後にOrderへ移行する。
+- D. Order移行後、既存Settlementの社会Bonusが有効になる。
+- E. Settlement成立原因となったReproduction Success参加者のうちAliveなNPCをFounderとして記録する。
+- F. 成立時にFounder +10、Core内非Founder +7の初期Affinity defaultを付与する。
+- G. AffinityがMembershipThresholdへ達すると所属が成立する。
+- H. 通常所属変更がCurrent Affinityとの差+5 defaultに従う。
+- I. Invasion参加中はActive Affiliationを変更しない。
+- J. Order中の同Settlement CollisionをCombatへ変換しない。
+- K. Settlement Influence内のUnaffiliated NPCをSettlement側から通常Attackせず、Collision Combatを抑制する。
+- L. Unaffiliated NPCがThreat行為を行った場合、Settlement側Counterattack / Threat Memoryが有効である。
+- M. Center radius 5内のRest CollisionでRest Intentを解除し、元Action枠の再評価を同一Micro Round最大1回に制限する。
+- N. 異Settlement平時CollisionをCombatではなくFrictionへ変換する。
+- O. CrowdingPressureをCoreOccupancyとBlockedMovementRateの0.5 / 0.5 defaultから算出する。
+- P. Crowding条件の30日平均と30日継続が成立するとInvasion Eligibleになる。
+- Q. Invasion対象がHostility、Friction、Distance、seed tie-breakの優先順位に従う。
+- R. MobilizationRateがCrowdingPressureに応じ20〜50%で変化する。
+- S. Core CohortをCore内のAffinity上位から選び、同値をseed付きで解決する。
+- T. Frontier CohortをCore外の所属NPCから選ぶ。
+- U. Rest中NPCをInvasion参加候補から除外する。
+- V. Advance ParticipantがRestするとBiasを解除しEventから離脱する。
+- W. Advance Biasを保持するAlive NPCが0になるとDefense Victoryになる。
+- X. Core 50%以上占拠またはCenter占拠でAttack Victoryになる。
+- Y. 攻撃側勝利後、敗北Settlementを無効化して所属NPCを勝者へ統合する。
+- Z. Settlement人口がWorld Populationの10%以下でも365日連続するまで自然消滅しない。
+- AA. Landmark Exposureをradius 4まで付与し、距離4でv0.2 default +0.125となる。
+- AB. Concept Auraが同Settlement所属の味方だけに作用し、敵とUnaffiliatedへ作用しない。
+- AC. Aura RangeがChebyshev radius 2である。
+- AD. 同種Auraを複数Holderから受けてもstackしない。
+- AE. Invasion中、radius 2以内の同一Event参加者へConceptMark Holder方向のCohesion Biasが発生する。
+- AF. Aura CohesionがEnemy SettlementへのAdvance Biasを完全に上書きしない。
+
+加えて、Settlement生成、cohort選択、target tie-break、Friction / Invasion Event、Aura対象がcollection列挙順やUI表示頻度に依存しないことを検証する。
+
+### v0.2 resolved-boundary patch
+
+- Patch A. 同日複数Hotspotの競合ではReproduction Success数が多いCandidateを優先する。
+- Patch B. 同数Candidateのseed tie-breakを決定論的に再現する。
+- Patch C. Map scan、collection、thread順を変えてもHotspot arbitration結果が変わらない。
+- Patch D. 異Settlement平時CollisionでFriction +1 defaultを適用する。
+- Patch E. 平時Explicit Threat EventでFriction +3 defaultを適用する。
+- Patch F. Counterattackで同一Threat EventのFrictionを二重加算しない。
+- Patch G. 30日Eventなしの後、30日ごとにFrictionを1減らし0未満にしない。
+- Patch H. Influence内Unaffiliated非ThreatへSettlement NPCがExplicit Attack Candidateを生成しない。
+- Patch I. UnaffiliatedがActive ThreatになるとExplicit Attack Candidateを生成でき、Resolutionでも最新保護条件を再検証する。
+- Patch J. Reproduction参加者2名が同一Active Settlement Core内でない場合、Outside Penaltyを適用する。
+- Patch K. ConceptMark Holder本人へ同種Aura 1.1を追加適用しない。
+- Patch L. 生存Aura取得時にCurrentHPを自動増加させない。
+- Patch M. 生存Aura解除時、CurrentHPが新EffectiveMaxHPを超える場合だけClampする。
+- Patch N. Aura解除ClampをCombat / Vitality Damage Eventとして扱わず、Reactionを発生させない。
+- Patch O. Core占有率分母からMap外とLandmark等の侵入不能Cellを除外する。
+- Patch P. 防衛NPC占有Cellを利用可能Core Cellとして分母へ含める。
+- Patch Q. FleeしてもInvasion ParticipantとAdvance Biasを維持する。
+- Patch R. RestでAdvance Bias / Invasion Participantを解除し、同一Eventへ再参加させない。
+- Patch S. Death、Event終了、Victory、統合時にParticipant状態を解除する。
+
+Settlement Maintenance順と翌Tick反映、Aura / Core占有計算もcollection order、scan order、thread schedulingに依存しないことを検証する。
+
+具体的なtest framework、fixture形式、統計的試験のsample数は実装時に決める。

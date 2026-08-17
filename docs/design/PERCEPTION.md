@@ -98,6 +98,12 @@ Attack、Collision Attack、Pursuit Attackを直接受けたNPCは相手をPerce
 
 Collision Attackの攻撃側はOutcomeから相手EntityId、相手Position、戦闘結果を直接知る。被攻撃側は攻撃者をPerceivedThreatへ登録する。
 
+## v0.2 social boundary
+
+Settlement AffinityとActive AffiliationはNPC自身の社会状態として扱い、Initial HostilityはFounder cohortと成立時初期住民が現に持つActive PerceivedThreatを集計して生成する。個人が知らないThreatやReality情報を補完して外交関係をランダム生成しない。
+
+SettlementのHostility、Friction、Invasion状態はReality上の社会状態である。Order中のUnaffiliated保護Candidateは、NPCがPerception上把握する対象Position / Affiliationと自身のActive PerceivedThreatだけを使う。ResolutionはReality上のUnaffiliated、Influence、Active Threatを再Validationする。NPCへ公開してよい専用入力を使い、Reality Store全体をPerception境界越しに渡さない。
+
 ## Player boundary
 
 プレイヤーも通常はReality全知ではない。現在の表層状態を中心に観測し、完全な因果や全履歴の調査を主目的にしない。開発用debug projectionとは分ける。

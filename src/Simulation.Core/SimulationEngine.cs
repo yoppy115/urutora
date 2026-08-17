@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Security.Cryptography;
 using System.Text.Json;
 using Simulation.Core.Communication;
@@ -12,6 +11,8 @@ using Simulation.Core.Perception;
 using Simulation.Core.Randomness;
 using Simulation.Core.Reproduction;
 using Simulation.Core.Resolution;
+using Simulation.Core.Social;
+using Simulation.Core.Statistics;
 using Simulation.Core.World;
 
 namespace Simulation.Core;
@@ -27,11 +28,15 @@ public sealed class SimulationEngine
     private readonly NeedsSystem _needs;
     private readonly ConceptExposureSystem _conceptExposure;
     private readonly ActionResolutionSystem _actionResolution;
+    private readonly ConceptAuraSystem _aura;
+    private readonly InvasionSystem _invasion;
+    private readonly SettlementMaintenanceCoordinator _maintenance;
     private readonly List<SimulationEvent> _events = new();
     private readonly List<DecisionTrace> _lastDecisionTraces = new();
     private readonly Dictionary<ActionKind, long> _selectedActionCounts = Enum
         .GetValues<ActionKind>()
         .ToDictionary(action => action, _ => 0L);
+    private readonly Dictionary<long, Dictionary<ActionKind, long>> _selectedActionCountsByNpc = new();
     private int _minimumPopulation;
     private int _eventSequence;
 
@@ -55,8 +60,11 @@ public sealed class SimulationEngine
         _vitality = new VitalitySystem(config);
         _needs = new NeedsSystem(config);
         _conceptExposure = new ConceptExposureSystem(config);
+        _aura = new ConceptAuraSystem(config, _random);
+        _invasion = new InvasionSystem(config, _random);
+        _maintenance = new SettlementMaintenanceCoordinator(config, _random, _invasion);
         _actionResolution = new ActionResolutionSystem(
-            config, _random, _perception, _decision, communication, _reproduction, _needs);
+            config, _random, _perception, _decision, communication, _reproduction, _needs, _invasion, _aura);
     }
 
     public SimulationConfig Config { get; }
@@ -75,6 +83,9 @@ public sealed class SimulationEngine
             _eventSequence = 0;
             _lastDecisionTraces.Clear();
 
+            _maintenance.ActivatePending(State, AddEvent);
+            _aura.Refresh(State, AddEvent, 0);
+
             _perception.Observe(State);
             _needs.UpdateDaily(State);
 
@@ -83,6 +94,7 @@ public sealed class SimulationEngine
             var eligible = actionCounts.Keys.ToHashSet();
             for (var microRound = 1; microRound <= Config.Action.MaximumActionsPerDay && eligible.Count > 0; microRound++)
             {
+                _aura.Refresh(State, AddEvent, microRound);
                 var intents = CreateIntents(eligible, microRound);
                 _actionResolution.ResolveRound(
                     State,
@@ -97,6 +109,7 @@ public sealed class SimulationEngine
                         draft.Success,
                         draft.Detail),
                     trace => _lastDecisionTraces.Add(trace));
+                _aura.Refresh(State, AddEvent, microRound);
 
                 foreach (var intent in intents)
                 {
@@ -115,9 +128,12 @@ public sealed class SimulationEngine
                     acquisition.Position, true, acquisition.Concept.ToString());
                 _needs.RefreshSurvival(State.Npcs[acquisition.EntityId]);
             }
+            _aura.Refresh(State, AddEvent, 0);
             ApplyVitalityAndAging();
             ResolveBirthQueue();
             _minimumPopulation = Math.Min(_minimumPopulation, State.Npcs.Values.Count(item => item.IsAlive));
+            var dayEvents = _events.Skip(eventStart).ToArray();
+            _maintenance.RunEndOfDay(State, dayEvents, AddEvent);
             State.Tick++;
 
             return new TickResult(
@@ -154,11 +170,33 @@ public sealed class SimulationEngine
                 .Select(item => new NpcProjection(
                     item.Id,
                     item.Position,
-                    (IReadOnlySet<ConceptKind>)item.ConceptMarks.ToHashSet()))
+                    (IReadOnlySet<ConceptKind>)item.ConceptMarks.ToHashSet(),
+                    (IReadOnlySet<ConceptKind>)item.ActiveAuras.ToHashSet(),
+                    item.SettlementId,
+                    item.InvasionId))
                 .ToArray();
             var landmarks = State.Landmarks
                 .OrderBy(item => item.Concept)
                 .Select(item => new LandmarkProjection(item.Concept, item.Position))
+                .ToArray();
+            var settlements = State.Settlements.Values.OrderBy(item => item.Id)
+                .Select(item => new SettlementProjection(
+                    item.Id,
+                    item.Center,
+                    Config.Settlement.CoreRadius,
+                    Config.Settlement.InfluenceRadius,
+                    item.FormedTick,
+                    item.IsActive(State.Tick),
+                    State.Npcs.Values.Count(npc => npc.IsAlive && npc.SettlementId == item.Id),
+                    item.CrowdingPressure))
+                .ToArray();
+            var invasions = State.Invasions.Values.OrderBy(item => item.Id)
+                .Select(item => new InvasionProjection(
+                    item.Id,
+                    item.AttackSettlementId,
+                    item.DefenseSettlementId,
+                    item.EffectiveTick,
+                    item.IsActive(State.Tick)))
                 .ToArray();
             var recent = _events.TakeLast(recentEventLimit).ToArray();
             return new SimulationSnapshot(
@@ -166,8 +204,11 @@ public sealed class SimulationEngine
                 Config.World.DaysPerYear,
                 Config.World.Width,
                 Config.World.Height,
+                State.Phase,
                 npcs,
                 landmarks,
+                settlements,
+                invasions,
                 recent);
         }
     }
@@ -186,15 +227,31 @@ public sealed class SimulationEngine
         {
             var checkpoint = new
             {
-                SchemaVersion = 1,
+                SchemaVersion = 2,
                 State.Tick,
+                State.Phase,
+                State.PendingPhase,
+                State.GenerationStartTick,
+                State.OrderStartTick,
+                State.StabilityConsecutiveDays,
+                State.PopulationCv,
+                State.DemographicImbalance,
                 State.NextNpcId,
+                State.NextSettlementId,
+                State.NextInvasionId,
                 MinimumPopulation = _minimumPopulation,
                 EventSequence = _eventSequence,
                 SelectedActions = _selectedActionCounts
                     .OrderBy(item => item.Key)
                     .Select(item => new { Action = item.Key, item.Value })
                     .ToArray(),
+                SelectedActionsByNpc = _selectedActionCountsByNpc.OrderBy(item => item.Key)
+                    .Select(item => new
+                    {
+                        NpcId = item.Key,
+                        Counts = item.Value.OrderBy(value => value.Key)
+                            .Select(value => new { Action = value.Key, value.Value }).ToArray()
+                    }).ToArray(),
                 Perception = new
                 {
                     _perception.PositionInvalidationCount,
@@ -225,8 +282,19 @@ public sealed class SimulationEngine
                         item.CurrentHp,
                         item.AgeDays,
                         item.ReproductionCooldownDays,
+                        item.SettlementId,
+                        item.InvasionId,
+                        item.InvasionRole,
+                        item.HasAdvanceBias,
+                        item.HasDefenseBias,
+                        item.SettlementAtDeathId,
+                        item.DeathAgeDays,
+                        item.DeathCause,
                         Needs = item.Needs.Snapshot(),
                         ConceptMarks = item.ConceptMarks.OrderBy(value => value).ToArray(),
+                        ActiveAuras = item.ActiveAuras.OrderBy(value => value).ToArray(),
+                        SettlementAffinity = item.SettlementAffinity.OrderBy(value => value.Key).ToArray(),
+                        WithdrawnInvasionIds = item.WithdrawnInvasionIds.OrderBy(value => value).ToArray(),
                         ConceptExposure = item.ConceptExposure
                             .OrderBy(value => value.Key)
                             .Select(value => new { Concept = value.Key, value.Value })
@@ -256,6 +324,64 @@ public sealed class SimulationEngine
                         item.ParentBId
                     })
                     .ToArray(),
+                Settlements = State.Settlements.Values.OrderBy(item => item.Id).Select(item => new
+                {
+                    item.Id,
+                    item.Center,
+                    item.FormedTick,
+                    item.EffectiveTick,
+                    item.FounderIds,
+                    item.DissolvedTick,
+                    item.DissolutionReason,
+                    item.IntegratedIntoSettlementId,
+                    item.CoreOccupancy,
+                    item.BlockedMovementRate,
+                    item.CrowdingPressure,
+                    CrowdingHistory = item.CrowdingHistory.ToArray(),
+                    item.CrowdingConsecutiveDays,
+                    item.LowPopulationConsecutiveDays
+                }).ToArray(),
+                Frictions = State.Frictions.Values.OrderBy(item => item.Pair.FirstId).ThenBy(item => item.Pair.SecondId)
+                    .Select(item => new
+                    {
+                        item.Pair,
+                        item.CurrentFriction,
+                        item.LastFrictionEventTick,
+                        item.LifetimeFrictionEvents,
+                        item.CollisionEvents,
+                        item.ExplicitThreatEvents,
+                        item.LifetimeDecay
+                    }).ToArray(),
+                Hostilities = State.Hostilities.OrderBy(item => item.SourceSettlementId)
+                    .ThenBy(item => item.TargetSettlementId).ToArray(),
+                Invasions = State.Invasions.Values.OrderBy(item => item.Id).Select(item => new
+                {
+                    item.Id,
+                    item.AttackSettlementId,
+                    item.DefenseSettlementId,
+                    item.CreatedTick,
+                    item.EffectiveTick,
+                    item.TriggerCrowdingPressure,
+                    item.TargetReason,
+                    item.AttackParticipantIds,
+                    item.CoreCohortIds,
+                    item.FrontierCohortIds,
+                    DefenseParticipantIds = item.DefenseParticipantIds.OrderBy(value => value).ToArray(),
+                    item.EndTick,
+                    item.Outcome,
+                    item.MaximumCoreOccupationRate,
+                    item.CenterOccupied,
+                    item.RestWithdrawals,
+                    item.DeathWithdrawals
+                }).ToArray(),
+                ReproductionSuccesses = State.ReproductionSuccesses.OrderBy(item => item.EventId, StringComparer.Ordinal).ToArray(),
+                PopulationHistory = State.PopulationHistory.ToArray(),
+                State.SettlementCandidateCount,
+                State.SettlementCandidateConflictCount,
+                State.SettlementCandidateRejectionCount,
+                State.AuraSelfMarkSuppressionCount,
+                State.AttackCandidateSuppressionCount,
+                State.UnaffiliatedThreatExceptionAttackCount,
                 BirthRequests = State.BirthRequests
                     .OrderBy(item => item.RequestId, StringComparer.Ordinal)
                     .Select(item => new
@@ -353,6 +479,13 @@ public sealed class SimulationEngine
                 npc.ParentBId,
                 children.Select(item => item.Id).ToArray(),
                 (IReadOnlySet<ConceptKind>)npc.ConceptMarks.ToHashSet(),
+                (IReadOnlySet<ConceptKind>)npc.ActiveAuras.ToHashSet(),
+                npc.SettlementId,
+                npc.SettlementAffinity.OrderBy(item => item.Key)
+                    .Select(item => new SettlementAffinityProjection(item.Key, item.Value, npc.SettlementId == item.Key))
+                    .ToArray(),
+                npc.InvasionId,
+                npc.InvasionRole,
                 npc.HeldInformation.Count,
                 actionHistory);
         }
@@ -397,122 +530,18 @@ public sealed class SimulationEngine
     {
         lock (_gate)
         {
-            var alive = State.Npcs.Values.Where(item => item.IsAlive).ToArray();
-            var averageAgeYears = alive.Length == 0
-                ? 0
-                : alive.Average(item => (double)item.AgeDays / Config.World.DaysPerYear);
-            var selections = _selectedActionCounts
-                .OrderBy(item => item.Key)
-                .Select(item => new ActionSelectionCount(item.Key, item.Value))
-                .ToArray();
-            var deathCauses = _events
-                .Where(item => item.Type == SimulationEventType.Death)
-                .GroupBy(item => item.Detail, StringComparer.Ordinal)
-                .OrderBy(item => item.Key, StringComparer.Ordinal)
-                .Select(group =>
-                {
-                    var ages = group
-                        .Where(item => item.ActorId.HasValue && State.Npcs.ContainsKey(item.ActorId.Value))
-                        .Select(item => (double)State.Npcs[item.ActorId!.Value].AgeDays / Config.World.DaysPerYear)
-                        .ToArray();
-                    return new DeathCauseStatistics(group.Key, group.LongCount(), ages.Length == 0 ? 0 : ages.Average());
-                })
-                .ToArray();
-            var reproductionOutcomes = _events
-                .Where(item => item.Type is SimulationEventType.ReproductionSuccess or SimulationEventType.ReproductionFailure)
-                .GroupBy(item => item.Type == SimulationEventType.ReproductionSuccess ? "success" : item.Detail,
-                    StringComparer.Ordinal)
-                .OrderBy(item => item.Key, StringComparer.Ordinal)
-                .Select(group => new ReproductionOutcomeStatistics(group.Key, group.LongCount()))
-                .ToArray();
-            var targetedActions = new[]
-            {
-                TargetedStatistics(ActionKind.Attack, SimulationEventType.Attack),
-                TargetedStatistics(ActionKind.Reproduction, SimulationEventType.ReproductionAttempt),
-                TargetedStatistics(ActionKind.Communication, SimulationEventType.Communication)
-            };
-            var combatTypes = new[]
-                {
-                    SimulationEventType.Attack,
-                    SimulationEventType.CollisionAttack,
-                    SimulationEventType.Counterattack,
-                    SimulationEventType.Pursuit
-                }
-                .Select(type =>
-                {
-                    var results = _events.Where(item => item.Type == type &&
-                        (item.Detail == "miss" || item.Detail.StartsWith("damage=", StringComparison.Ordinal))).ToArray();
-                    var damage = results
-                        .Select(item => ParseDamage(item.Detail))
-                        .Where(item => item.HasValue)
-                        .Select(item => item!.Value)
-                        .ToArray();
-                    return new CombatTypeStatistics(type, results.LongLength, damage.LongLength,
-                        damage.Length == 0 ? 0 : damage.Average());
-                })
-                .ToArray();
-            var heldCounts = alive.Select(item => item.HeldInformation.Count).ToArray();
-            var perception = new PerceptionStatistics(
-                _perception.PositionInvalidationCount,
-                _perception.SubjectPurgeCount,
-                _perception.EvictionCount,
-                heldCounts.Sum(),
-                heldCounts.Length == 0 ? 0 : heldCounts.Average(),
-                heldCounts.Length == 0 ? 0 : heldCounts.Max());
-            var conceptMarks = Enum.GetValues<ConceptKind>()
-                .Select(concept =>
-                {
-                    var exposure = alive.Select(item => item.ConceptExposure.GetValueOrDefault(concept)).ToArray();
-                    return new ConceptMarkStatistics(
-                        concept,
-                        alive.Count(item => item.ConceptMarks.Contains(concept)),
-                        _events.LongCount(item => item.Type == SimulationEventType.ConceptMarkAcquired &&
-                                                  item.Detail == concept.ToString()),
-                        exposure.Sum(),
-                        exposure.Length == 0 ? 0 : exposure.Average(),
-                        exposure.Length == 0 ? 0 : exposure.Max());
-                })
-                .ToArray();
-            return new WorldStatisticsProjection(
-                State.Tick,
-                alive.Length,
-                _minimumPopulation,
-                averageAgeYears,
-                selections,
-                deathCauses,
-                reproductionOutcomes,
-                targetedActions,
-                combatTypes,
-                perception,
-                conceptMarks);
-
-            TargetedActionStatistics TargetedStatistics(ActionKind action, SimulationEventType eventType)
-            {
-                var attempts = _events.Where(item => item.Type == eventType).ToArray();
-                var absent = action == ActionKind.Reproduction
-                    ? _events.LongCount(item => item.Type == SimulationEventType.ReproductionFailure &&
-                                                item.Detail == "target-absent")
-                    : attempts.LongCount(item => item.Detail == "target-absent");
-                return new TargetedActionStatistics(action, attempts.LongLength, absent);
-            }
+            return new WorldStatisticsProjector(
+                Config,
+                State,
+                _events,
+                _selectedActionCounts,
+                _perception,
+                _minimumPopulation).GetWorldStatistics();
         }
-    }
-
-    private static double? ParseDamage(string detail)
-    {
-        const string prefix = "damage=";
-        return detail.StartsWith(prefix, StringComparison.Ordinal) &&
-               double.TryParse(detail[prefix.Length..], NumberStyles.Float, CultureInfo.InvariantCulture, out var value)
-            ? value
-            : null;
     }
 
     private IReadOnlyList<ActionIntent> CreateIntents(IReadOnlySet<long> eligible, int microRound)
     {
-        var rules = new WorldDecisionRules(
-            Config.World.Width,
-            Config.World.Height,
-            State.Landmarks.Select(item => item.Position).ToHashSet());
         var intents = new List<ActionIntent>();
         foreach (var id in eligible.OrderBy(item => item))
         {
@@ -522,18 +551,52 @@ public sealed class SimulationEngine
             }
 
             _needs.RefreshSurvival(npc);
+            var rules = CreateWorldDecisionRules(npc);
             var context = CreateDecisionContext(npc, rules);
             var trace = _decision.Decide(context, State.Tick, microRound);
             _lastDecisionTraces.Add(trace);
             _selectedActionCounts[trace.Selected.Kind]++;
+            if (!_selectedActionCountsByNpc.TryGetValue(npc.Id, out var npcCounts))
+            {
+                npcCounts = Enum.GetValues<ActionKind>().ToDictionary(action => action, _ => 0L);
+                _selectedActionCountsByNpc.Add(npc.Id, npcCounts);
+            }
+            npcCounts[trace.Selected.Kind]++;
             intents.Add(_decision.CreateIntent(trace));
         }
 
         return intents;
     }
 
+    private WorldDecisionRules CreateWorldDecisionRules(NpcState npc)
+    {
+        var activeCores = SettlementQueries.ActiveSettlements(State)
+            .Select(item => new SettlementCoreRule(item.Id, item.Center, Config.Settlement.CoreRadius))
+            .ToArray();
+        var suppressedTargets = State.Npcs.Values
+            .Where(item => item.IsAlive && item.Id != npc.Id &&
+                           SettlementQueries.ExplicitAttackProtection(State, npc, item, Config) is not null)
+            .Select(item => item.Id)
+            .ToHashSet();
+        return new WorldDecisionRules(
+            Config.World.Width,
+            Config.World.Height,
+            State.Landmarks.Select(item => item.Position).ToHashSet(),
+            activeCores,
+            suppressedTargets,
+            _invasion.MovementTarget(State, npc),
+            npc.HasAdvanceBias ? Config.Invasion.AdvanceBiasWeight :
+                npc.HasDefenseBias ? Config.Invasion.DefenseBiasWeight : 0,
+            _aura.FindCohesionTarget(State, npc),
+            Config.Invasion.AuraCohesionWeight,
+            State.Phase == WorldPhase.Order);
+    }
+
     private DecisionContext CreateDecisionContext(NpcState npc, WorldDecisionRules rules)
     {
+        var perception = _perception.CreateView(npc, State.Tick);
+        State.AttackCandidateSuppressionCount += perception.Threats.LongCount(item =>
+            rules.IsAttackSuppressed(item.EntityId));
         return new DecisionContext(
             npc.Id,
             npc.Position,
@@ -543,7 +606,7 @@ public sealed class SimulationEngine
             npc.AgeDays,
             npc.ReproductionCooldownDays,
             npc.Needs.Snapshot(),
-            _perception.CreateView(npc, State.Tick),
+            perception,
             rules);
     }
 
@@ -576,9 +639,21 @@ public sealed class SimulationEngine
     {
         foreach (var npc in State.Npcs.Values.Where(item => item.IsAlive).OrderBy(item => item.Id).ToArray())
         {
-            if (_vitality.ApplyDailyChange(npc))
+            var dailyChange = _vitality.DailyVitalChange(npc.AgeDays);
+            var orderCore = State.Phase == WorldPhase.Order &&
+                            SettlementQueries.FindActiveCore(State, npc.Position, Config) is not null;
+            var multiplier = !orderCore
+                ? 1
+                : dailyChange > 0 ? Config.Settlement.PositiveVitalityMultiplier
+                : dailyChange < 0 ? Config.Settlement.NegativeVitalityMultiplier
+                : 1;
+            if (_vitality.ApplyDailyChange(npc, multiplier))
             {
+                npc.SettlementAtDeathId = npc.SettlementId;
+                npc.DeathAgeDays = npc.AgeDays;
+                npc.DeathCause = "vitality";
                 AddEvent(0, SimulationEventType.Death, npc.Id, null, npc.Position, true, "vitality");
+                _invasion.NotifyDeath(State, npc, AddEvent, 0);
             }
             else
             {
@@ -614,7 +689,13 @@ public sealed class SimulationEngine
         string detail)
     {
         var sequence = _eventSequence++;
-        _events.Add(new SimulationEvent(
+        var actorSettlementId = actorId.HasValue && State.Npcs.TryGetValue(actorId.Value, out var actor)
+            ? actor.SettlementId
+            : null;
+        var targetSettlementId = targetId.HasValue && State.Npcs.TryGetValue(targetId.Value, out var target)
+            ? target.SettlementId
+            : null;
+        var simulationEvent = new SimulationEvent(
             StableHash.StableId("event", State.Tick, sequence, type, actorId, targetId),
             State.Tick,
             microRound,
@@ -623,6 +704,20 @@ public sealed class SimulationEngine
             targetId,
             position,
             success,
-            detail));
+            detail,
+            actorSettlementId,
+            targetSettlementId);
+        _events.Add(simulationEvent);
+        if (type == SimulationEventType.ReproductionSuccess && actorId.HasValue && targetId.HasValue && position.HasValue)
+        {
+            State.ReproductionSuccesses.Add(new ReproductionSuccessRecord(
+                simulationEvent.EventId,
+                State.Tick,
+                position.Value,
+                actorId.Value,
+                targetId.Value));
+            var minimumTick = State.Tick - Config.Settlement.HotspotWindowDays + 1;
+            State.ReproductionSuccesses.RemoveAll(item => item.Tick < minimumTick);
+        }
     }
 }

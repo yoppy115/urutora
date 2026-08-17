@@ -18,11 +18,14 @@ public sealed class SimulationConfig
     public ReproductionConfig Reproduction { get; set; } = new();
     public VitalityConfig Vitality { get; set; } = new();
     public ConceptConfig Concept { get; set; } = new();
+    public SettlementConfig Settlement { get; set; } = new();
+    public InvasionConfig Invasion { get; set; } = new();
+    public AuraConfig Aura { get; set; } = new();
 
     public void Validate()
     {
         var errors = new List<string>();
-        Require(SchemaVersion == 1, "schemaVersion must be 1.", errors);
+        Require(SchemaVersion == 2, "schemaVersion must be 2.", errors);
         Require(!string.IsNullOrWhiteSpace(Id), "id is required.", errors);
         Require(World.Width > 2 && World.Height > 2, "world dimensions must be greater than 2.", errors);
         Require(World.DaysPerYear > 0, "world.daysPerYear must be positive.", errors);
@@ -102,8 +105,16 @@ public sealed class SimulationConfig
         Require(Concept.ExposureThreshold > 0, "concept.exposureThreshold must be positive.", errors);
         Require(double.IsFinite(Concept.EffectiveMultiplier) && Concept.EffectiveMultiplier >= 1,
             "concept.effectiveMultiplier must be finite and at least 1.", errors);
-        Require(Concept.ExposureByDistance.Count == 4, "concept.exposureByDistance must include exactly indexes 0..3.", errors);
+        Require(Concept.ExposureByDistance.Count == 5, "v0.2 concept.exposureByDistance must include exactly indexes 0..4.", errors);
         Require(Concept.ExposureByDistance.All(value => value >= 0), "concept exposure cannot be negative.", errors);
+
+        ValidateSettlement(errors);
+        ValidateInvasion(errors);
+        Require(Aura.Radius == 2, "v0.2 aura.radius must be 2.", errors);
+        Require(double.IsFinite(Aura.RestNeedDailyReduction) && Aura.RestNeedDailyReduction >= 0,
+            "aura.restNeedDailyReduction must be finite and non-negative.", errors);
+        Require(double.IsFinite(Aura.EffectiveMultiplier) && Aura.EffectiveMultiplier >= 1,
+            "aura.effectiveMultiplier must be finite and at least 1.", errors);
 
         if (errors.Count > 0)
         {
@@ -192,6 +203,96 @@ public sealed class SimulationConfig
             "vitality curve must decay by 2.5 years.", errors);
         Require(Sample(threeYears) < Sample(twoAndHalfYears),
             "vitality curve must accelerate decay by 3 years.", errors);
+    }
+
+    private void ValidateSettlement(ICollection<string> errors)
+    {
+        Require(Settlement.HotspotWindowDays > 0, "settlement.hotspotWindowDays must be positive.", errors);
+        Require(Settlement.HotspotWindowSize > 0 &&
+                Settlement.HotspotWindowSize <= Math.Min(World.Width, World.Height),
+            "settlement.hotspotWindowSize must fit the World.", errors);
+        Require(Settlement.HotspotSuccessThreshold > 0, "settlement.hotspotSuccessThreshold must be positive.", errors);
+        Require(Settlement.EvaluationIntervalDays > 0, "settlement.evaluationIntervalDays must be positive.", errors);
+        Require(Settlement.MinimumCenterDistance >= 0, "settlement.minimumCenterDistance cannot be negative.", errors);
+        Require(Settlement.CoreRadius >= 0 && Settlement.InfluenceRadius >= Settlement.CoreRadius,
+            "settlement radii are invalid.", errors);
+        Require(Settlement.FounderAffinity >= Settlement.MembershipThreshold,
+            "settlement.founderAffinity must reach membershipThreshold.", errors);
+        Require(Settlement.CoreResidentAffinity >= 0 && Settlement.MembershipThreshold > 0 &&
+                Settlement.MembershipSwitchMargin >= 0,
+            "settlement affinity thresholds are invalid.", errors);
+        Require(new[]
+        {
+            Settlement.StayAffinityDaily,
+            Settlement.RestAffinity,
+            Settlement.CommunicationAffinity,
+            Settlement.ReproductionSuccessAffinity,
+            Settlement.PopulationCvMaximum,
+            Settlement.DemographicImbalanceMaximum,
+            Settlement.OrderRestMultiplier,
+            Settlement.PositiveVitalityMultiplier,
+            Settlement.NegativeVitalityMultiplier,
+            Settlement.OutsideReproductionUtilityPenalty,
+            Settlement.InitialHostilityThreshold,
+            Settlement.FrictionCollisionIncrease,
+            Settlement.FrictionExplicitThreatIncrease,
+            Settlement.FrictionDecayAmount,
+            Settlement.CrowdingOccupancyWeight,
+            Settlement.CrowdingBlockedMovementWeight,
+            Settlement.CrowdingThreshold,
+            Settlement.NaturalDissolutionPopulationRatio
+        }.All(double.IsFinite), "settlement numeric values must be finite.", errors);
+        Require(Settlement.StayAffinityDaily >= 0 && Settlement.RestAffinity >= 0 &&
+                Settlement.CommunicationAffinity >= 0 && Settlement.ReproductionSuccessAffinity >= 0,
+            "settlement affinity gains cannot be negative.", errors);
+        Require(Settlement.StabilityWindowDays > 1 && Settlement.StabilityConsecutiveDays > 0,
+            "settlement stability windows are invalid.", errors);
+        Require(Settlement.PopulationCvMaximum >= 0 && Settlement.DemographicImbalanceMaximum is >= 0 and <= 1,
+            "settlement Order thresholds are invalid.", errors);
+        Require(Settlement.OrderRestMultiplier >= 1 && Settlement.PositiveVitalityMultiplier >= 1 &&
+                Settlement.NegativeVitalityMultiplier is >= 0 and <= 1,
+            "settlement Order multipliers are invalid.", errors);
+        Require(Settlement.OutsideReproductionUtilityPenalty >= 0 && Settlement.RestCollisionRadius >= 0,
+            "settlement Order penalties are invalid.", errors);
+        Require(Settlement.InitialHostilityThreshold is >= 0 and <= 1,
+            "settlement.initialHostilityThreshold must be within 0..1.", errors);
+        Require(Settlement.FrictionCollisionIncrease >= 0 && Settlement.FrictionExplicitThreatIncrease >= 0 &&
+                Settlement.FrictionDecayIntervalDays > 0 && Settlement.FrictionDecayAmount >= 0,
+            "settlement friction values are invalid.", errors);
+        Require(Settlement.CrowdingOccupancyWeight >= 0 && Settlement.CrowdingBlockedMovementWeight >= 0 &&
+                Math.Abs(Settlement.CrowdingOccupancyWeight + Settlement.CrowdingBlockedMovementWeight - 1) < 1e-9,
+            "settlement crowding weights must sum to 1.", errors);
+        Require(Settlement.CrowdingThreshold is >= 0 and <= 1 && Settlement.CrowdingWindowDays > 0 &&
+                Settlement.CrowdingConsecutiveDays > 0,
+            "settlement crowding thresholds are invalid.", errors);
+        Require(Settlement.NaturalDissolutionPopulationRatio is >= 0 and <= 1 &&
+                Settlement.NaturalDissolutionConsecutiveDays > 0,
+            "settlement dissolution thresholds are invalid.", errors);
+    }
+
+    private void ValidateInvasion(ICollection<string> errors)
+    {
+        Require(new[]
+        {
+            Invasion.MobilizationBase,
+            Invasion.MobilizationCrowdingFactor,
+            Invasion.MobilizationMinimum,
+            Invasion.MobilizationMaximum,
+            Invasion.CoreCohortRatio,
+            Invasion.AttackOccupationThreshold,
+            Invasion.AdvanceBiasWeight,
+            Invasion.DefenseBiasWeight,
+            Invasion.AuraCohesionWeight
+        }.All(double.IsFinite), "invasion numeric values must be finite.", errors);
+        Require(Invasion.MobilizationMinimum is >= 0 and <= 1 &&
+                Invasion.MobilizationMaximum is >= 0 and <= 1 &&
+                Invasion.MobilizationMaximum >= Invasion.MobilizationMinimum,
+            "invasion mobilization bounds are invalid.", errors);
+        Require(Invasion.CoreCohortRatio is >= 0 and <= 1 && Invasion.AttackOccupationThreshold is > 0 and <= 1,
+            "invasion cohort or occupation ratio is invalid.", errors);
+        Require(Invasion.AdvanceBiasWeight > Invasion.AuraCohesionWeight &&
+                Invasion.DefenseBiasWeight >= 0 && Invasion.AuraCohesionWeight >= 0,
+            "invasion bias weights must keep Advance primary and Cohesion secondary.", errors);
     }
 }
 
@@ -331,6 +432,66 @@ public sealed class ConceptConfig
 {
     public List<double> ExposureByDistance { get; set; } = new();
     public double ExposureThreshold { get; set; }
+    public double EffectiveMultiplier { get; set; }
+}
+
+public sealed class SettlementConfig
+{
+    public int HotspotWindowDays { get; set; }
+    public int HotspotWindowSize { get; set; }
+    public int HotspotSuccessThreshold { get; set; }
+    public int EvaluationIntervalDays { get; set; }
+    public int MinimumCenterDistance { get; set; }
+    public int CoreRadius { get; set; }
+    public int InfluenceRadius { get; set; }
+    public double FounderAffinity { get; set; }
+    public double CoreResidentAffinity { get; set; }
+    public double MembershipThreshold { get; set; }
+    public double MembershipSwitchMargin { get; set; }
+    public double StayAffinityDaily { get; set; }
+    public double RestAffinity { get; set; }
+    public double CommunicationAffinity { get; set; }
+    public double ReproductionSuccessAffinity { get; set; }
+    public int StabilityWindowDays { get; set; }
+    public double PopulationCvMaximum { get; set; }
+    public double DemographicImbalanceMaximum { get; set; }
+    public int StabilityConsecutiveDays { get; set; }
+    public double OrderRestMultiplier { get; set; }
+    public double PositiveVitalityMultiplier { get; set; }
+    public double NegativeVitalityMultiplier { get; set; }
+    public double OutsideReproductionUtilityPenalty { get; set; }
+    public int RestCollisionRadius { get; set; }
+    public double InitialHostilityThreshold { get; set; }
+    public double FrictionCollisionIncrease { get; set; }
+    public double FrictionExplicitThreatIncrease { get; set; }
+    public int FrictionDecayIntervalDays { get; set; }
+    public double FrictionDecayAmount { get; set; }
+    public double CrowdingOccupancyWeight { get; set; }
+    public double CrowdingBlockedMovementWeight { get; set; }
+    public double CrowdingThreshold { get; set; }
+    public int CrowdingWindowDays { get; set; }
+    public int CrowdingConsecutiveDays { get; set; }
+    public double NaturalDissolutionPopulationRatio { get; set; }
+    public int NaturalDissolutionConsecutiveDays { get; set; }
+}
+
+public sealed class InvasionConfig
+{
+    public double MobilizationBase { get; set; }
+    public double MobilizationCrowdingFactor { get; set; }
+    public double MobilizationMinimum { get; set; }
+    public double MobilizationMaximum { get; set; }
+    public double CoreCohortRatio { get; set; }
+    public double AttackOccupationThreshold { get; set; }
+    public double AdvanceBiasWeight { get; set; }
+    public double DefenseBiasWeight { get; set; }
+    public double AuraCohesionWeight { get; set; }
+}
+
+public sealed class AuraConfig
+{
+    public int Radius { get; set; }
+    public double RestNeedDailyReduction { get; set; }
     public double EffectiveMultiplier { get; set; }
 }
 

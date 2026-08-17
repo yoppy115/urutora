@@ -27,11 +27,9 @@ public sealed class ReproductionSystem
         return npc.CurrentHp >= effective.MaxHp * _config.Reproduction.MinimumHpRatio;
     }
 
-    public bool Accepts(NpcState target, int tick, int microRound, long initiatorId)
+    public bool Accepts(NpcState target, int tick, int microRound, long initiatorId, double utilityPenalty = 0)
     {
-        var acceptUtility = target.Needs.Reproduction -
-                            0.40 * target.Needs.Survival -
-                            0.20 * target.Needs.Rest;
+        var acceptUtility = AcceptanceUtility(target, utilityPenalty);
         var candidates = new[]
         {
             new ActionCandidate(ActionKind.Reproduction, initiatorId, null, acceptUtility, "accept", new Dictionary<string, double>()),
@@ -48,6 +46,9 @@ public sealed class ReproductionSystem
             "ReproductionAcceptance");
         return trace.Selected.StableKey == "accept";
     }
+
+    public static double AcceptanceUtility(NpcState target, double utilityPenalty = 0) =>
+        target.Needs.Reproduction - 0.40 * target.Needs.Survival - 0.20 * target.Needs.Rest - utilityPenalty;
 
     public BirthRequest CreateRequest(NpcState first, NpcState second, int tick, int microRound)
     {

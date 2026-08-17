@@ -6,7 +6,7 @@
 
 初回v0 Runでは、初期200個体が長期的に約30個体まで減少し、観測された死亡238件は全てCombat由来だった。Reproduction Attempt 24,408件に対してSuccessは68件、Attackの約97.45%、Communicationの約73.31%がResolution時TargetAbsentだった。同日中の古いPosition反復、Realityを必要とする繁殖候補、遅い世代交代、無制限に増えるHeld Informationも確認された。
 
-v0.15はTargeted Action、主観境界、世代時間、情報容量、HP/Damage scaleを修正し、Population・Combat・Reproductionの因果を再観測可能にする。Settlementは含めない。
+v0.15はTargeted Action、主観境界、世代時間、情報容量、HP/Damage scaleを修正し、Population・Combat・Reproductionの因果を再観測可能にする。この版ではSettlementを含めなかったが、その境界はv0.2の [`V0_2_SETTLEMENT_ORDER.md`](V0_2_SETTLEMENT_ORDER.md) によって後続拡張された。
 
 ## Baseline changes
 
@@ -48,9 +48,9 @@ v0.15はTargeted Action、主観境界、世代時間、情報容量、HP/Damage
 
 ## Settlement boundary
 
-Settlement生成、所属、Affinity、回復・Rest・Aging・Reproduction Bonus、安全圏、帰巣、Settlement間敵対、Raid、State / Nationはv0.15対象外である。
+Settlement生成、所属、Affinity、回復・Rest・Aging・Reproduction Bonus、安全圏、帰巣、Settlement間敵対、Raid、State / Nationはv0.15時点では対象外だった。v0.2はGeneration、Settlement、Order、Invasion、Auraの明示仕様だけを採用し、State / Nation等は引き続き対象外とする。
 
-将来、個体→集落→社会→国家の基盤とし、強い生存・繁殖・社会利益によって結果的に所属が圧倒的に適応的になる方向性だけを維持する。強いSettlementが高密度、疾病、内部対立、資源、階層、競争等の新Difficultyを生むことを許容するが、具体仕様は確定しない。
+個体→集落→社会→国家の方向性のうち、Settlementが強い生存・繁殖・社会利益を持ち、高密度からInvasionが生じる最初の段階をv0.2で具体化する。疾病、内部対立、資源、階層、State / Nation等は引き続き将来範囲である。
 
 ## Resolved implementation rules
 

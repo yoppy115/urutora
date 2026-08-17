@@ -53,6 +53,14 @@ CurrentHPはEffectiveMaxHPを超えない。生存MarkはBaseMaxHPや曲線を�
 
 初期値はSimulation Run後に再調整する。
 
+## v0.2 Settlement modifier
+
+Order中にSettlement Core内にいるNPCは、基礎curveを変更せず、その日の評価済みDailyVitalChangeへ局所modifierを適用する。正なら2.0倍、負なら絶対値を0.5倍にする。Generation中は適用しない。これらはv0.2 configurable defaultsである。
+
+Settlementは固定寿命や直接回復Actionを追加しない。RestがHP回復を所有しない境界も維持する。
+
+生存Aura等の一時EffectiveMaxHP Bonus取得時はCurrentHPを増加させない。解除時にCurrentHPが新EffectiveMaxHPを超える場合だけ上限へClampし、DamageやThreat / Combat Reactionとして扱わない。EffectiveMaxHP変更後のSurvivalNeedとHPRatioは次の通常State更新で再計算する。
+
 ## Death boundary and future tests
 
 CurrentHPが0以下になった時点で即座にDeadとなり、Cell占有と同Tickの行動資格を失う。Tick末Death phaseはDeath Eventとcollection cleanupを確定する。

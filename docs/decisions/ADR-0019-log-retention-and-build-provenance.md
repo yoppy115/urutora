@@ -1,4 +1,4 @@
-# ADR-0016: archive completed logs and bind releases to clean Git provenance
+# ADR-0019: archive completed logs and bind releases to clean Git provenance
 
 - **Status:** Accepted
 - **Date:** 2026-08-17
@@ -14,7 +14,7 @@ v0.15の4 Worldだけで生ログが約474 MiBとなり、無圧縮directoryの�
 - 観測中のWorldだけを通常directoryとして保持し、完了時に同release directory内の`world-NNNN.zip`へ圧縮する。
 - archiveは一時fileへ作成し、entry名・件数・非圧縮sizeを元directoryと照合してから確定する。確定後にSHA-256 sidecarを書き、最後に元directoryを削除する。
 - World番号はdirectoryとZIPの両方から最大値を求め、archive後も再利用しない。
-- Observation App Configで、完了World圧縮と現行release以外のlog directory削除を明示的に切り替えられるようにする。v0.15既定値は両方trueとする。
+- Observation App Configで、完了World圧縮と現行release以外のlog directory削除を明示的に切り替えられるようにする。v0.15以降の既定値は両方trueとする。
 - Build時にfull Git commitと`clean` / `dirty` tree stateをassembly metadataへ埋め込む。
 - release publishはclean treeを既定条件とし、dirty buildは明示的な診断用途だけ許す。
 - `run.json`へcommit、tree state、Config hashを保存し、publish成果物へartifact hash付きmanifestを保存する。

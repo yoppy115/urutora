@@ -28,6 +28,12 @@ v0では少なくとも次の型を区別できる構造化Simulation Eventを�
 - Flee、Pursuit
 - ReproductionAttempt、ReproductionSuccess、ReproductionFailure
 - ConceptMarkAcquired
+- SettlementFormed、SettlementDissolved、SettlementIntegrated
+- AffinityChanged、AffiliationChanged
+- WorldPhaseChanged
+- CollisionSuppressed、SettlementFrictionChanged、InitialHostilityEstablished
+- InvasionStarted、InvasionParticipantJoined / Withdrew、InvasionEnded
+- AuraApplied / AuraExpired
 
 Decision DebugとWorld Eventは概念的に分離する。Desktop AppのEvent Logは同じWorld Event streamのread-only projectionを使う。
 
@@ -39,7 +45,6 @@ Decision DebugとWorld Eventは概念的に分離する。Desktop AppのEvent Lo
 - ピンと詩篇入力は、元ログの安定IDを参照できるようにする。
 - Perception LogはReality Logの単なる複製にしない。
 - Event生成や表示頻度がSimulationの乱数消費・結果・処理順を変えない。
-- Desktop観測中のWorldログは `logs/vX.Y/world-NNNN/` に分離し、World番号はrelease versionごとに0001から開始する。run metadataと各JSONL entryはrelease versionを保持する。
 - `run.json`、`yearly_stats.csv`、`final_map.txt` 等のファイル出力はv0初期必須要件ではない。将来追加できる構造だけを保つ。
 - Action Eventは通常ActionかReactionか、Attempt / Success / Failure、target、Utility内訳参照、ActionOutcomeを区別できる。
 - DeathはHP 0以下になったResolution時点を発生tickとして記録し、tick末cleanup時点と混同しない。
@@ -64,22 +69,27 @@ v0.15 Runでは少なくとも次を集計可能にする。
 
 目的は人口維持値の調整だけでなく、Population、Combat、Reproductionを生む因果を比較可能にすることである。
 
-## v0.15 storage and provenance
+## v0.2 logging additions
 
-- App Configの`archiveCompletedWorldLogs`がtrueの場合、完了Worldのdirectoryを同じversion directory内の`world-NNNN.zip`へ原子的に圧縮する。ZIP作成とentry検証が完了するまで元directoryを削除しない。
-- ZIPごとに`world-NNNN.zip.sha256`を保存する。World連番は未圧縮directoryとZIPの両方を数え、archive後も番号を再利用しない。
-- App Configの`deleteOtherReleaseVersionLogs`がtrueの場合、起動時のlog maintenanceで現行release以外の`vX.Y`形式directoryを削除する。対象はlog root直下へ限定し、任意pathを再帰削除しない。
-- `run.json` schema 4は完全Configに加え、repository commit、tree state、Simulation Config SHA-256、Observation App Config SHA-256を保持する。
-- release用publishはclean Git worktreeを必須とする。診断用dirty buildは明示的opt-inだけ許し、run metadataとrelease manifestへ`dirty`を残す。
-- publish成果物はrepository commit、tree state、成果物別SHA-256を`release-manifest.json`へ保存する。
+- Settlement Candidate評価はwindow、対象Reproduction Success Event ID、選択Center、排他結果、Founder IDを追跡できる。
+- Generation→Order判定はPopulationCV、DemographicImbalance、rolling window、連続成立日数を記録できる。
+- Collisionは通常Combat、同Settlement抑制、Unaffiliated保護、異Settlement Friction、Invasion Combatを理由付きで区別する。
+- Reproduction FailureはTargetAbsent、Maturity、HP、Cooldown、Distance、Reject、Other Reality Failureへ可能な範囲で分離する。ただしNPC Outcomeへ内部値を漏らさない。
+- Invasionはtarget選択理由、Crowding、cohort、Bias離脱、勝敗条件、統合をstable Event IDで追跡する。
+- AuraはConcept、Holder、対象、所属、Invasion Event、適用 / 失効を追跡できる。
+- Settlement Maintenanceは12段階のphase ordinal、日中Event、翌Tick state commitを区別する。
+- Hotspot arbitrationはimmutable Candidate ID、Reproduction Success count、seed tie-break、棄却理由、選択Centerを追跡する。
+- Friction EventはPair、加算理由、加算値、LastFrictionEventTick、decayを追跡し、Counterattack二重計上を識別できる。
+- 一時MaxHP解除ClampはDamage Eventと分離したstate normalizationとして記録可能にする。
+- Invasionは利用可能Core Cell分母、攻撃側占有Cell、Rest / Death離脱、Flee中Participantを追跡する。
 
-これらは保存・検証境界であり、Simulation Event、乱数stream、世界結果を変更しない。採用理由は[`ADR-0016`](../decisions/ADR-0016-log-retention-and-build-provenance.md)を参照する。
+必須集計項目は [`STATISTICS.md`](STATISTICS.md) を正本とする。
 
 ## Draft mechanics
 
 - JSONL、binary、database等の保存形式。
 - schema versionとmigration。
 - snapshotとevent logの分担。
-- 保存期間、sampling、個体数増加時の性能。
+- 保存期間、圧縮、sampling、個体数増加時の性能。
 - Perceptionや関係情報の記録粒度。
 - 詩篇生成へ渡す情報の選別と秘匿境界。

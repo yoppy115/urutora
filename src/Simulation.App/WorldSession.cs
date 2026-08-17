@@ -21,6 +21,9 @@ public sealed record WorldMetricPoint(
     int Tick,
     int Population,
     double AverageAgeYears,
+    WorldPhase Phase,
+    int SettlementCount,
+    double AffiliationRate,
     IReadOnlyList<ActionSelectionCount> ActionSelections);
 
 public sealed class WorldSessionStore
@@ -153,6 +156,9 @@ public sealed class WorldSession : IDisposable
             statistics.Tick,
             statistics.Population,
             statistics.AverageAgeYears,
+            statistics.WorldPhase.CurrentPhase,
+            statistics.Settlements.Count(item => item.IsActive),
+            statistics.Population == 0 ? 0 : (double)statistics.AffiliatedPopulation / statistics.Population,
             statistics.ActionSelections));
         if (_metrics.Count > _chartMaximumPoints)
         {
@@ -200,7 +206,7 @@ internal sealed class WorldLogWriter : IDisposable
             metadataJsonOptions);
 
         var runMetadata = new WorldRunMetadata(
-            4,
+            5,
             info.ReleaseVersion,
             info.WorldNumber,
             info.WorldId,
@@ -224,6 +230,8 @@ internal sealed class WorldLogWriter : IDisposable
         _diagnosticsWriter = CreateWriter(Path.Combine(info.DirectoryPath, "diagnostics.jsonl"));
         var actions = Enum.GetValues<ActionKind>().Select(item => item.ToString());
         _statisticsWriter.WriteLine("tick,year,day,population,minimumPopulation,averageAgeYears," +
+                                    "worldPhase,settlementCount,affiliatedPopulation,unaffiliatedPopulation,affiliationRate," +
+                                    "populationCv,demographicImbalance,stabilityConsecutiveDays," +
                                     string.Join(',', actions.Select(item => $"selected{item}")) +
                                     ",positionInvalidations,subjectPurges,heldInformationEvictions," +
                                     "heldInformationTotal,heldInformationAverage,heldInformationMaximum");
@@ -243,7 +251,7 @@ internal sealed class WorldLogWriter : IDisposable
         foreach (var simulationEvent in tick.Events)
         {
             var entry = new WorldEventLogEntry(
-                2, _info.ReleaseVersion, _info.WorldNumber, _info.WorldId, _info.Seed, simulationEvent);
+                3, _info.ReleaseVersion, _info.WorldNumber, _info.WorldId, _info.Seed, simulationEvent);
             _eventWriter.WriteLine(JsonSerializer.Serialize(entry, EventJsonOptions));
         }
 
@@ -281,7 +289,16 @@ internal sealed class WorldLogWriter : IDisposable
             day.ToString(CultureInfo.InvariantCulture),
             statistics.Population.ToString(CultureInfo.InvariantCulture),
             statistics.MinimumPopulation.ToString(CultureInfo.InvariantCulture),
-            statistics.AverageAgeYears.ToString("0.000000", CultureInfo.InvariantCulture)
+            statistics.AverageAgeYears.ToString("0.000000", CultureInfo.InvariantCulture),
+            statistics.WorldPhase.CurrentPhase.ToString(),
+            statistics.Settlements.Count(item => item.IsActive).ToString(CultureInfo.InvariantCulture),
+            statistics.AffiliatedPopulation.ToString(CultureInfo.InvariantCulture),
+            statistics.UnaffiliatedPopulation.ToString(CultureInfo.InvariantCulture),
+            (statistics.Population == 0 ? 0 : (double)statistics.AffiliatedPopulation / statistics.Population)
+                .ToString("0.000000", CultureInfo.InvariantCulture),
+            statistics.WorldPhase.PopulationCv.ToString("0.000000", CultureInfo.InvariantCulture),
+            statistics.WorldPhase.DemographicImbalance.ToString("0.000000", CultureInfo.InvariantCulture),
+            statistics.WorldPhase.StabilityConsecutiveDays.ToString(CultureInfo.InvariantCulture)
         }.Concat(values).Concat(new[]
         {
             statistics.Perception.PositionInvalidations.ToString(CultureInfo.InvariantCulture),
@@ -296,7 +313,7 @@ internal sealed class WorldLogWriter : IDisposable
     private void WriteDiagnostics(WorldStatisticsProjection statistics)
     {
         var entry = new WorldStatisticsLogEntry(
-            3, _info.ReleaseVersion, _info.WorldNumber, _info.WorldId, _info.Seed, statistics);
+            4, _info.ReleaseVersion, _info.WorldNumber, _info.WorldId, _info.Seed, statistics);
         _diagnosticsWriter.WriteLine(JsonSerializer.Serialize(entry, EventJsonOptions));
     }
 

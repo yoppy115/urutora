@@ -42,7 +42,7 @@ public sealed class VitalitySystem
         return points[^1].DailyVitalChange;
     }
 
-    public bool ApplyDailyChange(NpcState npc)
+    public bool ApplyDailyChange(NpcState npc, double changeMultiplier = 1)
     {
         if (!npc.IsAlive)
         {
@@ -50,7 +50,7 @@ public sealed class VitalitySystem
         }
 
         var maximumHp = npc.EffectiveStats(_config).MaxHp;
-        npc.CurrentHp = Math.Min(maximumHp, npc.CurrentHp + DailyVitalChange(npc.AgeDays));
+        npc.CurrentHp = Math.Min(maximumHp, npc.CurrentHp + DailyVitalChange(npc.AgeDays) * changeMultiplier);
         npc.AgeDays++;
         if (npc.ReproductionCooldownDays > 0)
         {

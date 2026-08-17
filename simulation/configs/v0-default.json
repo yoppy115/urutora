@@ -1,6 +1,6 @@
 {
-  "schemaVersion": 1,
-  "id": "v0.15-default-1",
+  "schemaVersion": 2,
+  "id": "v0.2-default-1",
   "world": {
     "width": 64,
     "height": 64,
@@ -105,8 +105,62 @@
     ]
   },
   "concept": {
-    "exposureByDistance": [0.0, 1.0, 0.5, 0.25],
+    "exposureByDistance": [0.0, 1.0, 0.5, 0.25, 0.125],
     "exposureThreshold": 100.0,
     "effectiveMultiplier": 1.2
+  },
+  "settlement": {
+    "hotspotWindowDays": 90,
+    "hotspotWindowSize": 4,
+    "hotspotSuccessThreshold": 4,
+    "evaluationIntervalDays": 15,
+    "minimumCenterDistance": 7,
+    "coreRadius": 3,
+    "influenceRadius": 7,
+    "founderAffinity": 10.0,
+    "coreResidentAffinity": 7.0,
+    "membershipThreshold": 10.0,
+    "membershipSwitchMargin": 5.0,
+    "stayAffinityDaily": 0.05,
+    "restAffinity": 1.0,
+    "communicationAffinity": 0.5,
+    "reproductionSuccessAffinity": 2.0,
+    "stabilityWindowDays": 90,
+    "populationCvMaximum": 0.10,
+    "demographicImbalanceMaximum": 0.20,
+    "stabilityConsecutiveDays": 30,
+    "orderRestMultiplier": 1.5,
+    "positiveVitalityMultiplier": 2.0,
+    "negativeVitalityMultiplier": 0.5,
+    "outsideReproductionUtilityPenalty": 2.0,
+    "restCollisionRadius": 5,
+    "initialHostilityThreshold": 0.30,
+    "frictionCollisionIncrease": 1.0,
+    "frictionExplicitThreatIncrease": 3.0,
+    "frictionDecayIntervalDays": 30,
+    "frictionDecayAmount": 1.0,
+    "crowdingOccupancyWeight": 0.5,
+    "crowdingBlockedMovementWeight": 0.5,
+    "crowdingThreshold": 0.70,
+    "crowdingWindowDays": 30,
+    "crowdingConsecutiveDays": 30,
+    "naturalDissolutionPopulationRatio": 0.10,
+    "naturalDissolutionConsecutiveDays": 365
+  },
+  "invasion": {
+    "mobilizationBase": 0.20,
+    "mobilizationCrowdingFactor": 0.30,
+    "mobilizationMinimum": 0.20,
+    "mobilizationMaximum": 0.50,
+    "coreCohortRatio": 0.50,
+    "attackOccupationThreshold": 0.50,
+    "advanceBiasWeight": 4.0,
+    "defenseBiasWeight": 2.0,
+    "auraCohesionWeight": 0.75
+  },
+  "aura": {
+    "radius": 2,
+    "restNeedDailyReduction": 0.10,
+    "effectiveMultiplier": 1.10
   }
 }

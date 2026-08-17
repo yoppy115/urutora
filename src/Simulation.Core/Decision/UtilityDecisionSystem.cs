@@ -8,13 +8,28 @@ namespace Simulation.Core.Decision;
 public sealed record WorldDecisionRules(
     int Width,
     int Height,
-    IReadOnlySet<Position> LandmarkPositions)
+    IReadOnlySet<Position> LandmarkPositions,
+    IReadOnlyList<SettlementCoreRule>? ActiveSettlementCores = null,
+    IReadOnlySet<long>? SuppressedAttackTargetIds = null,
+    Position? MovementPrimaryTarget = null,
+    double MovementPrimaryWeight = 0,
+    Position? CohesionTarget = null,
+    double CohesionWeight = 0,
+    bool OutsideReproductionPenaltyEnabled = false)
 {
     public bool IsInside(Position position) =>
         position.X >= 0 && position.X < Width && position.Y >= 0 && position.Y < Height;
 
     public bool IsTraversableForIntent(Position position) => IsInside(position) && !LandmarkPositions.Contains(position);
+
+    public bool IsAttackSuppressed(long targetId) => SuppressedAttackTargetIds?.Contains(targetId) == true;
+
+    public bool IsSameActiveCore(Position first, Position second) => ActiveSettlementCores?.Any(core =>
+        first.ChebyshevDistance(core.Center) <= core.Radius &&
+        second.ChebyshevDistance(core.Center) <= core.Radius) == true;
 }
+
+public sealed record SettlementCoreRule(int SettlementId, Position Center, int Radius);
 
 public sealed record DecisionContext(
     long EntityId,
@@ -248,7 +263,7 @@ public sealed class UtilityDecisionSystem
         }
 
         var stream = _random.Create("decision", tick, context.EntityId, "move-direction", microRound.ToString());
-        var destination = destinations[stream.NextInt(destinations.Length)];
+        var destination = SelectBiasedDestination(context, destinations, stream);
         var utility = NeedUtility(context.Needs, _config.Utility.Move);
         output.Add(Candidate(ActionKind.Move, null, destination, utility,
             new Dictionary<string, double> { ["needUtility"] = utility }));
@@ -283,7 +298,8 @@ public sealed class UtilityDecisionSystem
     {
         foreach (var target in context.Perception.Threats
                      .Where(target => target.IsAlive != false && target.Position.HasValue &&
-                                      context.Position.ChebyshevDistance(target.Position.Value) <= 1)
+                                      context.Position.ChebyshevDistance(target.Position.Value) <= 1 &&
+                                      !context.WorldRules.IsAttackSuppressed(target.EntityId))
                      .OrderBy(target => target.EntityId))
         {
             var result = AttackUtility(context, target);
@@ -362,9 +378,60 @@ public sealed class UtilityDecisionSystem
         }
 
         var target = SelectRandomTarget(targets, context.EntityId, tick, microRound, "reproduction-target");
-        var utility = NeedUtility(context.Needs, _config.Utility.Reproduction);
+        var outsidePenalty = !context.WorldRules.OutsideReproductionPenaltyEnabled ||
+                             context.WorldRules.IsSameActiveCore(context.Position, target.Position.GetValueOrDefault())
+            ? 0
+            : _config.Settlement.OutsideReproductionUtilityPenalty;
+        var utility = NeedUtility(context.Needs, _config.Utility.Reproduction) - outsidePenalty;
         output.Add(Candidate(ActionKind.Reproduction, target.EntityId, null, utility,
-            new Dictionary<string, double> { ["needUtility"] = utility }, target.Position));
+            new Dictionary<string, double>
+            {
+                ["needUtility"] = utility + outsidePenalty,
+                ["outsideCorePenalty"] = outsidePenalty
+            }, target.Position));
+    }
+
+    private static Position SelectBiasedDestination(
+        DecisionContext context,
+        IReadOnlyList<Position> destinations,
+        DeterministicRandom random)
+    {
+        if (!context.WorldRules.MovementPrimaryTarget.HasValue && !context.WorldRules.CohesionTarget.HasValue)
+        {
+            return destinations[random.NextInt(destinations.Count)];
+        }
+
+        var weights = destinations.Select(destination =>
+        {
+            var score = 0d;
+            if (context.WorldRules.MovementPrimaryTarget.HasValue)
+            {
+                var target = context.WorldRules.MovementPrimaryTarget.Value;
+                score += context.WorldRules.MovementPrimaryWeight *
+                         (context.Position.ChebyshevDistance(target) - destination.ChebyshevDistance(target));
+            }
+
+            if (context.WorldRules.CohesionTarget.HasValue)
+            {
+                var target = context.WorldRules.CohesionTarget.Value;
+                score += context.WorldRules.CohesionWeight *
+                         (context.Position.ChebyshevDistance(target) - destination.ChebyshevDistance(target));
+            }
+
+            return Math.Exp(Math.Clamp(score, -20, 20));
+        }).ToArray();
+        var draw = random.NextDouble() * weights.Sum();
+        var cumulative = 0d;
+        for (var index = 0; index < destinations.Count; index++)
+        {
+            cumulative += weights[index];
+            if (draw < cumulative)
+            {
+                return destinations[index];
+            }
+        }
+
+        return destinations[^1];
     }
 
     private PerceivedEntity SelectRandomTarget(

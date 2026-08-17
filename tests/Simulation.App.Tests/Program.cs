@@ -4,6 +4,7 @@ using System.Security.Cryptography;
 using Simulation.App;
 using Simulation.Core;
 using Simulation.Core.Configuration;
+using Simulation.Core.Domain;
 
 namespace Simulation.App.Tests;
 
@@ -82,8 +83,8 @@ internal static class Program
             using (var first = store.CreateNextWorld(simulationConfig, SimulationConfigPath(), 9000))
             {
                 Equal(1, first.Info.WorldNumber);
-                Equal("v0.15", first.Info.ReleaseVersion);
-                Equal("v0.15", Directory.GetParent(first.Info.DirectoryPath)!.Name);
+                Equal("v0.2", first.Info.ReleaseVersion);
+                Equal("v0.2", Directory.GetParent(first.Info.DirectoryPath)!.Name);
                 Equal(9000L, first.Info.Seed);
                 tick = first.AdvanceOneDay();
                 firstInfo = first.Info;
@@ -115,10 +116,13 @@ internal static class Program
                 Equal(firstInfo.ReleaseVersion, diagnostics.RootElement.GetProperty("releaseVersion").GetString());
                 True(diagnostics.RootElement.GetProperty("statistics").TryGetProperty("targetedActions", out _));
                 True(diagnostics.RootElement.GetProperty("statistics").TryGetProperty("perception", out _));
+                True(diagnostics.RootElement.GetProperty("statistics").TryGetProperty("worldPhase", out _));
+                True(diagnostics.RootElement.GetProperty("statistics").TryGetProperty("settlements", out _));
+                True(diagnostics.RootElement.GetProperty("statistics").TryGetProperty("violence", out _));
             }
             using (var run = JsonDocument.Parse(ReadArchiveText(archivePath, "run.json")))
             {
-                Equal(4, run.RootElement.GetProperty("schemaVersion").GetInt32());
+                Equal(5, run.RootElement.GetProperty("schemaVersion").GetInt32());
                 True(run.RootElement.GetProperty("repositoryCommit").GetString()!.Length > 0);
                 True(run.RootElement.GetProperty("repositoryTreeState").GetString()!.Length > 0);
                 Equal(64, run.RootElement.GetProperty("simulationConfigSha256").GetString()!.Length);
@@ -172,6 +176,9 @@ internal static class Program
                     day,
                     200 + (int)Math.Round(30 * Math.Sin(day / 13d)) + day / 8,
                     1.2 + 0.25 * Math.Cos(day / 19d),
+                    day < 60 ? WorldPhase.Generation : WorldPhase.Order,
+                    day / 30,
+                    Math.Clamp(day / 119d, 0, 1),
                     Array.Empty<ActionSelectionCount>()))
                 .ToArray()
         };

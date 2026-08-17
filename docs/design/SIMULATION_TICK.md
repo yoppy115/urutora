@@ -1,6 +1,6 @@
 # Simulation Tick and Micro Rounds
 
-**Status:** Baseline boundaries / v0 default and configurable mechanics
+**Status:** Baseline boundaries / v0.2 default and configurable mechanics
 
 ## Time baseline
 
@@ -35,6 +35,12 @@
 
 Observationは原則として日初に一度だけ行い、Micro Roundごとに周囲を完全再観測しない。ただし攻撃を受けた、攻撃が失敗した、交流で情報を受信した、追撃された、対象が死亡した等、本人が直接経験したActionOutcomeは即時にPerceptionへ反映できる。高Action個体が同日中に古い周辺情報で複数行動することは、許容する逸脱要因である。
 
+v0.2はReproduction Success履歴、Core滞在・行動によるAffinity、人口統計、Settlement Candidate、Generation→Order、Crowding、Invasion、自然消滅、Auraを日次処理へ追加する。Settlementの大きな構造変更は日中Micro Roundへ割り込ませず、Tick末Settlement Maintenanceでcommitし、原則翌Tickから通常Ruleへ反映する。
+
+Settlement Maintenanceの固定順は、当日Statistics確定→Affinity反映→Membership / Affiliation変更→Friction decay→Population / Demographic rolling更新→Hotspot Candidate生成→同時arbitration / Settlement生成→自然消滅→Generation / Order判定→Crowding更新→Invasion Eligibility / 開始→翌Tick state確定とする。
+
+日中に即時解決するAffinity発生要因、Friction Event、Rest Collision、Active InvasionのMove / Combat、勝敗成立、Auraと区別する。征服統合はVictory Outcomeとして自然消滅phaseを待たず処理できる。
+
 ## v0.15 Micro Round phases
 
 Targeted Action PhaseはAttack → Reproduction → Communicationの固定順で、Move、Flee、Restより先にResolutionする。AttackはHP、Alive、Intentを不可逆的に変え得るため最初、ReproductionはAccept時にIntentを置換し得るため次、情報・Perceptionを主に変えるCommunicationは最後とする。
@@ -42,6 +48,8 @@ Targeted Action PhaseはAttack → Reproduction → Communicationの固定順で
 各後続phaseは先行phase完了後の最新RealityでIntentを再Validationする。Attackで死亡したNPCへのReproduction / Communicationは成立させない。Attack後にHP条件等が崩れたReproductionはFailure Outcome、Reproduction後にDead、距離外、不存在となったCommunicationは不成立とする。
 
 Movement PhaseはMoveとFleeを扱い、その後にRestを扱う。各phaseの競合は既存のEffectiveActionとseed付きtie-break規則へ従う。
+
+Order中のMovement ResolutionはAffiliation、Settlement Influence、Invasion関係を明示的に参照し、同Settlement / Unaffiliated保護 / 異Settlement Friction / Invasion Combatの条件を [`V0_2_SETTLEMENT_ORDER.md`](V0_2_SETTLEMENT_ORDER.md) に従って解決する。radius 5内のRest Collisionは対象の未実行Rest Intentを解除し、元Action枠を同一Micro Round最大1回だけ再評価できる。
 
 ## Interrupt and intent replacement
 
@@ -122,3 +130,8 @@ Birth解決時点で空いている死亡Cellは利用可能。LandmarkとAlive 
 - TargetAbsent後に同じ古いPositionによるTargeted Actionを反復しない。
 - 同一Code、Config、RunSeedから同じEvent列を得る。
 - UI render頻度を変えてもSimulation結果は変化しない。
+- Generation中のSettlement形成とOrderへの人口安定判定が、collection順や表示頻度に依存しない。
+- Order中のCollisionはAffiliation / Invasion条件に従い、同Settlement・保護対象・異Settlement・戦時を混同しない。
+- Rest Collision再評価は元Action枠の置換で、同一Micro Round最大1回とする。
+- Settlement構造変更は固定Maintenance順でcommitし、新規Settlement / WorldPhase / Invasion開始を翌Tickから反映する。
+- Hotspot Candidateは同一immutable snapshotから生成し、繁殖成功数とseed tie-breakで順序非依存にarbitrateする。

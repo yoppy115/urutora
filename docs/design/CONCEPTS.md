@@ -1,6 +1,6 @@
 # Concepts and Difficulties
 
-**Status:** Baseline constraints / Draft mechanics
+**Status:** Baseline / v0.2 configurable Landmark and Aura / Draft future concepts
 
 ## Baseline: role
 
@@ -30,18 +30,19 @@
 | 生存 | 最大HP | 存在し続け、耐える |
 | 交流 | コミュニケーション | 他者と情報・意図を交換する |
 
-## v0 Concept Landmarks
+## v0.2 Concept Landmarks
 
 3概念を1 Cell占有の固定Landmarkとして置く。NPCはLandmark Cellへ侵入・通過できない。これは通常NPCではなく、世界を支える杭の最小表現である。
 
-v0 defaultではLandmarkからのChebyshev距離に応じて、1日ごとにConcept Exposureを加える。
+v0.2 defaultではLandmarkからのChebyshev距離に応じて、1日ごとにConcept Exposureを加える。
 
 | Distance | Daily exposure |
 | --- | --- |
 | 1 | +1.00 |
 | 2 | +0.50 |
 | 3 | +0.25 |
-| 4以上 | 0 |
+| 4 | +0.125 |
+| 5以上 | 0 |
 
 Exposure 100以上で対応する永久ConceptMarkを取得する。閾値と増加量はConfig。同一Markはstackせず、異種Markは併存できる。ExposureとMarkは遺伝しない。
 
@@ -73,6 +74,25 @@ Mark取得時にCurrentHPの絶対値を維持し、増えたEffectiveMaxHPま�
 ## v0.15 status
 
 初回RunのMark取得は約9.71年で8件だったが、Combat大量死、TargetAbsent、繁殖不全を含むためConcept Exposure単体の妥当な評価とはみなさない。v0.15ではExposure Range、Exposure Rate、Threshold、1.2倍Modifierを変更しない。Settlement導入後の局所滞在時間変化を観測してから再評価する。
+
+## v0.2 Concept Aura
+
+v0.2はExposure radiusを3から4へ拡張し、距離4に+0.125/dayを追加する。Threshold 100と本人Mark 1.2は維持する。
+
+Mark Holderはradius 2以内の同一Settlement所属者へ一時Auraを与える。敵・Unaffiliatedには作用せず、同種Auraはstackしない。異種Auraは併存可能で、範囲外では消失する。
+
+- 共通: Rest Need -0.10/day。
+- 闘争: EffectiveAction / EffectiveCombat ×1.1。
+- 生存: EffectiveMaxHP ×1.1。
+- 交流: EffectiveCommunication ×1.1。
+
+ConceptMark Holder本人は同じConcept種類のAura 1.1を追加取得せず、本人Mark 1.2を優先する。複数種類の本人Markは各対応能力へ同時に有効で、同種Markと同種Auraはstackしない。異種Auraは通常通り併存できる。
+
+生存Aura等で一時EffectiveMaxHPが増えてもCurrentHPは増加させない。Aura解除時にCurrentHPが新上限を超える場合だけ新EffectiveMaxHPへClampする。このClampはDamage Eventではなくstate normalizationで、ThreatやCombat Reactionを発生させない。SurvivalNeedとHPRatioは次の通常State更新で新EffectiveMaxHPから再計算する。
+
+Invasion中は現在radius 2以内の同一Event参加者へHolder方向のCohesion Biasを与えるが、Enemy SettlementへのAdvance Biasを上書きしない。複数Holderは最短距離、同距離はseed付き乱数で選ぶ。
+
+Settlement BonusはMarkを直接付与しない。定住・長寿等でExposure蓄積が変わる間接経路だけを許容する。Auraは非遺伝で、Base値を書き換えない。
 
 ## Draft: initial difficulties
 

@@ -18,6 +18,10 @@ public sealed class NeedsSystem
         {
             npc.Needs.Activity += _config.Needs.DailyActivityIncrease;
             npc.Needs.Rest += _config.Needs.DailyRestIncrease;
+            if (npc.ActiveAuras.Count > 0)
+            {
+                npc.Needs.Rest -= _config.Aura.RestNeedDailyReduction;
+            }
             npc.Needs.Communication += _config.Needs.DailyCommunicationIncrease;
             if (npc.IsMature(_config))
             {
@@ -39,9 +43,9 @@ public sealed class NeedsSystem
         npc.Needs.Survival = maximum <= 0 ? 10 : Math.Clamp(10 * (1 - npc.CurrentHp / maximum), 0, 10);
     }
 
-    public void ApplyRest(NpcState npc)
+    public void ApplyRest(NpcState npc, double effectMultiplier = 1)
     {
-        npc.Needs.Rest += _config.Action.RestRestChange;
+        npc.Needs.Rest += _config.Action.RestRestChange * effectMultiplier;
         npc.Needs.Activity += _config.Action.RestActivityChange;
         npc.Needs.ClampAll();
     }

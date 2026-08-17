@@ -21,14 +21,16 @@ ADRは、重要で後戻りしづらい判断について「なぜそうした�
 | [`ADR-0013`](ADR-0013-targeted-actions-and-interrupts.md) | Accepted | Attack→Reproduction→Communication、上限付きInterrupt、phase非巻戻し |
 | [`ADR-0014`](ADR-0014-short-life-vitality-and-combat-scale.md) | Accepted | 約3年のcubic Vitality、Config初期値制約、HP/Damage同時再scale |
 | [`ADR-0015`](ADR-0015-bounded-held-information.md) | Accepted | Held Informationを3件へ制限し、FIFO evictionと直接消滅確認purgeを採用 |
-| [`ADR-0016`](ADR-0016-log-retention-and-build-provenance.md) | Accepted | 完了Worldログを検証済みZIP化し、releaseをclean Git provenanceへ結び付ける |
+| [`ADR-0016`](ADR-0016-generation-settlement-and-order.md) | Accepted | Generation中形成、日末Maintenance、決定論的Hotspot arbitration、人口安定Order |
+| [`ADR-0017`](ADR-0017-settlement-conflict-and-invasion.md) | Accepted | Friction、Unaffiliated保護、同一Core繁殖、Crowding由来Invasionと占領・離脱 |
+| [`ADR-0018`](ADR-0018-concept-aura-social-transmission.md) | Accepted | Concept Auraの社会伝播、同種抑制、一時MaxHP normalization |
+| [`ADR-0019`](ADR-0019-log-retention-and-build-provenance.md) | Accepted | 完了Worldの検証済み圧縮とclean Git provenanceへreleaseを拘束する |
 
 ## Future decisions
 
 次は未決のため、まだAccepted ADRを作らない。
 
-- 世界snapshotの保存・再開形式とschema migration。
-- Desktop UI framework。
+- 永続化形式とschema migration。
 - domain event配送方式とstate sliceの具体API。
 
 ## Workflow

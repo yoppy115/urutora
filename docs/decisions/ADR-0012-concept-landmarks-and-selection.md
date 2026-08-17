@@ -16,3 +16,5 @@
 ## Consequences
 
 Mark個体の生存・行動・戦闘・交流・繁殖機会が変わり、その個体のBase形質が間接的に残りやすくなる。効果倍率、Exposure速度、閾値、配置はv0 configurableである。
+
+v0.2はExposure radiusを4へ拡張し、Mark Holderから同一Settlement所属者への非stack一時Auraを追加する。本人Markの1.2倍、Base非変更、非遺伝は維持する。社会伝播判断は [`ADR-0018`](ADR-0018-concept-aura-social-transmission.md) に記録する。

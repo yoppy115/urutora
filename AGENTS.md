@@ -17,8 +17,6 @@
 - ユーザーが明示的に計画やレビューだけを求めていない限り、事前の実装案や計画を別ターンで提示せず、そのまま変更と検証まで進める。
 - Baselineとの矛盾や、未確定のDraftを決めなければ進められない箇所は勝手に仕様化しない。その箇所だけ保留し、安全に進められる残りの作業は継続する。
 - 結果を大きく変える未決事項、破壊的操作、または新しい外部権限が必要な場合だけ、ユーザーへ判断を求める。
-- update依頼では過去チャットの記憶だけで変更内容を推測せず、Gitのcommit、diff、tag / branchと正史文書を照合する。
-- OS保護領域など管理者権限が不可欠な操作に遭遇した場合、回避策を反復しない。必要操作・対象path・rollbackを限定した管理者用installerを作成し、通常権限でbuild / inspectできる部分と分離する。installerは自動実行しない。
 - 作業後は、変更内容、変更ファイル、検証結果、保留した判断だけを簡潔に報告する。
 
 ## Design principles
@@ -39,6 +37,13 @@
 - 遺伝にはBase能力、Simulationの実能力にはEffective能力を使い、ConceptMarkでBase値を変更しない。
 - HP 0以下のNPCは即時に行動不能・非占有とし、tick末cleanupまで行動させない。
 - Move/Birth等の競合結果を配列、queue、生成、collection列挙順で決めない。
+- v0.15のTargeted ActionはAttack → Reproduction → Communication順で、終了済みphaseへ再抽選Intentを巻き戻さない。
+- Vitality Control Point値は確定Phase形状を守る保守的なv0.15 Config初期値として調整できる。
+- Held InformationはSubject + Propertyごとに3件、FIFO evictionとし、直接消滅確認時だけSubject全体をpurgeする。
+- v0.2 Settlement / Order仕様は `docs/design/V0_2_SETTLEMENT_ORDER.md` を正本とし、Generation中の形成・AffinityとOrderから有効な社会Ruleを混同しない。
+- Order中のCollision、Friction、Invasion、Auraは所属・WorldPhase・Event状態を明示的に解決し、v0.15の主観境界やTargeted Action順を弱体化しない。
+- v0.2 Settlement構造変更は固定順のTick末Maintenanceでcommitし、新規Settlement / WorldPhase / Invasion開始は原則翌Tickから反映する。
+- Hotspot arbitration、Friction、Unaffiliated保護、同一Core繁殖、Aura / temporary MaxHP、Core占有率、Invasion離脱は `V0_2_SETTLEMENT_ORDER.md` の確定境界を守る。
 
 ## Change contract
 
@@ -50,6 +55,7 @@
 - 調整値とゲームデータはコードへ埋め込まず、設定またはデータファイルへ分離する。
 - 新しいゲームエンジン、言語ランタイム、外部依存は、採用理由を示して合意後に追加する。
 - 生ログをGitへ追加しない。保存価値のある実験だけを `research/` に要約して残す。
+- 管理者権限が必要な導入・修復は、回避試行を重ねず、対象とrollbackを限定したWindows PowerShell 5.1対応の管理者用installer / wrapperを作る。自動実行やOS全体の設定変更はしない。
 
 ## Documentation and history
 

@@ -38,6 +38,7 @@ public sealed class MainForm : Form
     private readonly DataGridView _deathCauseStatistics = CreateReadOnlyGrid();
     private readonly DataGridView _ageDistributionStatistics = CreateReadOnlyGrid();
     private readonly DataGridView _diagnosticStatistics = CreateReadOnlyGrid();
+    private readonly DataGridView _socialStatistics = CreateReadOnlyGrid();
     private readonly WorldStatisticsChartPanel _statisticsChart = new() { Dock = DockStyle.Fill };
     private WorldSession _world;
     private long? _selectedNpcId;
@@ -294,10 +295,18 @@ public sealed class MainForm : Form
         _diagnosticStatistics.Columns[1].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
         _diagnosticStatistics.Columns[2].Width = 95;
 
+        _socialStatistics.Columns.Add("category", "分類");
+        _socialStatistics.Columns.Add("subject", "対象");
+        _socialStatistics.Columns.Add("value", "状態");
+        _socialStatistics.Columns[0].Width = 90;
+        _socialStatistics.Columns[1].Width = 115;
+        _socialStatistics.Columns[2].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+
         var tables = new TabControl { Dock = DockStyle.Fill };
         tables.TabPages.Add(new TabPage("行動選択") { Controls = { _actionStatistics } });
         tables.TabPages.Add(new TabPage("死因") { Controls = { _deathCauseStatistics } });
         tables.TabPages.Add(new TabPage("年齢分布") { Controls = { _ageDistributionStatistics } });
+        tables.TabPages.Add(new TabPage("社会") { Controls = { _socialStatistics } });
         tables.TabPages.Add(new TabPage($"{ReleaseIdentity.VersionDirectoryName}診断")
             { Controls = { _diagnosticStatistics } });
 
@@ -450,7 +459,8 @@ public sealed class MainForm : Form
         _map.Snapshot = snapshot;
         _worldLabel.Text = $"  {_world.Info.ReleaseVersion} 世界 #{worldNumber}";
         _timeLabel.Text = $"  第{snapshot.Year}年 {snapshot.Day}日";
-        _populationLabel.Text = $"  人口 {snapshot.Npcs.Count}";
+        _populationLabel.Text =
+            $"  {snapshot.Phase} / 人口 {snapshot.Npcs.Count} / Settlement {snapshot.Settlements.Count(item => item.IsActive)}";
         _seedLabel.Text = $"  Seed {_world.Info.Seed}";
         Text = $"{ReleaseIdentity.DisplayName} — 世界 #{worldNumber}";
 
@@ -515,6 +525,17 @@ public sealed class MainForm : Form
         AddNpcRow("ConceptMark", details.ConceptMarks.Count == 0
             ? "なし"
             : string.Join(", ", details.ConceptMarks.OrderBy(item => item).Select(TranslateConcept)));
+        AddNpcRow("Concept Aura", details.ActiveAuras.Count == 0
+            ? "なし"
+            : string.Join(", ", details.ActiveAuras.OrderBy(item => item).Select(TranslateConcept)));
+        AddNpcRow("Settlement", details.SettlementId.HasValue ? $"#{details.SettlementId}" : "無所属");
+        AddNpcRow("Affinity", details.SettlementAffinities.Count == 0
+            ? "なし"
+            : string.Join(", ", details.SettlementAffinities.Select(item =>
+                $"#{item.SettlementId}={item.Affinity:0.00}{(item.IsActiveMembership ? "*" : string.Empty)}")));
+        AddNpcRow("Invasion", details.InvasionId.HasValue
+            ? $"#{details.InvasionId} / {details.InvasionRole}"
+            : "なし");
         AddNpcRow("Held Information", $"{details.HeldInformationCount}件");
 
         foreach (var record in details.ActionHistory
@@ -544,8 +565,9 @@ public sealed class MainForm : Form
         var total = statistics.ActionSelections.Sum(item => item.Count);
         var totalDeaths = statistics.DeathCauses.Sum(item => item.Count);
         _statisticsSummary.Text =
-            $"人口 {statistics.Population}    平均年齢 {statistics.AverageAgeYears:0.00}年    " +
-            $"死亡 {totalDeaths:N0}件    行動選択 {total:N0}回";
+            $"{statistics.WorldPhase.CurrentPhase}    人口 {statistics.Population}    " +
+            $"所属 {statistics.AffiliatedPopulation:N0} ({(statistics.Population == 0 ? 0 : (double)statistics.AffiliatedPopulation / statistics.Population):P1})    " +
+            $"Settlement {statistics.Settlements.Count(item => item.IsActive)}    平均年齢 {statistics.AverageAgeYears:0.00}年";
         _actionStatistics.Rows.Clear();
         foreach (var item in statistics.ActionSelections.OrderByDescending(item => item.Count).ThenBy(item => item.Action))
         {
@@ -597,6 +619,51 @@ public sealed class MainForm : Form
             _ageDistributionStatistics.Rows.Add("人口なし", "0", "0.0%", string.Empty);
         }
 
+        _socialStatistics.Rows.Clear();
+        AddSocialRow("World", "Phase", statistics.WorldPhase.CurrentPhase.ToString());
+        AddSocialRow("World", "安定条件",
+            $"CV {statistics.WorldPhase.PopulationCv:0.000} / 不均衡 {statistics.WorldPhase.DemographicImbalance:0.000} / " +
+            $"連続 {statistics.WorldPhase.StabilityConsecutiveDays}日");
+        AddSocialRow("World", "所属 / 無所属",
+            $"{statistics.AffiliatedPopulation:N0} / {statistics.UnaffiliatedPopulation:N0}");
+        foreach (var window in statistics.OrderTransitionWindows)
+        {
+            AddSocialRow("Order比較", window.Window,
+                $"{window.Days}日 / 人口平均{window.AveragePopulation:0.0} / 出生{window.Births} 死亡{window.Deaths} " +
+                $"戦闘死{window.CombatDeaths} 衝突攻撃{window.CollisionAttacks} / 所属率{window.AverageAffiliationRate:P1}");
+        }
+        foreach (var group in statistics.AffiliationGroups)
+        {
+            AddSocialRow("所属比較", group.Group,
+                $"人口{group.Population} 年齢{group.AverageAgeYears:0.00} HP{group.AverageHp:0.0} / " +
+                $"戦闘死{group.CombatDeaths} 生命力死{group.VitalityDeaths} / " +
+                $"休息率{group.RestActionRate:P1} 繁殖{group.ReproductionSuccesses}/{group.ReproductionAttempts} 出生{group.Births}");
+        }
+        foreach (var settlement in statistics.Settlements.OrderBy(item => item.Id))
+        {
+            var status = settlement.IsActive ? "Active" : settlement.DissolvedTick.HasValue ? "消滅" : "Pending";
+            AddSocialRow("Settlement", $"#{settlement.Id}",
+                $"{status} Center {settlement.Center} / 人口 {settlement.Population} ({settlement.WorldPopulationRatio:P1}) / " +
+                $"Core {settlement.CoreOccupancy:P0} / Crowding {settlement.CrowdingPressure:0.00}");
+        }
+        foreach (var friction in statistics.Frictions.Where(item => item.CurrentFriction > 0))
+        {
+            AddSocialRow("Friction", $"#{friction.FirstSettlementId}–#{friction.SecondSettlementId}",
+                $"{friction.CurrentFriction:0.0} / collision {friction.CollisionEvents} / threat {friction.ExplicitThreatEvents}");
+        }
+        foreach (var invasion in statistics.Invasions.OrderBy(item => item.Id))
+        {
+            var status = invasion.EndTick.HasValue ? invasion.Outcome.ToString() :
+                invasion.EffectiveTick <= statistics.Tick ? "Active" : "Pending";
+            AddSocialRow("Invasion", $"#{invasion.Id}",
+                $"#{invasion.AttackSettlementId} → #{invasion.DefenseSettlementId} / {status} / " +
+                $"兵力 {invasion.InitialForceSize} / 最大占有 {invasion.MaximumCoreOccupationRate:P1}");
+        }
+        if (_socialStatistics.Rows.Count == 3)
+        {
+            AddSocialRow("Settlement", "—", "まだ形成されていません");
+        }
+
         _diagnosticStatistics.Rows.Clear();
         AddDiagnosticRow("人口", "現在 / 最小", $"{statistics.Population} / {statistics.MinimumPopulation}");
 
@@ -630,6 +697,20 @@ public sealed class MainForm : Form
             AddDiagnosticRow("Exposure", TranslateConcept(item.Concept),
                 $"総{item.ExposureTotal:0.0} 平均{item.ExposureAverage:0.00} 最大{item.ExposureMaximum:0.0}");
         }
+        AddDiagnosticRow("Hotspot", "候補 / 競合 / 棄却",
+            $"{statistics.HotspotCandidates:N0} / {statistics.HotspotConflicts:N0} / {statistics.HotspotRejections:N0}");
+        AddDiagnosticRow("暴力", "衝突攻撃 / 抑制",
+            $"{statistics.Violence.CollisionAttacks:N0} / " +
+            $"{statistics.Violence.SameSettlementSuppressions + statistics.Violence.UnaffiliatedProtectionCollisions + statistics.Violence.OtherSettlementCollisions:N0}");
+        AddDiagnosticRow("暴力", "Attack保護 候補/Resolution",
+            $"{statistics.Violence.AttackCandidateSuppressions:N0} / {statistics.Violence.AttackResolutionSuppressions:N0}");
+        foreach (var scope in statistics.ReproductionScopes)
+        {
+            AddDiagnosticRow("繁殖空間", scope.Scope,
+                $"試行{scope.Attempts:N0} / 成立{scope.Successes:N0} / 失敗{scope.Failures:N0}");
+        }
+        AddDiagnosticRow("Aura", "適用 / 解除 / 現在",
+            $"{statistics.Auras.Applied:N0} / {statistics.Auras.Expired:N0} / {statistics.Auras.CurrentRecipients:N0}");
 
         _statisticsChart.DaysPerYear = _world.Engine.Config.World.DaysPerYear;
         _statisticsChart.Metrics = _world.Metrics;
@@ -647,6 +728,9 @@ public sealed class MainForm : Form
 
     private void AddDiagnosticRow(string category, string metric, string value) =>
         _diagnosticStatistics.Rows.Add(category, metric, value);
+
+    private void AddSocialRow(string category, string subject, string value) =>
+        _socialStatistics.Rows.Add(category, subject, value);
 
     private int AgeDistributionBucketDays() => Math.Max(
         1,
@@ -701,6 +785,7 @@ public sealed class MainForm : Form
         SimulationEventType.ReproductionAttempt => "繁殖試行",
         SimulationEventType.ReproductionSuccess => "繁殖成立",
         SimulationEventType.ReproductionFailure => "繁殖不成立",
+        SimulationEventType.Rest => "休息",
         SimulationEventType.ConceptMarkAcquired => "概念刻印",
         SimulationEventType.Flee => "逃走",
         SimulationEventType.Pursuit => "追撃",
@@ -709,6 +794,18 @@ public sealed class MainForm : Form
         SimulationEventType.Idle => "待機",
         SimulationEventType.TargetPositionInvalidated => "対象位置無効化",
         SimulationEventType.IntentReplaced => "意図再決定",
+        SimulationEventType.SettlementFormed => "Settlement成立",
+        SimulationEventType.SettlementDissolved => "Settlement消滅",
+        SimulationEventType.SettlementIntegrated => "Settlement統合",
+        SimulationEventType.AffiliationChanged => "所属変更",
+        SimulationEventType.WorldPhaseChanged => "World Phase移行",
+        SimulationEventType.CollisionSuppressed => "衝突抑制",
+        SimulationEventType.AttackSuppressed => "攻撃抑制",
+        SimulationEventType.SettlementFrictionChanged => "Friction変動",
+        SimulationEventType.InvasionStarted => "Invasion開始",
+        SimulationEventType.InvasionEnded => "Invasion終結",
+        SimulationEventType.AuraApplied => "Aura適用",
+        SimulationEventType.AuraExpired => "Aura解除",
         _ => type.ToString()
     };
 

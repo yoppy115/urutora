@@ -36,7 +36,13 @@ internal static class Program
                 var engine = new SimulationEngine(config, seed);
                 engine.AdvanceDays(ReadInt(args, "--ticks") ?? 10);
                 var snapshot = engine.GetSnapshot();
-                Console.WriteLine($"HEADLESS_OK seed={seed} tick={snapshot.Tick} population={snapshot.Npcs.Count} events={snapshot.RecentEvents.Count}");
+                var statistics = engine.GetWorldStatistics();
+                Console.WriteLine(
+                    $"HEADLESS_OK seed={seed} tick={snapshot.Tick} phase={snapshot.Phase} " +
+                    $"population={snapshot.Npcs.Count} settlements={snapshot.Settlements.Count(item => item.IsActive)} " +
+                    $"affiliated={statistics.AffiliatedPopulation} invasions={snapshot.Invasions.Count(item => item.IsActive)} " +
+                    $"hotspots={statistics.HotspotCandidates}/{statistics.HotspotRejections} " +
+                    $"events={snapshot.RecentEvents.Count}");
                 return 0;
             }
 

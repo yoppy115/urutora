@@ -15,6 +15,7 @@ public sealed class WorldStatisticsChartPanel : Panel
     };
     private IReadOnlyList<WorldMetricPoint> _metrics = Array.Empty<WorldMetricPoint>();
     private Rectangle _populationPlot;
+    private Rectangle _affiliationPlot;
     private Rectangle _agePlot;
     private int _hoverIndex = -1;
     private int _daysPerYear = 365;
@@ -66,8 +67,9 @@ public sealed class WorldStatisticsChartPanel : Panel
         eventArgs.Graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
         var bounds = Rectangle.Inflate(ClientRectangle, -Padding.Left, -Padding.Top);
         _populationPlot = Rectangle.Empty;
+        _affiliationPlot = Rectangle.Empty;
         _agePlot = Rectangle.Empty;
-        if (bounds.Width < 220 || bounds.Height < 220)
+        if (bounds.Width < 220 || bounds.Height < 300)
         {
             return;
         }
@@ -80,9 +82,10 @@ public sealed class WorldStatisticsChartPanel : Panel
         }
 
         var gap = 12;
-        var chartHeight = (bounds.Height - gap) / 2;
+        var chartHeight = (bounds.Height - gap * 2) / 3;
         var populationBounds = new Rectangle(bounds.X, bounds.Y, bounds.Width, chartHeight);
-        var ageBounds = new Rectangle(bounds.X, bounds.Y + chartHeight + gap, bounds.Width, chartHeight);
+        var affiliationBounds = new Rectangle(bounds.X, bounds.Y + chartHeight + gap, bounds.Width, chartHeight);
+        var ageBounds = new Rectangle(bounds.X, bounds.Y + (chartHeight + gap) * 2, bounds.Width, chartHeight);
         _populationPlot = DrawChart(
             eventArgs.Graphics,
             populationBounds,
@@ -90,6 +93,13 @@ public sealed class WorldStatisticsChartPanel : Panel
             _metrics.Select(item => (double)item.Population).ToArray(),
             Color.FromArgb(38, 112, 196),
             "0");
+        _affiliationPlot = DrawChart(
+            eventArgs.Graphics,
+            affiliationBounds,
+            "所属率",
+            _metrics.Select(item => item.AffiliationRate).ToArray(),
+            Color.FromArgb(57, 151, 96),
+            "P1");
         _agePlot = DrawChart(
             eventArgs.Graphics,
             ageBounds,
@@ -220,7 +230,9 @@ public sealed class WorldStatisticsChartPanel : Panel
     {
         var plot = _populationPlot.Contains(eventArgs.Location)
             ? _populationPlot
-            : _agePlot.Contains(eventArgs.Location) ? _agePlot : Rectangle.Empty;
+            : _affiliationPlot.Contains(eventArgs.Location)
+                ? _affiliationPlot
+                : _agePlot.Contains(eventArgs.Location) ? _agePlot : Rectangle.Empty;
         if (plot.IsEmpty || _metrics.Count == 0)
         {
             ClearHover();
@@ -241,6 +253,9 @@ public sealed class WorldStatisticsChartPanel : Panel
         var text = string.Join(Environment.NewLine,
             FormatTick(point.Tick),
             $"人口 {point.Population:N0}  日次 {point.Population - previous.Population:+#;-#;0}",
+            $"Phase {point.Phase}  Settlement {point.SettlementCount:N0}",
+            $"所属率 {point.AffiliationRate:P1}  日次 " +
+            $"{point.AffiliationRate - previous.AffiliationRate:+0.0%;-0.0%;0.0%}",
             $"平均年齢 {point.AverageAgeYears:0.00}年  日次 " +
             $"{point.AverageAgeYears - previous.AverageAgeYears:+0.00;-0.00;0.00}");
         _toolTip.Show(text, this, eventArgs.X + 14, eventArgs.Y + 16, 8_000);
