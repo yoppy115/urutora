@@ -410,7 +410,8 @@ public sealed class SimulationEngine
                             item.ParentBGenetics.RiskPreference
                         },
                         item.ConceptionTick,
-                        item.BirthSettlementId
+                        item.BirthSettlementId,
+                        item.BirthSettlementCorePlacementRequired
                     })
                     .ToArray(),
                 Events = _events.Select(item => item.Fingerprint()).ToArray()
@@ -720,12 +721,14 @@ public sealed class SimulationEngine
             {
                 AddEvent(0, SimulationEventType.Birth, result.Child!.Id, result.Request.ParentAId, result.Position, true,
                     $"parents={result.Request.ParentAId},{result.Request.ParentBId};request={result.Request.RequestId};" +
-                    $"settlement={result.Child.SettlementId?.ToString() ?? "-"}");
+                    $"settlement={result.Child.SettlementId?.ToString() ?? "-"};" +
+                    $"placement={(result.CorePlacementApplied ? "core" : "parent-neighborhood")}");
             }
             else
             {
                 AddEvent(0, SimulationEventType.BirthFailure, result.Request.ParentAId, result.Request.ParentBId, null, false,
-                    $"request={result.Request.RequestId};no-cell");
+                    $"request={result.Request.RequestId};no-cell;" +
+                    $"placement={(result.CorePlacementApplied ? "core" : "parent-neighborhood")}");
             }
         }
     }

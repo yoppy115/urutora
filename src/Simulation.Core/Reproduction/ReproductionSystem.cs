@@ -56,7 +56,8 @@ public sealed class ReproductionSystem
         NpcState second,
         int tick,
         int microRound,
-        int? birthSettlementId = null)
+        int? birthSettlementId = null,
+        bool birthSettlementCorePlacementRequired = false)
     {
         var minimum = Math.Min(first.Id, second.Id);
         var maximum = Math.Max(first.Id, second.Id);
@@ -69,7 +70,8 @@ public sealed class ReproductionSystem
             new GeneticSnapshot(first.BaseStats.Copy(), first.RiskPreference),
             new GeneticSnapshot(second.BaseStats.Copy(), second.RiskPreference),
             tick,
-            birthSettlementId);
+            birthSettlementId,
+            birthSettlementCorePlacementRequired);
     }
 
     public IReadOnlyList<BirthResolution> ResolveBirths(WorldState world)
@@ -90,7 +92,12 @@ public sealed class ReproductionSystem
             StringComparer.Ordinal);
         var preferences = requests.ToDictionary(
             request => request.RequestId,
-            request => CreatePreferences(request, occupied, landmarks, birthSettlements[request.RequestId]),
+            request => CreatePreferences(
+                request,
+                occupied,
+                landmarks,
+                birthSettlements[request.RequestId],
+                request.BirthSettlementCorePlacementRequired),
             StringComparer.Ordinal);
         var reserved = new HashSet<Position>();
         var assignments = new Dictionary<string, Position>(StringComparer.Ordinal);
@@ -157,9 +164,11 @@ public sealed class ReproductionSystem
         var outcomes = new List<BirthResolution>();
         foreach (var request in requests)
         {
+            var corePlacementApplied = birthSettlements[request.RequestId] is not null &&
+                                       request.BirthSettlementCorePlacementRequired;
             if (!assignments.TryGetValue(request.RequestId, out var position))
             {
-                outcomes.Add(new BirthResolution(request, null, null));
+                outcomes.Add(new BirthResolution(request, null, null, corePlacementApplied));
                 continue;
             }
 
@@ -186,7 +195,7 @@ public sealed class ReproductionSystem
             child.Needs.Communication = _config.Reproduction.NewbornInitialNeed;
             child.Needs.Reproduction = 0;
             world.Npcs.Add(child.Id, child);
-            outcomes.Add(new BirthResolution(request, child, position));
+            outcomes.Add(new BirthResolution(request, child, position, corePlacementApplied));
         }
 
         world.BirthRequests.Clear();
@@ -223,7 +232,8 @@ public sealed class ReproductionSystem
         BirthRequest request,
         IReadOnlySet<Position> occupied,
         IReadOnlySet<Position> landmarks,
-        SettlementState? birthSettlement)
+        SettlementState? birthSettlement,
+        bool corePlacementRequired)
     {
         var candidates = request.ParentAPositionAtConception.Neighbors()
             .Concat(request.ParentBPositionAtConception.Neighbors())
@@ -231,7 +241,7 @@ public sealed class ReproductionSystem
             .Where(position => position.X >= 0 && position.X < _config.World.Width &&
                                position.Y >= 0 && position.Y < _config.World.Height)
             .Where(position => !occupied.Contains(position) && !landmarks.Contains(position))
-            .Where(position => birthSettlement is null ||
+            .Where(position => birthSettlement is null || !corePlacementRequired ||
                                birthSettlement.Center.ChebyshevDistance(position) <= _config.Settlement.CoreRadius)
             .OrderBy(position => _random.StablePriority(
                 "birth", request.ConceptionTick, 0, "location-preference", $"{request.RequestId}:{position.X}:{position.Y}"))
@@ -263,7 +273,11 @@ public sealed class ReproductionSystem
     }
 }
 
-public sealed record BirthResolution(BirthRequest Request, NpcState? Child, Position? Position)
+public sealed record BirthResolution(
+    BirthRequest Request,
+    NpcState? Child,
+    Position? Position,
+    bool CorePlacementApplied)
 {
     public bool Success => Child is not null;
 }

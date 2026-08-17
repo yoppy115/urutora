@@ -3,6 +3,8 @@
 param(
     [switch]$SkipTests,
     [switch]$Publish,
+    [switch]$NoTag,
+    [string]$CommitMessage,
     [switch]$Elevated
 )
 
@@ -24,6 +26,11 @@ if (-not $isAdministrator) {
     $arguments = "-NoProfile -ExecutionPolicy Bypass -File $quotedScript -Elevated"
     if ($SkipTests) { $arguments += ' -SkipTests' }
     if ($Publish) { $arguments += ' -Publish' }
+    if ($NoTag) { $arguments += ' -NoTag' }
+    if (-not [string]::IsNullOrWhiteSpace($CommitMessage)) {
+        $quotedMessage = '"' + $CommitMessage.Replace('"', '""') + '"'
+        $arguments += " -CommitMessage $quotedMessage"
+    }
     $process = Start-Process -FilePath $powershellHost -Verb RunAs -ArgumentList $arguments -Wait -PassThru
     exit $process.ExitCode
 }
@@ -34,7 +41,15 @@ if (-not (Test-Path -LiteralPath (Join-Path $repoRoot '.git') -PathType Containe
 }
 
 $finalizer = Join-Path $repoRoot 'tools\Finalize-GitBaseline.ps1'
-& $finalizer -SkipTests:$SkipTests -Publish:$Publish
+$finalizerParameters = @{
+    SkipTests = $SkipTests
+    Publish = $Publish
+}
+if ($NoTag) { $finalizerParameters.Tag = '' }
+if (-not [string]::IsNullOrWhiteSpace($CommitMessage)) {
+    $finalizerParameters.CommitMessage = $CommitMessage
+}
+& $finalizer @finalizerParameters
 if ($LASTEXITCODE -ne 0) {
     throw "Git baseline finalization failed with exit code $LASTEXITCODE."
 }

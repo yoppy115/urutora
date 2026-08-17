@@ -54,7 +54,7 @@ AffinityはGeneration中から有効で、Order前でも住民とSettlementの�
 
 Invasion参加中はEvent終了までActive Affiliationを固定する。Affinity履歴自体は更新可能だが、敵地の滞在や行動で戦闘中に所属を変更しない。征服後は統合規則を適用する。
 
-v0.2.2では、Active Settlement所属者を少なくとも一方に含み、受胎時に両者がその同一Settlement Core内で繁殖成立した場合、その子は同Core内へ出生し、当該SettlementのMembershipThreshold相当AffinityとActive Affiliationを持って開始する。Core境界をまたぐ繁殖、所属から一意のSettlementを定められない繁殖、出生解決時点で非ActiveとなったSettlementには適用しない。これは親のAffinity値の遺伝ではなく、出生した社会空間への所属付与である。詳細は [`REPRODUCTION.md`](REPRODUCTION.md) を正本とする。
+両親が同じActive Settlement所属なら、受胎位置に関係なく子は通常の親近傍へ出生し、そのSettlementのMembershipThreshold相当AffinityとActive Affiliationを持って開始する。片親だけが所属する場合、または両親の所属が異なる場合は、受胎時に両者が同じ一意なActive Settlement Core内にいる従来条件だけを認め、子を同Core内へ出生・所属させる。出生解決時点で対象Settlementが非Activeなら通常の無所属出生へ戻す。親のAffinity数値を複製するものではない。詳細は [`REPRODUCTION.md`](REPRODUCTION.md) を正本とする。
 
 ## Generation and Order
 
@@ -253,7 +253,7 @@ Raw Logを人間が直接読み続けるより、ゲーム内Statistics UIでSim
 | Initial Affinity | Founder +10、Core resident +7 |
 | Affiliation | threshold 10、switch margin +5 |
 | Core Affinity | Stay +0.05/day、Rest +1、Communication +0.5、Reproduction Success +2 |
-| Settlement birth | 条件を満たすCore内出生は同Settlement所属・Affinity 10から開始 |
+| Settlement birth | 同一Active Settlement所属の両親は場所非依存で通常出生・同所属。片親所属・異所属は一意なCore内条件で同Core出生。いずれもAffinity 10から開始 |
 | Generation → Order | 90-day window、CV <= 0.10、Imbalance <= 0.20、30 consecutive days |
 | Order benefits | Rest ×1.5、positive Vitality ×2、negative Vitality ×0.5 |
 | Outside Core reproduction | 同一Active Settlement Core内の2名だけ免除。それ以外はU_reproduce -2、U_accept -2 |
@@ -274,7 +274,7 @@ C# / .NET、Core / App分離、1 Tick = 1日、64×64 Map、InitialPopulation 20
 
 ## Future direction preserved
 
-一般のNPCをSettlementへ一律所属させない。v0.2.2の条件付きCore内出生だけは出生時所属の例外とし、それ以外は滞在、休息、交流、繁殖等のAffinity蓄積で所属する。回復、休息、長寿、繁殖、治安の強い利益により、結果として所属系統が長期的に有利となり、ほぼ全NPCが何らかのSettlementへ所属し得る社会化を目指す。
+一般のNPCをSettlementへ一律所属させない。同一Active Settlement所属の両親による場所非依存の出生所属と、片親所属・異所属に対する一意なCore内出生だけを例外とし、それ以外は滞在、休息、交流、繁殖等のAffinity蓄積で所属する。回復、休息、長寿、繁殖、治安の強い利益により、結果として所属系統が長期的に有利となり、ほぼ全NPCが何らかのSettlementへ所属し得る社会化を目指す。
 
 その成功が高密度、疾病、依存、階層、内部対立、資源不足、Settlement間戦争等の新Difficultyを生む方向性を維持する。v0.2はCrowdingからInvasionへ至る最初の接続だけを実装対象とし、他の将来制度を前倒ししない。
 

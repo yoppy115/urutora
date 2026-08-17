@@ -38,7 +38,7 @@ internal static class Program
         ("vitality curve is continuous and eventually lethal", VitalityCurve),
         ("ConceptMark preserves Base stats", ConceptMarkPreservesBaseStats),
         ("genetics allowlist excludes acquired state", GeneticsAllowlist),
-        ("qualifying Settlement birth starts affiliated inside its Core", SettlementBirthStartsAffiliatedInsideCore),
+        ("Settlement birth affiliation handles shared parents and Core fallback", SettlementBirthAffiliationRules),
         ("birth batch arbitration is queue-order independent", BirthArbitrationIsOrderIndependent),
         ("NPC detail projection exposes stable lineage", NpcDetailProjectionExposesStableLineage),
         ("NPC action history excludes movement events", NpcActionHistoryExcludesMovementEvents),
@@ -628,7 +628,7 @@ internal static class Program
             second.OrderBy(item => item.Key).Select(item => $"{item.Key}:{item.Value}"));
     }
 
-    private static void SettlementBirthStartsAffiliatedInsideCore()
+    private static void SettlementBirthAffiliationRules()
     {
         var config = LoadConfig();
         config.World.Width = 12;
@@ -642,10 +642,18 @@ internal static class Program
         world.Npcs.Add(partner.Id, partner);
         world.NextNpcId = 3;
 
-        var birthSettlementId = SettlementQueries.BirthSettlement(world, resident, partner, config);
-        Equal(1, birthSettlementId!.Value);
+        var birthSettlement = SettlementQueries.BirthSettlement(world, resident, partner, config);
+        Equal(1, birthSettlement!.SettlementId);
+        True(birthSettlement.CorePlacementRequired,
+            "The one-member fallback did not preserve Core placement.");
         var reproduction = new ReproductionSystem(config, new RandomStreamFactory(922));
-        world.BirthRequests.Add(reproduction.CreateRequest(resident, partner, world.Tick, 1, birthSettlementId));
+        world.BirthRequests.Add(reproduction.CreateRequest(
+            resident,
+            partner,
+            world.Tick,
+            1,
+            birthSettlement.SettlementId,
+            birthSettlement.CorePlacementRequired));
         var result = reproduction.ResolveBirths(world).Single();
 
         True(result.Success, "Qualifying Settlement birth had no Core birth cell.");
@@ -654,10 +662,33 @@ internal static class Program
         True(world.Settlements[1].Center.ChebyshevDistance(result.Child.Position) <= config.Settlement.CoreRadius,
             "Affiliated child was born outside the Settlement Core.");
 
-        partner.Position = new Position(6, 2);
+        resident.Position = new Position(8, 8);
+        partner.Position = new Position(9, 8);
+        partner.SettlementId = 1;
+        partner.SettlementAffinity[1] = config.Settlement.MembershipThreshold;
+        var sharedSettlement = SettlementQueries.BirthSettlement(world, resident, partner, config);
+        Equal(1, sharedSettlement!.SettlementId);
+        True(!sharedSettlement.CorePlacementRequired,
+            "Shared parental affiliation incorrectly required a Core birth location.");
+        world.BirthRequests.Add(reproduction.CreateRequest(
+            resident,
+            partner,
+            world.Tick,
+            2,
+            sharedSettlement.SettlementId,
+            sharedSettlement.CorePlacementRequired));
+        var sharedResult = reproduction.ResolveBirths(world).Single();
+        True(sharedResult.Success, "Shared-Settlement parents could not give birth outside the Core.");
+        Equal(1, sharedResult.Child!.SettlementId!.Value);
+        Equal(config.Settlement.MembershipThreshold, sharedResult.Child.SettlementAffinity[1], 0);
+        True(world.Settlements[1].Center.ChebyshevDistance(sharedResult.Child.Position) > config.Settlement.CoreRadius,
+            "Shared-Settlement child was teleported into the Core.");
+
+        partner.SettlementId = null;
         True(SettlementQueries.BirthSettlement(world, resident, partner, config) is null,
             "A reproduction crossing the Core boundary inherited Settlement affiliation.");
 
+        resident.Position = new Position(2, 2);
         partner.Position = new Position(3, 2);
         partner.SettlementId = 2;
         config.Settlement.CoreRadius = 7;

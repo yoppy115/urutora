@@ -11,6 +11,8 @@ public enum CollisionPolicy
     OtherSettlementFriction
 }
 
+public sealed record BirthSettlementAssignment(int SettlementId, bool CorePlacementRequired);
+
 public static class SettlementQueries
 {
     public static IReadOnlyList<SettlementState> ActiveSettlements(WorldState world) => world.Settlements.Values
@@ -140,12 +142,18 @@ public static class SettlementQueries
         return firstCore is not null && firstCore.Id == secondCore?.Id;
     }
 
-    public static int? BirthSettlement(
+    public static BirthSettlementAssignment? BirthSettlement(
         WorldState world,
         NpcState first,
         NpcState second,
         SimulationConfig config)
     {
+        if (first.SettlementId.HasValue && first.SettlementId == second.SettlementId &&
+            ActiveSettlement(world, first.SettlementId) is not null)
+        {
+            return new BirthSettlementAssignment(first.SettlementId.Value, false);
+        }
+
         var candidates = new[] { first.SettlementId, second.SettlementId }
             .Where(item => item.HasValue)
             .Select(item => item!.Value)
@@ -160,7 +168,7 @@ public static class SettlementQueries
             .OrderBy(item => item)
             .ToArray();
 
-        return candidates.Length == 1 ? candidates[0] : null;
+        return candidates.Length == 1 ? new BirthSettlementAssignment(candidates[0], true) : null;
     }
 
     public static IReadOnlyList<Position> UsableCoreCells(

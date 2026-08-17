@@ -11,7 +11,7 @@
 - 実装基盤: C# / .NET 10。`Simulation.Core`、`Simulation.App`、`Simulation.Runner`、各Testsを分離
 - 外部依存: test-onlyのFsCheck 3.3.4。Production Core / App / Runnerは外部packageなし
 
-v0.15の個体生態系、v0.2の社会系、v0.2.1の5×5 Hotspot、v0.2.2のSettlement出生所属を維持する。v0.2.3ではCoreを5×5へ整理し、既存Influenceを新規Hotspot / Coreから保護する。Settlement詳細、60色再利用palette、NPCキル数を観測UIへ追加し、Observer / NPC単位で分離可能な読取・計画処理だけを決定論的に並列化した。Windows Formsは交換可能なPresentation Adapterであり、GUIはRealityの権威を持たない。
+v0.15の個体生態系、v0.2の社会系、v0.2.1の5×5 Hotspotを維持する。v0.2.3では同一Active Settlement所属の両親から生まれる子を場所に関係なく同所属とし、片親所属・異所属の一意なCore条件は維持する。Coreは5×5で、既存Influenceを新規Hotspot / Coreから保護する。Settlement詳細、60色再利用palette、NPCキル数を観測UIへ追加し、Observer / NPC単位で分離可能な読取・計画処理だけを決定論的に並列化した。Windows Formsは交換可能なPresentation Adapterであり、GUIはRealityの権威を持たない。
 
 ## Source of truth
 

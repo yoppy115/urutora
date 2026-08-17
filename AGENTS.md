@@ -42,7 +42,7 @@
 - Held InformationはSubject + Propertyごとに3件、FIFO evictionとし、直接消滅確認時だけSubject全体をpurgeする。
 - v0.2 Settlement / Order仕様は `docs/design/V0_2_SETTLEMENT_ORDER.md` を正本とし、Generation中の形成・AffinityとOrderから有効な社会Ruleを混同しない。
 - v0.2.1はv0.2の社会境界を維持し、Hotspotを90日、5×5、threshold 3、15日評価とする。spacing 7とarbitrationを連動変更しない。
-- v0.2.2は、所属者を少なくとも一方に含み受胎時に両者が同じActive Settlement Core内にいる場合だけ、子を同Core内へ出生させ同Settlement所属で開始する。Core外・曖昧な所属候補へ拡張しない。
+- v0.2.2の出生所属は、所属者を少なくとも一方に含み受胎時に両者が同じActive Settlement Core内にいる場合、子を同Core内へ出生させ同Settlement所属で開始する。v0.2.3内の補正として、両親が同じActive Settlement所属なら位置を問わず通常の親近傍へ出生し、同Settlement所属で開始する。片親所属・異所属へこの例外を拡張しない。
 - v0.2.3はCoreを5×5とし、既存Settlement Influence内の繁殖成功を新規Hotspotから除外する。新Coreを既存Influenceへ重ねず、消滅済みSettlementの空間は予約しない。
 - Order中のCollision、Friction、Invasion、Auraは所属・WorldPhase・Event状態を明示的に解決し、v0.15の主観境界やTargeted Action順を弱体化しない。
 - v0.2 Settlement構造変更は固定順のTick末Maintenanceでcommitし、新規Settlement / WorldPhase / Invasion開始は原則翌Tickから反映する。

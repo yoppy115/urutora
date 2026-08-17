@@ -31,7 +31,7 @@ DraftやTBDをこの台帳だけで確定仕様に変えてはならない。
 | NuGet audit到達不能時の扱い | Implementation detail | `Directory.Build.props`, `NuGet.Config` | 公式nuget.orgのみを使用。audit service自体へ到達できない `NU1900` だけを非fatalにし、実際の脆弱性警告 `NU1901`–`NU1904` はwarnings-as-errorsの対象に維持 |
 | Git build provenance | Implemented | `ARCHITECTURE.md`, `ADR-0019` | commit/tree stateをassemblyとrun metadataへ埋め込み、clean treeだけをrelease publishの既定とする。成果物hashはrelease manifestへ保存 |
 | Repository hygiene | Implemented | `tools/` | 生成物の誤追跡、不要な`.gitkeep`、Markdown local linkをCIとbaseline確定前に検査。finalizerはbranch/commit/tag/clean確認を行いpushしない |
-| Git ACL用管理者finalizer | Implemented | `AGENTS.md`, `tools/` | 通常processが`.git`をOSに拒否された場合だけ使うWindows PowerShell 5.1対応wrapperとCMD入口。対象をurutoraのbranch/index/commit/tagへ限定し、OS設定変更やpushは行わない |
+| Git ACL用管理者finalizer | Implemented | `AGENTS.md`, `tools/` | 通常processが`.git`をOSに拒否された場合だけ使うWindows PowerShell 5.1対応wrapperとCMD入口。対象をurutoraのbranch/index/commit/tagへ限定し、OS設定変更やpushは行わない。同一version追補は`-NoTag`で既存tagを移動しない |
 | v0.2.3 Config schema | Implemented | `V0_2_SETTLEMENT_ORDER.md`, `simulation/configs/v0-default.json` | schema 2 / `v0.2.3-default-1`。v0.2.2までの値を維持し、Core radiusと実行性能設定だけを明示変更 |
 | Settlement domain分割 | Implemented | `MODULES.md`, `ADR-0016`–`ADR-0018` | `SettlementQueries`、Formation、Maintenance、Invasion、ConceptAuraをCore内の別責務にし、Appはprojectionだけを読む |
 | Advance / Defense / Cohesion weight | Configurable detail | `V0_2_SETTLEMENT_ORDER.md`, `v0-default.json` | 4.0 / 2.0 / 0.75。既存Move候補の重みだけを歪め、AdvanceがCohesionより常に強いvalidationを持つ |
@@ -41,7 +41,7 @@ DraftやTBDをこの台帳だけで確定仕様に変えてはならない。
 | Patch release directory | Implementation detail | `ReleaseIdentity.cs`, `publish.ps1` | patch番号が1以上ならApp表示、World log、publish先を `vMajor.Minor.Patch` とする。patch 0の既存releaseは従来どおり `vMajor.Minor` |
 | Event時点の所属projection | Implementation detail | `STATISTICS.md` | Event payloadとreplay fingerprintへActor / TargetのEvent発生時Settlement IDを保持。所属別のAction・繁殖・Concept統計が後日の所属変更や解散で遡及変化しないようにする |
 | Settlement Map描画 | Implementation detail | `PLAYER_OBSERVATION.md` | 60色のPresentation paletteでInfluence / Core / Center、所属outline、Active Invasion arrowを描画。Active中は色を固定し、消滅時にslotを解放して新規Settlementの決定論的抽選へ戻す。描画はCore state・乱数を変更しない |
-| v0.2.2 Settlement出生所属 | Implemented | `REPRODUCTION.md`, `V0_2_SETTLEMENT_ORDER.md`, `ADR-0016` | 受胎時に少なくとも一方が所属し、両者が同じ一意なActive Core内ならBirthRequestへSettlement IDを保存。出生時にもActiveならCore内Cellだけを候補にし、AffinityをMembershipThresholdへ設定。親Affinityの遺伝ではない |
+| Settlement出生所属 | Implemented | `REPRODUCTION.md`, `V0_2_SETTLEMENT_ORDER.md`, `ADR-0016` | 両親が同じActive Settlement所属なら場所非依存でSettlement IDを保存し、通常の親近傍出生へMembershipThresholdを設定。片親所属・異所属は従来の一意なCore条件とCore内配置を維持。BirthRequestへCore配置要否を固定し、親Affinity値は複製しない |
 | ConceptMark旗 | Implementation detail | `PLAYER_OBSERVATION.md` | NPC本体は中立色、Settlementは輪郭色、ConceptMarkはLandmarkと同色の小旗を複数描画。Presentation専用でCoreへ影響しない |
 | v0.2.2速度段階 | Implementation detail | `PLAYER_OBSERVATION.md` | 100ms描画timerごとのSimulation batchを1 / 2 / 3 / 5 / 10 / 50日に固定。authoritative tickはUI thread外の単一順序workerで実行し、renderはbatch後だけ更新 |
 | v0.2.2観測性能補正 | Implementation detail | `ARCHITECTURE.md`, `observation-app.json` | v0.2.2時点ではConcept AuraをSettlement / Concept / Position索引、Statistics Eventをtype索引、同一Tickの統計をcache化し、Coreは直列のままとした。ログはdefault 10日ごとにflushし、終了時は必ずflush |

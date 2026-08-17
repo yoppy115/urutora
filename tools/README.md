@@ -20,3 +20,9 @@
 ```powershell
 & ".\tools\Finalize-GitBaseline.Admin.cmd"
 ```
+
+既存version内の追補commitでtagを移動しない場合は、次のように明示する。
+
+```powershell
+& ".\tools\Finalize-GitBaseline.Admin.cmd" -SkipTests -NoTag -CommitMessage "fix: describe the patch"
+```
