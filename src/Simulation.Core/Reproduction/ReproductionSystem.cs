@@ -57,7 +57,7 @@ public sealed class ReproductionSystem
         int tick,
         int microRound,
         int? birthSettlementId = null,
-        bool birthSettlementCorePlacementRequired = false)
+        SettlementBirthPlacement settlementPlacement = SettlementBirthPlacement.ParentNeighborhood)
     {
         var minimum = Math.Min(first.Id, second.Id);
         var maximum = Math.Max(first.Id, second.Id);
@@ -71,7 +71,7 @@ public sealed class ReproductionSystem
             new GeneticSnapshot(second.BaseStats.Copy(), second.RiskPreference),
             tick,
             birthSettlementId,
-            birthSettlementCorePlacementRequired);
+            settlementPlacement);
     }
 
     public IReadOnlyList<BirthResolution> ResolveBirths(WorldState world)
@@ -97,7 +97,7 @@ public sealed class ReproductionSystem
                 occupied,
                 landmarks,
                 birthSettlements[request.RequestId],
-                request.BirthSettlementCorePlacementRequired),
+                request.SettlementPlacement),
             StringComparer.Ordinal);
         var reserved = new HashSet<Position>();
         var assignments = new Dictionary<string, Position>(StringComparer.Ordinal);
@@ -164,11 +164,12 @@ public sealed class ReproductionSystem
         var outcomes = new List<BirthResolution>();
         foreach (var request in requests)
         {
-            var corePlacementApplied = birthSettlements[request.RequestId] is not null &&
-                                       request.BirthSettlementCorePlacementRequired;
+            var appliedPlacement = birthSettlements[request.RequestId] is null
+                ? SettlementBirthPlacement.ParentNeighborhood
+                : request.SettlementPlacement;
             if (!assignments.TryGetValue(request.RequestId, out var position))
             {
-                outcomes.Add(new BirthResolution(request, null, null, corePlacementApplied));
+                outcomes.Add(new BirthResolution(request, null, null, appliedPlacement));
                 continue;
             }
 
@@ -195,7 +196,7 @@ public sealed class ReproductionSystem
             child.Needs.Communication = _config.Reproduction.NewbornInitialNeed;
             child.Needs.Reproduction = 0;
             world.Npcs.Add(child.Id, child);
-            outcomes.Add(new BirthResolution(request, child, position, corePlacementApplied));
+            outcomes.Add(new BirthResolution(request, child, position, appliedPlacement));
         }
 
         world.BirthRequests.Clear();
@@ -233,7 +234,7 @@ public sealed class ReproductionSystem
         IReadOnlySet<Position> occupied,
         IReadOnlySet<Position> landmarks,
         SettlementState? birthSettlement,
-        bool corePlacementRequired)
+        SettlementBirthPlacement settlementPlacement)
     {
         var candidates = request.ParentAPositionAtConception.Neighbors()
             .Concat(request.ParentBPositionAtConception.Neighbors())
@@ -241,13 +242,28 @@ public sealed class ReproductionSystem
             .Where(position => position.X >= 0 && position.X < _config.World.Width &&
                                position.Y >= 0 && position.Y < _config.World.Height)
             .Where(position => !occupied.Contains(position) && !landmarks.Contains(position))
-            .Where(position => birthSettlement is null || !corePlacementRequired ||
-                               birthSettlement.Center.ChebyshevDistance(position) <= _config.Settlement.CoreRadius)
+            .Where(position => BirthPositionAllowed(position, birthSettlement, settlementPlacement))
             .OrderBy(position => _random.StablePriority(
                 "birth", request.ConceptionTick, 0, "location-preference", $"{request.RequestId}:{position.X}:{position.Y}"))
             .ThenBy(position => position)
             .ToList();
         return candidates;
+    }
+
+    private bool BirthPositionAllowed(
+        Position position,
+        SettlementState? birthSettlement,
+        SettlementBirthPlacement settlementPlacement)
+    {
+        if (birthSettlement is null || settlementPlacement == SettlementBirthPlacement.ParentNeighborhood)
+        {
+            return true;
+        }
+
+        var maximumDistance = settlementPlacement == SettlementBirthPlacement.Core
+            ? _config.Settlement.CoreRadius
+            : _config.Settlement.InfluenceRadius;
+        return birthSettlement.Center.ChebyshevDistance(position) <= maximumDistance;
     }
 
     private double Inherit(
@@ -277,7 +293,7 @@ public sealed record BirthResolution(
     BirthRequest Request,
     NpcState? Child,
     Position? Position,
-    bool CorePlacementApplied)
+    SettlementBirthPlacement AppliedPlacement)
 {
     public bool Success => Child is not null;
 }

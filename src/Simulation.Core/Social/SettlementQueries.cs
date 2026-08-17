@@ -11,7 +11,7 @@ public enum CollisionPolicy
     OtherSettlementFriction
 }
 
-public sealed record BirthSettlementAssignment(int SettlementId, bool CorePlacementRequired);
+public sealed record BirthSettlementAssignment(int SettlementId, SettlementBirthPlacement Placement);
 
 public static class SettlementQueries
 {
@@ -151,7 +151,23 @@ public static class SettlementQueries
         if (first.SettlementId.HasValue && first.SettlementId == second.SettlementId &&
             ActiveSettlement(world, first.SettlementId) is not null)
         {
-            return new BirthSettlementAssignment(first.SettlementId.Value, false);
+            return new BirthSettlementAssignment(
+                first.SettlementId.Value,
+                SettlementBirthPlacement.ParentNeighborhood);
+        }
+
+        if (first.SettlementId.HasValue ^ second.SettlementId.HasValue)
+        {
+            var settlementId = first.SettlementId ?? second.SettlementId!.Value;
+            var settlement = ActiveSettlement(world, settlementId);
+            if (settlement is not null &&
+                settlement.Center.ChebyshevDistance(first.Position) <= config.Settlement.InfluenceRadius &&
+                settlement.Center.ChebyshevDistance(second.Position) <= config.Settlement.InfluenceRadius)
+            {
+                return new BirthSettlementAssignment(settlementId, SettlementBirthPlacement.Influence);
+            }
+
+            return null;
         }
 
         var candidates = new[] { first.SettlementId, second.SettlementId }
@@ -168,8 +184,17 @@ public static class SettlementQueries
             .OrderBy(item => item)
             .ToArray();
 
-        return candidates.Length == 1 ? new BirthSettlementAssignment(candidates[0], true) : null;
+        return candidates.Length == 1
+            ? new BirthSettlementAssignment(candidates[0], SettlementBirthPlacement.Core)
+            : null;
     }
+
+    public static string BirthPlacementLabel(SettlementBirthPlacement placement) => placement switch
+    {
+        SettlementBirthPlacement.Core => "core",
+        SettlementBirthPlacement.Influence => "influence",
+        _ => "parent-neighborhood"
+    };
 
     public static IReadOnlyList<Position> UsableCoreCells(
         WorldState world,

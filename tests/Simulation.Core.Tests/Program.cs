@@ -38,7 +38,7 @@ internal static class Program
         ("vitality curve is continuous and eventually lethal", VitalityCurve),
         ("ConceptMark preserves Base stats", ConceptMarkPreservesBaseStats),
         ("genetics allowlist excludes acquired state", GeneticsAllowlist),
-        ("Settlement birth affiliation handles shared parents and Core fallback", SettlementBirthAffiliationRules),
+        ("Settlement birth affiliation applies parent, Influence, and Core scopes", SettlementBirthAffiliationRules),
         ("birth batch arbitration is queue-order independent", BirthArbitrationIsOrderIndependent),
         ("NPC detail projection exposes stable lineage", NpcDetailProjectionExposesStableLineage),
         ("NPC action history excludes movement events", NpcActionHistoryExcludesMovementEvents),
@@ -631,21 +631,20 @@ internal static class Program
     private static void SettlementBirthAffiliationRules()
     {
         var config = LoadConfig();
-        config.World.Width = 12;
-        config.World.Height = 12;
+        config.World.Width = 14;
+        config.World.Height = 14;
         var world = SocialWorld(config);
-        var resident = Npc(1, new Position(2, 2), 5, 5, 5, 100);
+        var resident = Npc(1, new Position(6, 2), 5, 5, 5, 100);
         resident.SettlementId = 1;
         resident.SettlementAffinity[1] = config.Settlement.MembershipThreshold;
-        var partner = Npc(2, new Position(3, 2), 5, 5, 5, 100);
+        var partner = Npc(2, new Position(7, 2), 5, 5, 5, 100);
         world.Npcs.Add(resident.Id, resident);
         world.Npcs.Add(partner.Id, partner);
         world.NextNpcId = 3;
 
         var birthSettlement = SettlementQueries.BirthSettlement(world, resident, partner, config);
         Equal(1, birthSettlement!.SettlementId);
-        True(birthSettlement.CorePlacementRequired,
-            "The one-member fallback did not preserve Core placement.");
+        Equal(SettlementBirthPlacement.Influence, birthSettlement.Placement);
         var reproduction = new ReproductionSystem(config, new RandomStreamFactory(922));
         world.BirthRequests.Add(reproduction.CreateRequest(
             resident,
@@ -653,44 +652,51 @@ internal static class Program
             world.Tick,
             1,
             birthSettlement.SettlementId,
-            birthSettlement.CorePlacementRequired));
+            birthSettlement.Placement));
         var result = reproduction.ResolveBirths(world).Single();
 
-        True(result.Success, "Qualifying Settlement birth had no Core birth cell.");
+        True(result.Success, "Qualifying one-parent Settlement birth had no Influence birth cell.");
+        Equal(SettlementBirthPlacement.Influence, result.AppliedPlacement);
         Equal(1, result.Child!.SettlementId!.Value);
         Equal(config.Settlement.MembershipThreshold, result.Child.SettlementAffinity[1], 0);
-        True(world.Settlements[1].Center.ChebyshevDistance(result.Child.Position) <= config.Settlement.CoreRadius,
-            "Affiliated child was born outside the Settlement Core.");
+        True(world.Settlements[1].Center.ChebyshevDistance(result.Child.Position) <= config.Settlement.InfluenceRadius,
+            "One-parent affiliated child was born outside the Settlement Influence.");
+        True(world.Settlements[1].Center.ChebyshevDistance(result.Child.Position) > config.Settlement.CoreRadius,
+            "One-parent affiliation remained restricted to the Settlement Core.");
 
-        resident.Position = new Position(8, 8);
-        partner.Position = new Position(9, 8);
+        resident.Position = new Position(11, 11);
+        partner.Position = new Position(12, 11);
         partner.SettlementId = 1;
         partner.SettlementAffinity[1] = config.Settlement.MembershipThreshold;
         var sharedSettlement = SettlementQueries.BirthSettlement(world, resident, partner, config);
         Equal(1, sharedSettlement!.SettlementId);
-        True(!sharedSettlement.CorePlacementRequired,
-            "Shared parental affiliation incorrectly required a Core birth location.");
+        Equal(SettlementBirthPlacement.ParentNeighborhood, sharedSettlement.Placement);
         world.BirthRequests.Add(reproduction.CreateRequest(
             resident,
             partner,
             world.Tick,
             2,
             sharedSettlement.SettlementId,
-            sharedSettlement.CorePlacementRequired));
+            sharedSettlement.Placement));
         var sharedResult = reproduction.ResolveBirths(world).Single();
         True(sharedResult.Success, "Shared-Settlement parents could not give birth outside the Core.");
+        Equal(SettlementBirthPlacement.ParentNeighborhood, sharedResult.AppliedPlacement);
         Equal(1, sharedResult.Child!.SettlementId!.Value);
         Equal(config.Settlement.MembershipThreshold, sharedResult.Child.SettlementAffinity[1], 0);
-        True(world.Settlements[1].Center.ChebyshevDistance(sharedResult.Child.Position) > config.Settlement.CoreRadius,
-            "Shared-Settlement child was teleported into the Core.");
+        True(world.Settlements[1].Center.ChebyshevDistance(sharedResult.Child.Position) > config.Settlement.InfluenceRadius,
+            "Shared-Settlement child was moved into the Settlement Influence.");
 
         partner.SettlementId = null;
         True(SettlementQueries.BirthSettlement(world, resident, partner, config) is null,
-            "A reproduction crossing the Core boundary inherited Settlement affiliation.");
+            "A one-parent reproduction outside the Settlement Influence inherited affiliation.");
 
         resident.Position = new Position(2, 2);
         partner.Position = new Position(3, 2);
         partner.SettlementId = 2;
+        var differentSettlements = SettlementQueries.BirthSettlement(world, resident, partner, config);
+        Equal(1, differentSettlements!.SettlementId);
+        Equal(SettlementBirthPlacement.Core, differentSettlements.Placement);
+
         config.Settlement.CoreRadius = 7;
         True(SettlementQueries.BirthSettlement(world, resident, partner, config) is null,
             "Overlapping parental Settlement candidates were resolved by arbitrary order.");

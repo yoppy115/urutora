@@ -703,10 +703,10 @@ public sealed class ActionResolutionSystem
             world.Tick,
             microRound,
             birthSettlement?.SettlementId,
-            birthSettlement?.CorePlacementRequired ?? false));
+            birthSettlement?.Placement ?? SettlementBirthPlacement.ParentNeighborhood));
         var birthPlacement = birthSettlement is null
             ? "normal"
-            : birthSettlement.CorePlacementRequired ? "core" : "parent-neighborhood";
+            : SettlementQueries.BirthPlacementLabel(birthSettlement.Placement);
         Emit(emit, microRound, SimulationEventType.ReproductionSuccess, actor.Id, target.Id, actor.Position, true,
             $"birth request queued;scope={scope};birth-settlement={birthSettlement?.SettlementId.ToString() ?? "-"};" +
             $"birth-placement={birthPlacement}");

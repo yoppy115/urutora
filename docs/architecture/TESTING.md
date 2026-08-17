@@ -149,8 +149,9 @@ Settlement Maintenance順と翌Tick反映、Aura / Core占有計算もcollection
 ### Settlement birth and observation regression
 
 - 両親が同じActive Settlement所属なら、Core外でも通常の親近傍へ出生し、同SettlementのMembershipThresholdから開始する。
-- 片親所属・異所属は、受胎時に両者が同じ一意なActive Core内の場合だけ同Coreへ出生・所属する。
-- Core境界をまたぐ片親所属の繁殖は出生所属を付与しない。
+- 片親所属は、受胎時に両者が所属先のActive Influence内にいる場合だけ同Influenceへ出生・所属する。
+- Influence境界をまたぐ片親所属の繁殖は出生所属を付与しない。
+- 異所属は、受胎時に両者が同じ一意なActive Core内の場合だけ同Coreへ出生・所属する。
 - BirthRequestの新しい社会stateを含めても、Birth arbitration、Event列、最終stateの決定論を維持する。
 - ConceptMark所持者のMap描画にConcept固有色の旗pixelが存在し、Settlement所属輪郭と別レイヤーになる。
 - UI smokeで速度段階が1 / 2 / 3 / 5 / 10 / 50日の順に構成される。

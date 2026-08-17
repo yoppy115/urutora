@@ -15,7 +15,7 @@ GenerationからOrderへの移行は絶対人口や固定日数でなく、rolli
 
 Settlement構造変更は固定順のTick末Maintenanceでcommitし、新規Settlement、WorldPhase、Invasion開始は原則翌Tickから有効にする。同日Hotspot Candidateは一つのimmutable snapshotから生成し、Reproduction Success数を優先、同数だけnamed seedでtie-breakする。Center選択後に既存Settlement排他へ違反したCandidateは別Centerへrerollせず不成立とする。
 
-Settlement出生所属は、両親が同じActive Settlement所属なら受胎位置を問わず通常の親近傍へ出生し、そのSettlement所属として開始する。片親所属または異所属では、受胎時に両者が同じ一意なActive Settlement Core内にいる従来条件だけを認め、同Core内へ出生させる。親のAffinity数値は複製せず、曖昧な候補へ所属を付与しない。
+Settlement出生所属は、両親が同じActive Settlement所属なら受胎位置を問わず通常の親近傍へ出生し、そのSettlement所属として開始する。片親だけが所属する場合は、受胎時に両者がそのActive Settlement Influence内にいる場合に限り、同Influence内へ出生させ同所属で開始する。両親の所属が異なる場合は、両者が同じ一意なActive Settlement Core内にいる従来条件だけを認め、同Core内へ出生させる。親のAffinity数値は複製せず、曖昧な候補へ所属を付与しない。
 
 ## Reasons
 
@@ -29,4 +29,4 @@ Settlement出生所属は、両親が同じActive Settlement所属なら受胎�
 - Order前後で同じSettlementのRule setが変化する。
 - PhaseとSettlement統計をUI / headless diagnosticsへ公開する。
 - 日中Eventと日末構造commitを分離し、scan / collection / thread順へ依存しないarbitrationと翌Tick反映を実装する必要がある。
-- 条件付きSettlement出生はBirthRequestへ受胎時の一意なSettlement IDとCore配置要否を保存し、出生時にもActiveである場合だけ適用する必要がある。
+- 条件付きSettlement出生はBirthRequestへ受胎時の一意なSettlement IDと配置範囲（親近傍 / Core / Influence）を保存し、出生時にもActiveである場合だけ適用する必要がある。

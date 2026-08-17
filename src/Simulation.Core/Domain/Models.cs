@@ -319,6 +319,13 @@ public sealed record DailyPopulationRecord(
 
 public sealed record GeneticSnapshot(BaseStats BaseStats, double RiskPreference);
 
+public enum SettlementBirthPlacement
+{
+    ParentNeighborhood,
+    Core,
+    Influence
+}
+
 public sealed record BirthRequest(
     string RequestId,
     long ParentAId,
@@ -329,7 +336,7 @@ public sealed record BirthRequest(
     GeneticSnapshot ParentBGenetics,
     int ConceptionTick,
     int? BirthSettlementId = null,
-    bool BirthSettlementCorePlacementRequired = false);
+    SettlementBirthPlacement SettlementPlacement = SettlementBirthPlacement.ParentNeighborhood);
 
 public enum ActionKind
 {

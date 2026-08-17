@@ -55,7 +55,7 @@ v0.15値、v0.2の社会境界、v0.2.1のHotspot補正、v0.2.2の出生所属�
 | Region | Core radius 2（5×5）、Influence radius 7、Rest Collision radius 5 |
 | Performance | CPU並列度0（論理CPU数を自動利用）、人口128以上でObserver / NPC単位の分離可能phaseを並列化。1で直列 |
 | Affinity | Founder +10、initial resident +7、membership 10、switch margin +5、Stay +0.05/day、Rest +1、Communication +0.5、Reproduction Success +2 |
-| Settlement birth | 両親が同じActive Settlement所属なら場所非依存で通常の親近傍へ出生しMembership 10から開始。片親所属・異所属は一意なActive Core内だけ同Core出生・所属 |
+| Settlement birth | 両親が同じActive Settlement所属なら場所非依存で通常の親近傍へ出生しMembership 10から開始。片親所属は両親が所属先Influence内にいる場合だけ同Influence出生・所属。異所属は一意なActive Core内だけ同Core出生・所属 |
 | Generation → Order | 90-day window、PopulationCV 0.10、DemographicImbalance 0.20、30 consecutive days |
 | Order benefits | Rest ×1.5、positive Vitality ×2、negative Vitality ×0.5。同一Active Settlement Core内の2名だけReproduction Penalty免除、その他はU_reproduce / U_accept -2 |
 | Relations / crowding | Initial Hostility 30%、Friction Collision +1 / Threat +3 / 30日無Event後30日ごと-1、Crowding 0.5 Occupancy + 0.5 BlockedMovement、threshold 0.70 for 30 days |

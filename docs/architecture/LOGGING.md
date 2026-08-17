@@ -82,7 +82,7 @@ v0.15 Runでは少なくとも次を集計可能にする。
 - Friction EventはPair、加算理由、加算値、LastFrictionEventTick、decayを追跡し、Counterattack二重計上を識別できる。
 - 一時MaxHP解除ClampはDamage Eventと分離したstate normalizationとして記録可能にする。
 - Invasionは利用可能Core Cell分母、攻撃側占有Cell、Rest / Death離脱、Flee中Participantを追跡する。
-- BirthRequestとBirth Eventは、条件付き出生所属に使ったSettlement ID、Core配置要否、実際に子へ付与されたSettlement IDを追跡できる。
+- BirthRequestとBirth Eventは、条件付き出生所属に使ったSettlement ID、配置範囲（親近傍 / Core / Influence）、実際に子へ付与されたSettlement IDを追跡できる。
 
 観測AppのWorld Event、日次CSV、日次diagnosticsは論理的には毎日記録する。物理streamのflushはSimulation Eventではなく、v0.2.2 defaultではApp Configの10日間隔と終了時に行う。flush間隔を変えてもEvent列、日次行、乱数、Statistics値を変えない。
 
