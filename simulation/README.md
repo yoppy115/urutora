@@ -4,7 +4,7 @@
 
 ## Directories
 
-- `configs/`: v0.2.3 default。人口、Need、Utility、行動、戦闘、繁殖、Vitality、Settlement、Order、Invasion、Aura、決定論的実行設定等。
+- `configs/`: v0.2.4 default。人口、Need、Utility、行動、戦闘、繁殖、Vitality、Settlement、Order、Invasion、Aura、決定論的実行設定等。
 - `presets/`: 初期状態や実験条件の名前付き組み合わせ。
 - `concepts/`: 概念と困難のデータ定義。
 
@@ -28,7 +28,7 @@
 | World | 64×64、InitialPopulation 200、1 tick/day、365 days/year |
 | Action | max 5/day、repeat `EffectiveAction/(EffectiveAction+5)`、second step `Clamp(0.02*EffectiveAction,0,1)` |
 | Utility | Top 3、softmax temperature configurable |
-| Utility effects | Move/Rest/Communication/Attack/Flee/ReproductionのNeed係数、Threat Risk係数 |
+| Utility effects | Move/Communication/Attack/Flee/ReproductionのNeed係数、Threat Risk係数。Restはv0.2.4のPressure式 |
 | Observation | 距離別error 5%/7.5%/10%、Confidence 1.00/0.90/0.80 |
 | Communication confidence | factor `0.50 + 0.03 * Clamp(EffectiveCommunication,0,10)` |
 | Targeted phase | Attack → Reproduction → CommunicationをMove / Flee / Restより先に解決 |
@@ -60,25 +60,41 @@ v0.15値、v0.2の社会境界、v0.2.1のHotspot補正、v0.2.2の出生所属�
 | Order benefits | Rest ×1.5、positive Vitality ×2、negative Vitality ×0.5。同一Active Settlement Core内の2名だけReproduction Penalty免除、その他はU_reproduce / U_accept -2 |
 | Relations / crowding | Initial Hostility 30%、Friction Collision +1 / Threat +3 / 30日無Event後30日ごと-1、Crowding 0.5 Occupancy + 0.5 BlockedMovement、threshold 0.70 for 30 days |
 | Mobilization | `Clamp(0.20 + 0.30 * CrowdingPressure, 0.20, 0.50)` |
-| Dissolution | <=10% World Population for 365 consecutive days |
+| Dissolution | v0.2.4でWorld Population比を廃止し、90-day Support、25 / 35 Hysteresis、365 LowSupportDays |
 | Concept | Exposure radius 4 with 1/0.5/0.25/0.125、Aura radius 2、Rest -0.10/day、stat ×1.1 |
 
 Advance / Cohesionの具体WeightはConfig / implementation detailだがAdvanceを主とする。Hotspot arbitration、Friction、Aura同種抑制とtemporary MaxHP等は正史の確定境界をConfig defaultで上書きしない。
 
+## v0.2.4 adopted defaults
+
+| Area | Defaults |
+| --- | --- |
+| Rest | Daily +0.02、Pressure threshold 2、`10*ln(1+R-2)/ln(9)`、`U_rest = Pressure - 0.25*A` |
+| Action fatigue | Communication .15、Move .25、Reproduction .35、Attack / Collision .60、Flee .70、Counterattack .30、Pursuit .40 |
+| Own-region Move | Influence fatigue ×.75、Core ×.50 |
+| Home Bias | Weak toward / neutral / away = 1.5 / 1 / .75。Strong trigger Rest>=6 or HP ratio<=.60、Core = 5 / 1 / .20 |
+| Foreign avoidance | enter Influence ×.25、Core ×.05、inside exit ×3 / deeper ×.25 |
+| Generation Proto-Order | positive Vitality ×1.25、normal Affinity gain ×2 |
+| SettlementSupport | 90 days、`50P+30R+20S`、baseline min 8、social target member-days×.25、low 25 / recovery 35、365 LowSupportDays |
+| Invasion guardrail | Pressure <.70 for 30 days to re-arm、Center non-victory、Usable Core 50% victory |
+| Friction | Clamp 0..100 |
+
+これらはv0.2.4 Simulation Run後に調整可能なConfig値。出生所属predicate、主観境界、Proto-Order / Order分離、hysteresis、phase順、Alive-only conquest等のBaselineを数値調整で変更しない。
+
 ## Implemented configuration and run metadata
 
-`configs/v0-default.json` はschema version 2、ID `v0.2.3-default-2`。観測App Configはschema version 5で、Worldログのflush間隔、automatic advanceのwork sliceとcooldownを設定できる。defaultは2日ごとに15ms休止し、CPU並列度8と組み合わせて旧BIOS環境での持続的な全論理CPU負荷を避ける。観測Appは各Worldへ完全Config snapshotと次の再現情報を保存する。
+`configs/v0-default.json` はschema version 3、ID `v0.2.4-default-1`。観測App Configはschema version 5で、Worldログのflush間隔、automatic advanceのwork sliceとcooldownを設定できる。defaultは2日ごとに15ms休止し、CPU並列度8と組み合わせて旧BIOS環境での持続的な全論理CPU負荷を避ける。観測Appは各Worldへ完全Config snapshotと次の再現情報を保存する。
 
 ```json
 {
   "schemaVersion": 5,
   "seed": 8147291,
-  "configId": "v0.2.3-default-2",
-  "releaseVersion": "v0.2.3",
+  "configId": "v0.2.4-default-1",
+  "releaseVersion": "v0.2.4",
   "repositoryCommit": "git-commit-hash",
   "repositoryTreeState": "clean",
   "simulationConfigSha256": "..."
 }
 ```
 
-`events.jsonl`、`daily-stats.csv`、`diagnostics.jsonl`はWorld別に保存する。明示完了時に`completion.json`を最後に確定し、同markerがあるWorldだけをZIPへ圧縮する。強制終了や通常終了で未完了のdirectoryを完了済みと誤認しない。Simulation snapshotの保存・再開とschema migrationは引き続きDraftである。
+`events.jsonl`（wrapper schema 4）、`daily-stats.csv`、`diagnostics.jsonl`（schema 5）はWorld別に保存する。明示完了時に`completion.json`を最後に確定し、同markerがあるWorldだけをZIPへ圧縮する。強制終了や通常終了で未完了のdirectoryを完了済みと誤認しない。Simulation snapshotの保存・再開とschema migrationは引き続きDraftである。

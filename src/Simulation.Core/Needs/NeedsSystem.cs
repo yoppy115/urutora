@@ -3,6 +3,20 @@ using Simulation.Core.Domain;
 
 namespace Simulation.Core.Needs;
 
+public enum FatigueCause
+{
+    Communication,
+    Move,
+    ReproductionAttempt,
+    Attack,
+    CollisionAttack,
+    Flee,
+    Counterattack,
+    Pursuit
+}
+
+public sealed record FatigueApplication(FatigueCause Cause, double RequestedDelta, double AppliedDelta);
+
 public sealed class NeedsSystem
 {
     private readonly SimulationConfig _config;
@@ -50,15 +64,67 @@ public sealed class NeedsSystem
         npc.Needs.ClampAll();
     }
 
-    public void ApplyActiveActionCost(NpcState npc, ActionKind kind)
+    public double RestPressure(double restNeed)
+    {
+        var value = Math.Clamp(restNeed, 0, 10);
+        var threshold = _config.Action.RestPressure.Threshold;
+        if (value <= threshold)
+        {
+            return 0;
+        }
+
+        var denominator = Math.Log(1 + 10 - threshold);
+        return _config.Action.RestPressure.Scale * Math.Log(1 + value - threshold) / denominator;
+    }
+
+    public double RestUtility(NeedsSnapshot needs) =>
+        RestPressure(needs.Rest) - _config.Action.RestPressure.ActivityPenalty * needs.Activity;
+
+    public FatigueApplication? ApplyActiveActionCost(
+        NpcState npc,
+        ActionKind kind,
+        double fatigueMultiplier = 1,
+        FatigueCause? causeOverride = null)
     {
         if (kind is ActionKind.Idle or ActionKind.Rest)
         {
-            return;
+            return null;
         }
 
         npc.Needs.Activity += _config.Action.ActiveActivityChange;
-        npc.Needs.Rest += _config.Action.ActiveRestChange;
+        var cause = causeOverride ?? kind switch
+        {
+            ActionKind.Communication => FatigueCause.Communication,
+            ActionKind.Move => FatigueCause.Move,
+            ActionKind.Reproduction => FatigueCause.ReproductionAttempt,
+            ActionKind.Attack => FatigueCause.Attack,
+            ActionKind.Flee => FatigueCause.Flee,
+            _ => throw new ArgumentOutOfRangeException(nameof(kind))
+        };
+        var fatigue = ApplyFatigue(npc, cause, fatigueMultiplier);
         npc.Needs.ClampAll();
+        return fatigue;
+    }
+
+    public FatigueApplication ApplyReactionFatigue(NpcState npc, FatigueCause cause) =>
+        ApplyFatigue(npc, cause, 1);
+
+    private FatigueApplication ApplyFatigue(NpcState npc, FatigueCause cause, double multiplier)
+    {
+        var requested = cause switch
+        {
+            FatigueCause.Communication => _config.Action.Fatigue.Communication,
+            FatigueCause.Move => _config.Action.Fatigue.Move,
+            FatigueCause.ReproductionAttempt => _config.Action.Fatigue.ReproductionAttempt,
+            FatigueCause.Attack => _config.Action.Fatigue.Attack,
+            FatigueCause.CollisionAttack => _config.Action.Fatigue.CollisionAttack,
+            FatigueCause.Flee => _config.Action.Fatigue.Flee,
+            FatigueCause.Counterattack => _config.Action.Fatigue.Counterattack,
+            FatigueCause.Pursuit => _config.Action.Fatigue.Pursuit,
+            _ => throw new ArgumentOutOfRangeException(nameof(cause))
+        } * multiplier;
+        var before = npc.Needs.Rest;
+        npc.Needs.Rest = Math.Clamp(before + requested, 0, 10);
+        return new FatigueApplication(cause, requested, npc.Needs.Rest - before);
     }
 }

@@ -33,7 +33,7 @@ v0.15はTargeted Action、主観境界、世代時間、情報容量、HP/Damage
 | Vitality | linear recovery then linear decay | control-point cubic interpolation |
 | Damage base/coefficients | 8 / 1.8 / -0.8 | 4 / 0.9 / -0.4 |
 
-これらはv0.15 configurable defaultsであり、不変のゲーム思想ではない。1 Tick = 1日、365日 = 1年、InitialPopulation 200、64×64 Map、Hit Rate、ConceptMark、Rest等は変更しない。
+これらはv0.15 configurable defaultsであり、不変のゲーム思想ではない。1 Tick = 1日、365日 = 1年、InitialPopulation 200、64×64 Map、Hit Rate、ConceptMark、Rest等はv0.15では変更しない。Restの後続変更はv0.2.4正史を優先する。
 
 ## Vitality curve shape baseline
 

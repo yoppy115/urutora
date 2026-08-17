@@ -94,8 +94,8 @@ internal static class Program
             using (var first = store.CreateNextWorld(simulationConfig, SimulationConfigPath(), 9000))
             {
                 Equal(1, first.Info.WorldNumber);
-                Equal("v0.2.3", first.Info.ReleaseVersion);
-                Equal("v0.2.3", Directory.GetParent(first.Info.DirectoryPath)!.Name);
+                Equal("v0.2.4", first.Info.ReleaseVersion);
+                Equal("v0.2.4", Directory.GetParent(first.Info.DirectoryPath)!.Name);
                 Equal(9000L, first.Info.Seed);
                 tick = first.AdvanceOneDay();
                 firstInfo = first.Info;
@@ -125,6 +125,7 @@ internal static class Program
             Equal(2, diagnosticLines.Length);
             using (var diagnostics = JsonDocument.Parse(diagnosticLines[^1]))
             {
+                Equal(5, diagnostics.RootElement.GetProperty("schemaVersion").GetInt32());
                 Equal(firstInfo.WorldId, diagnostics.RootElement.GetProperty("worldId").GetString());
                 Equal(firstInfo.ReleaseVersion, diagnostics.RootElement.GetProperty("releaseVersion").GetString());
                 True(diagnostics.RootElement.GetProperty("statistics").TryGetProperty("targetedActions", out _));
@@ -132,6 +133,7 @@ internal static class Program
                 True(diagnostics.RootElement.GetProperty("statistics").TryGetProperty("worldPhase", out _));
                 True(diagnostics.RootElement.GetProperty("statistics").TryGetProperty("settlements", out _));
                 True(diagnostics.RootElement.GetProperty("statistics").TryGetProperty("violence", out _));
+                True(diagnostics.RootElement.GetProperty("statistics").TryGetProperty("restDiagnostics", out _));
             }
             using (var run = JsonDocument.Parse(ReadArchiveText(archivePath, "run.json")))
             {
@@ -451,7 +453,9 @@ internal static class Program
         new(id, id == 1 ? new Position(4, 4) : new Position(id % 10, id % 10), 2, 7, id, active, 1, 0);
 
     private static SettlementStatistics SettlementStatistics(int id, bool active, int? dissolvedTick = null) =>
-        new(id, new Position(id, id), id, 2, active, 4, 0.2, 0.4, 0.1, 0,
+        new(id, new Position(id, id), id, 2, active, 4, 1, 2, 1, 0.2, 0.4, 0.1, 0,
+            true, 0, 0, 50, 0.5, 0.5, 0.5, 0, 90, 8, 4, 3, 2, 8, 2,
+            0, 0, 0, 0, 0, 0, 0, 0,
             dissolvedTick, dissolvedTick.HasValue ? "test" : null, null);
 
     private static string TemporaryDirectory()

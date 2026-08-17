@@ -15,7 +15,10 @@ public sealed record WorldDecisionRules(
     double MovementPrimaryWeight = 0,
     Position? CohesionTarget = null,
     double CohesionWeight = 0,
-    bool OutsideReproductionPenaltyEnabled = false)
+    bool OutsideReproductionPenaltyEnabled = false,
+    int? HomeSettlementId = null,
+    IReadOnlyList<SettlementMovementRule>? SettlementRegions = null,
+    bool SettlementMovementBiasDisabled = false)
 {
     public bool IsInside(Position position) =>
         position.X >= 0 && position.X < Width && position.Y >= 0 && position.Y < Height;
@@ -30,6 +33,12 @@ public sealed record WorldDecisionRules(
 }
 
 public sealed record SettlementCoreRule(int SettlementId, Position Center, int Radius);
+
+public sealed record SettlementMovementRule(
+    int SettlementId,
+    Position Center,
+    int CoreRadius,
+    int InfluenceRadius);
 
 public sealed record DecisionContext(
     long EntityId,
@@ -263,17 +272,34 @@ public sealed class UtilityDecisionSystem
         }
 
         var stream = _random.Create("decision", tick, context.EntityId, "move-direction", microRound.ToString());
-        var destination = SelectBiasedDestination(context, destinations, stream);
+        var movement = SelectBiasedDestination(context, destinations, stream);
         var utility = NeedUtility(context.Needs, _config.Utility.Move);
-        output.Add(Candidate(ActionKind.Move, null, destination, utility,
-            new Dictionary<string, double> { ["needUtility"] = utility }));
+        output.Add(Candidate(ActionKind.Move, null, movement.Destination, utility,
+            new Dictionary<string, double>
+            {
+                ["needUtility"] = utility,
+                ["homeBiasWeight"] = movement.HomeWeight,
+                ["foreignBiasWeight"] = movement.ForeignWeight,
+                ["strongHomeBias"] = movement.StrongHomeBias ? 1 : 0,
+                ["strongHomeRest"] = movement.StrongHomeRest ? 1 : 0,
+                ["strongHomeHp"] = movement.StrongHomeHp ? 1 : 0,
+                ["enteredHomeCore"] = movement.EnteredHomeCore ? 1 : 0,
+                ["homeDistanceDelta"] = movement.HomeDistanceDelta,
+                ["foreignDirection"] = movement.ForeignDirection
+            }));
     }
 
     private void AddRest(DecisionContext context, ICollection<ActionCandidate> output)
     {
-        var utility = NeedUtility(context.Needs, _config.Utility.Rest);
+        var restPressure = RestPressure(context.Needs.Rest);
+        var utility = restPressure - _config.Action.RestPressure.ActivityPenalty * context.Needs.Activity;
         output.Add(Candidate(ActionKind.Rest, null, null, utility,
-            new Dictionary<string, double> { ["needUtility"] = utility }));
+            new Dictionary<string, double>
+            {
+                ["restNeed"] = context.Needs.Rest,
+                ["restPressure"] = restPressure,
+                ["activityPenalty"] = _config.Action.RestPressure.ActivityPenalty * context.Needs.Activity
+            }));
     }
 
     private void AddCommunication(DecisionContext context, int tick, int microRound, ICollection<ActionCandidate> output)
@@ -391,17 +417,12 @@ public sealed class UtilityDecisionSystem
             }, target.Position));
     }
 
-    private static Position SelectBiasedDestination(
+    private MovementSelection SelectBiasedDestination(
         DecisionContext context,
         IReadOnlyList<Position> destinations,
         DeterministicRandom random)
     {
-        if (!context.WorldRules.MovementPrimaryTarget.HasValue && !context.WorldRules.CohesionTarget.HasValue)
-        {
-            return destinations[random.NextInt(destinations.Count)];
-        }
-
-        var weights = destinations.Select(destination =>
+        var evaluations = destinations.Select(destination =>
         {
             var score = 0d;
             if (context.WorldRules.MovementPrimaryTarget.HasValue)
@@ -418,21 +439,152 @@ public sealed class UtilityDecisionSystem
                          (context.Position.ChebyshevDistance(target) - destination.ChebyshevDistance(target));
             }
 
-            return Math.Exp(Math.Clamp(score, -20, 20));
+            var home = HomeBias(context, destination);
+            var foreign = ForeignBias(context, destination);
+            var weight = Math.Exp(Math.Clamp(score, -20, 20)) * home.Weight * foreign.Weight;
+            return new MovementSelection(
+                destination,
+                home.Weight,
+                foreign.Weight,
+                home.Strong,
+                home.StrongRest,
+                home.StrongHp,
+                home.EnteredCore,
+                home.DistanceDelta,
+                foreign.Direction,
+                Math.Clamp(weight, 1e-12, 1e12));
         }).ToArray();
-        var draw = random.NextDouble() * weights.Sum();
+        var draw = random.NextDouble() * evaluations.Sum(item => item.Weight);
         var cumulative = 0d;
-        for (var index = 0; index < destinations.Count; index++)
+        foreach (var evaluation in evaluations)
         {
-            cumulative += weights[index];
+            cumulative += evaluation.Weight;
             if (draw < cumulative)
             {
-                return destinations[index];
+                return evaluation;
             }
         }
 
-        return destinations[^1];
+        return evaluations[^1];
     }
+
+    private (double Weight, bool Strong, bool StrongRest, bool StrongHp, bool EnteredCore, int DistanceDelta) HomeBias(
+        DecisionContext context,
+        Position destination)
+    {
+        if (context.WorldRules.SettlementMovementBiasDisabled ||
+            !context.WorldRules.HomeSettlementId.HasValue ||
+            context.WorldRules.SettlementRegions is null)
+        {
+            return (1, false, false, false, false, 0);
+        }
+
+        var home = context.WorldRules.SettlementRegions.FirstOrDefault(item =>
+            item.SettlementId == context.WorldRules.HomeSettlementId.Value);
+        if (home is null)
+        {
+            return (1, false, false, false, false, 0);
+        }
+
+        var hpRatio = context.EffectiveStats.MaxHp <= 0 ? 0 : context.CurrentHp / context.EffectiveStats.MaxHp;
+        var strongRest = context.Needs.Rest >= _config.Settlement.StrongHomeBiasRestThreshold;
+        var strongHp = hpRatio <= _config.Settlement.StrongHomeBiasHpRatioThreshold;
+        var strong = strongRest || strongHp;
+        var currentCenterDistance = context.Position.ChebyshevDistance(home.Center);
+        var destinationCenterDistance = destination.ChebyshevDistance(home.Center);
+        var currentDistance = strong
+            ? Math.Max(0, currentCenterDistance - home.CoreRadius)
+            : currentCenterDistance;
+        var destinationDistance = strong
+            ? Math.Max(0, destinationCenterDistance - home.CoreRadius)
+            : destinationCenterDistance;
+        var delta = currentDistance - destinationDistance;
+        var enteredCore = currentCenterDistance > home.CoreRadius &&
+                          destinationCenterDistance <= home.CoreRadius;
+        if (strong)
+        {
+            return (delta > 0 ? _config.Settlement.StrongHomeBiasTowardWeight :
+                delta < 0 ? _config.Settlement.StrongHomeBiasAwayWeight : 1,
+                true, strongRest, strongHp, enteredCore, delta);
+        }
+
+        if (currentCenterDistance <= home.InfluenceRadius)
+        {
+            return (1, false, false, false, enteredCore, delta);
+        }
+
+        return (delta > 0 ? _config.Settlement.HomeBiasTowardWeight :
+            delta < 0 ? _config.Settlement.HomeBiasAwayWeight : 1,
+            false, false, false, enteredCore, delta);
+    }
+
+    private (double Weight, int Direction) ForeignBias(DecisionContext context, Position destination)
+    {
+        if (context.WorldRules.SettlementMovementBiasDisabled ||
+            !context.WorldRules.HomeSettlementId.HasValue ||
+            context.WorldRules.SettlementRegions is null)
+        {
+            return (1, 0);
+        }
+
+        var avoidance = 1d;
+        var exit = 1d;
+        var direction = 0;
+        foreach (var foreign in context.WorldRules.SettlementRegions
+                     .Where(item => item.SettlementId != context.WorldRules.HomeSettlementId.Value)
+                     .OrderBy(item => item.SettlementId))
+        {
+            var currentDistance = context.Position.ChebyshevDistance(foreign.Center);
+            var destinationDistance = destination.ChebyshevDistance(foreign.Center);
+            if (destinationDistance <= foreign.CoreRadius)
+            {
+                avoidance = Math.Min(avoidance, _config.Settlement.ForeignCoreEntryWeight);
+                direction = -2;
+            }
+            else if (currentDistance > foreign.InfluenceRadius && destinationDistance <= foreign.InfluenceRadius)
+            {
+                avoidance = Math.Min(avoidance, _config.Settlement.ForeignInfluenceEntryWeight);
+                direction = Math.Min(direction, -1);
+            }
+            else if (currentDistance <= foreign.InfluenceRadius && destinationDistance < currentDistance)
+            {
+                avoidance = Math.Min(avoidance, _config.Settlement.ForeignDeeperWeight);
+                direction = Math.Min(direction, -1);
+            }
+            else if (currentDistance <= foreign.InfluenceRadius && destinationDistance > currentDistance)
+            {
+                exit = Math.Max(exit, _config.Settlement.ForeignExitWeight);
+                if (direction == 0)
+                {
+                    direction = 1;
+                }
+            }
+        }
+
+        return avoidance < 1 ? (avoidance, direction) : (exit, direction);
+    }
+
+    private double RestPressure(double restNeed)
+    {
+        var value = Math.Clamp(restNeed, 0, 10);
+        var threshold = _config.Action.RestPressure.Threshold;
+        return value <= threshold
+            ? 0
+            : _config.Action.RestPressure.Scale * Math.Log(1 + value - threshold) /
+              Math.Log(1 + 10 - threshold);
+    }
+
+    private sealed record MovementSelection(
+        Position Destination,
+        double HomeWeight,
+        double ForeignWeight,
+        bool StrongHomeBias,
+        bool StrongHomeRest,
+        bool StrongHomeHp,
+        bool EnteredHomeCore,
+        int HomeDistanceDelta,
+        int ForeignDirection,
+        double Weight = 1);
 
     private PerceivedEntity SelectRandomTarget(
         IReadOnlyList<PerceivedEntity> targets,

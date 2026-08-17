@@ -18,7 +18,9 @@
 
 ### v0.2 Generation
 
-v0.2は萌芽の最小実装を `WorldPhase = Generation` と呼ぶ。秩序を持たない個体群の繁殖、移動、Collision、Threat、Combatを世界生成過程として扱い、Generation中からReproduction Success HotspotにSettlementが形成される。Founder、Affinity、所属は存在できるが、社会Bonusと秩序Ruleはまだ有効化しない。
+v0.2は萌芽の最小実装を `WorldPhase = Generation` と呼ぶ。秩序を持たない個体群の繁殖、移動、Collision、Threat、Combatを世界生成過程として扱い、Generation中からReproduction Success HotspotにSettlementが形成される。
+
+v0.2.4ではSettlementが根付くため、Founder、Affinity、所属、Birth Affiliationに加え、同所属Collision抑制、Core正Vitality`×1.25`、通常Affinity gain`×2`、Home / Foreign移動規則、Move疲労軽減を限定Proto-OrderとしてGenerationから有効にする。Order専用Rest、負Aging軽減、Outside Reproduction Penaltyはまだ解禁しない。
 
 ## 萌芽から秩序
 
@@ -62,6 +64,7 @@ v0.2では、90日rolling windowのPopulationCVとBirth / DeathのDemographicImb
 ## Draft mechanics
 
 - Order以降のフェーズ遷移の正確な閾値と検出方法。Generation→Orderのv0.2 defaultは確定済み。
+- v0.2.4後のInvasion Trigger、SettlementPressure、Crowding式、Mobilization、Center保持Victory。
 - 一世界の実時間と各フェーズの長さ。
 - 滅亡時にどのシステムをどう変調・停止するか。
 - 安定世界を再編するタイミング。

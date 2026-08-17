@@ -2,6 +2,9 @@
 
 このページは、現在の正史へ入るための目次です。
 
+- [`VERSION_LINEAGE.md`](VERSION_LINEAGE.md): v0.2系の版系譜とRun identity。
+- [`IMPLEMENTATION_REGISTER.md`](IMPLEMENTATION_REGISTER.md): 採用済みminor実装・最適化・運用detailの台帳。
+
 ## Status labels
 
 - **Baseline**: 現時点で採用済みの設計原則または仕様。
@@ -25,6 +28,7 @@
 | [`V0_SIMULATION.md`](design/V0_SIMULATION.md) | Baseline / v0 configurable | v0の目的、範囲、初期世界、実装基盤 |
 | [`V0_15_ECOLOGY.md`](design/V0_15_ECOLOGY.md) | Baseline / v0.15 configurable | 初回Runに基づく生態系変更と解消済み実装規則 |
 | [`V0_2_SETTLEMENT_ORDER.md`](design/V0_2_SETTLEMENT_ORDER.md) | Baseline / v0.2.3 configurable | Settlement自然発生、Hotspot・Core境界、出生所属、Maintenance、Order、Friction、Invasion、Aura |
+| [`V0_2_4_SETTLEMENT_STABILIZATION.md`](design/V0_2_4_SETTLEMENT_STABILIZATION.md) | Baseline / v0.2.4 configurable | Rest v2、Home Bias、Proto-Order、SettlementSupport、Invasion暫定安定化 |
 | [`SIMULATION_TICK.md`](design/SIMULATION_TICK.md) | Baseline / v0 configurable | 日、Micro Round、即時Death、Birth競合、乱数 |
 | [`V0_ACTIONS.md`](design/V0_ACTIONS.md) | Baseline / v0 configurable | Action/Reaction、Move、Communication、Combat、Flee、Pursuit |
 | [`CONCEPTS.md`](design/CONCEPTS.md) | Baseline constraints / Draft mechanics | 概念と困難、初期3概念 |
@@ -40,6 +44,7 @@
 - [`LOGGING.md`](architecture/LOGGING.md)（Baseline constraints / Draft mechanics）: 機械可読ログと研究保存。
 - [`TESTING.md`](architecture/TESTING.md)（Baseline test obligations / Draft implementation）: v0のheadless不変条件。
 - [`STATISTICS.md`](architecture/STATISTICS.md)（Baseline observation obligations / Draft storage）: v0.2のWorld、Settlement、Invasion、Aura診断。
+- [`ENGINEERING_REPRODUCIBILITY.md`](architecture/ENGINEERING_REPRODUCIBILITY.md)（Engineering Canon）: replay、Git provenance、cache・parallelizationの意味論非干渉。
 
 ## Decisions
 

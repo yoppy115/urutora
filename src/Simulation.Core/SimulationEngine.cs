@@ -229,7 +229,7 @@ public sealed class SimulationEngine
         {
             var checkpoint = new
             {
-                SchemaVersion = 2,
+                SchemaVersion = 3,
                 State.Tick,
                 State.Phase,
                 State.PendingPhase,
@@ -341,7 +341,16 @@ public sealed class SimulationEngine
                     item.CrowdingPressure,
                     CrowdingHistory = item.CrowdingHistory.ToArray(),
                     item.CrowdingConsecutiveDays,
-                    item.LowPopulationConsecutiveDays
+                    item.CrowdingInvasionArmed,
+                    item.CrowdingRearmConsecutiveDays,
+                    item.CrowdingRearmCount,
+                    item.FoundingResidentBaseline,
+                    SupportHistory = item.SupportHistory.ToArray(),
+                    item.SupportPopulationComponent,
+                    item.SupportReproductionComponent,
+                    item.SupportSocialComponent,
+                    item.Support,
+                    item.LowSupportDays
                 }).ToArray(),
                 Frictions = State.Frictions.Values.OrderBy(item => item.Pair.FirstId).ThenBy(item => item.Pair.SecondId)
                     .Select(item => new
@@ -384,6 +393,7 @@ public sealed class SimulationEngine
                 State.AuraSelfMarkSuppressionCount,
                 State.AttackCandidateSuppressionCount,
                 State.UnaffiliatedThreatExceptionAttackCount,
+                State.InvasionStartPreventedCount,
                 BirthRequests = State.BirthRequests
                     .OrderBy(item => item.RequestId, StringComparer.Ordinal)
                     .Select(item => new
@@ -624,18 +634,29 @@ public sealed class SimulationEngine
                            SettlementQueries.ExplicitAttackProtection(State, npc, item, Config) is not null)
             .Select(item => item.Id)
             .ToHashSet();
+        var movementTarget = _invasion.MovementTarget(State, npc);
+        var settlementRegions = SettlementQueries.ActiveSettlements(State)
+            .Select(item => new SettlementMovementRule(
+                item.Id,
+                item.Center,
+                Config.Settlement.CoreRadius,
+                Config.Settlement.InfluenceRadius))
+            .ToArray();
         return new WorldDecisionRules(
             Config.World.Width,
             Config.World.Height,
             landmarkPositions,
             activeCores,
             suppressedTargets,
-            _invasion.MovementTarget(State, npc),
+            movementTarget,
             npc.HasAdvanceBias ? Config.Invasion.AdvanceBiasWeight :
                 npc.HasDefenseBias ? Config.Invasion.DefenseBiasWeight : 0,
             _aura.FindCohesionTarget(State, npc),
             Config.Invasion.AuraCohesionWeight,
-            State.Phase == WorldPhase.Order);
+            State.Phase == WorldPhase.Order,
+            npc.SettlementId,
+            settlementRegions,
+            movementTarget.HasValue);
     }
 
     private DecisionContext CreateDecisionContext(
@@ -691,13 +712,16 @@ public sealed class SimulationEngine
         foreach (var npc in State.Npcs.Values.Where(item => item.IsAlive).OrderBy(item => item.Id).ToArray())
         {
             var dailyChange = _vitality.DailyVitalChange(npc.AgeDays);
-            var orderCore = State.Phase == WorldPhase.Order &&
-                            SettlementQueries.FindActiveCore(State, npc.Position, Config) is not null;
-            var multiplier = !orderCore
+            var activeCore = SettlementQueries.FindActiveCore(State, npc.Position, Config) is not null;
+            var multiplier = !activeCore
                 ? 1
-                : dailyChange > 0 ? Config.Settlement.PositiveVitalityMultiplier
-                : dailyChange < 0 ? Config.Settlement.NegativeVitalityMultiplier
-                : 1;
+                : State.Phase == WorldPhase.Generation && dailyChange > 0
+                    ? Config.Settlement.GenerationPositiveVitalityMultiplier
+                    : State.Phase == WorldPhase.Order && dailyChange > 0
+                        ? Config.Settlement.PositiveVitalityMultiplier
+                        : State.Phase == WorldPhase.Order && dailyChange < 0
+                            ? Config.Settlement.NegativeVitalityMultiplier
+                            : 1;
             if (_vitality.ApplyDailyChange(npc, multiplier))
             {
                 npc.SettlementAtDeathId = npc.SettlementId;

@@ -226,6 +226,7 @@ public sealed class WorldState
     public long AuraSelfMarkSuppressionCount { get; set; }
     public long AttackCandidateSuppressionCount { get; set; }
     public long UnaffiliatedThreatExceptionAttackCount { get; set; }
+    public long InvasionStartPreventedCount { get; set; }
 }
 
 public sealed class SettlementState
@@ -243,10 +244,26 @@ public sealed class SettlementState
     public double CrowdingPressure { get; set; }
     public List<double> CrowdingHistory { get; } = new();
     public int CrowdingConsecutiveDays { get; set; }
-    public int LowPopulationConsecutiveDays { get; set; }
+    public bool CrowdingInvasionArmed { get; set; } = true;
+    public int CrowdingRearmConsecutiveDays { get; set; }
+    public int CrowdingRearmCount { get; set; }
+    public int FoundingResidentBaseline { get; set; }
+    public List<SettlementSupportDailyRecord> SupportHistory { get; } = new();
+    public double SupportPopulationComponent { get; set; }
+    public double SupportReproductionComponent { get; set; }
+    public double SupportSocialComponent { get; set; }
+    public double Support { get; set; }
+    public int LowSupportDays { get; set; }
 
     public bool IsActive(int tick) => DissolvedTick is null && tick >= EffectiveTick;
 }
+
+public sealed record SettlementSupportDailyRecord(
+    int Tick,
+    int AffiliatedResidentsInInfluence,
+    int ReproductionSuccessesInInfluence,
+    int SocialActionsByMembersInInfluence,
+    int MemberDaysInInfluence);
 
 public readonly record struct SettlementPair(int FirstId, int SecondId)
 {
@@ -315,7 +332,11 @@ public sealed record DailyPopulationRecord(
     int ReproductionAttempts,
     int ReproductionSuccesses,
     double AverageAgeYears,
-    double AffiliationRate);
+    double AverageHp,
+    double AffiliationRate,
+    int VitalityDeaths,
+    double CollisionDamage,
+    double ExplicitAttackDamage);
 
 public sealed record GeneticSnapshot(BaseStats BaseStats, double RiskPreference);
 
@@ -386,6 +407,11 @@ public enum SimulationEventType
     InvasionParticipantJoined,
     InvasionParticipantWithdrew,
     InvasionEnded,
+    FatigueApplied,
+    MovementBiasApplied,
+    SettlementSupportEvaluated,
+    InvasionCrowdingRearmed,
+    InvasionStartPrevented,
     AuraApplied,
     AuraExpired,
     TemporaryMaxHpNormalized,

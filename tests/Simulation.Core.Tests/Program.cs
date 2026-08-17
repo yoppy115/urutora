@@ -21,7 +21,7 @@ internal static class Program
     private static readonly (string Name, Action Test)[] Tests =
     {
         ("configuration schema is strict", ConfigurationSchemaIsStrict),
-        ("v0.2.3 defaults preserve v0.15 ecology", V023DefaultsAndInitialAges),
+        ("v0.2.4 defaults preserve earlier ecology", V024DefaultsAndInitialAges),
         ("v0.2 logged seeds form Settlements with the v0.2.1 hotspot", LoggedV02SeedsFormSettlements),
         ("partitioned RNG is deterministic and local", PartitionedRandomIsDeterministicAndLocal),
         ("utility candidate count and edge rules", UtilityCandidateRules),
@@ -35,6 +35,7 @@ internal static class Program
         ("combat reactions cannot recurse", CombatReactionCannotRecurse),
         ("collision attack causes immediate death without movement", CollisionAttackAndImmediateDeath),
         ("failed active action still pays Need cost", FailedActiveActionPaysNeedCost),
+        ("Rest v2 uses logarithmic pressure and action-specific fatigue", RestV2AndActionSpecificFatigue),
         ("vitality curve is continuous and eventually lethal", VitalityCurve),
         ("ConceptMark preserves Base stats", ConceptMarkPreservesBaseStats),
         ("genetics allowlist excludes acquired state", GeneticsAllowlist),
@@ -51,10 +52,15 @@ internal static class Program
         ("Order collision policies suppress and convert combat", OrderCollisionPolicies),
         ("Order protects unaffiliated NPC until an active Threat exists", UnaffiliatedProtectionRules),
         ("Generation keeps Order Rest bonus disabled", GenerationKeepsOrderRestBonusDisabled),
+        ("Generation Proto-Order applies collision, vitality, and Affinity boundaries", GenerationProtoOrderBoundaries),
+        ("Settlement movement uses Home, Foreign, and local fatigue weights", SettlementMovementBiasAndFatigue),
+        ("Settlement Support uses local rolling activity and hysteresis", SettlementSupportAndHysteresis),
         ("outside-Core reproduction applies both utility penalties", OutsideCoreReproductionPenalty),
         ("Concept Aura is non-stacking and normalizes temporary MaxHP", ConceptAuraRules),
         ("Friction decay is symmetric and bounded", FrictionDecayRules),
+        ("Friction is clamped at the v0.2.4 maximum", FrictionMaximumClamp),
         ("Invasion Rest withdraws while Flee state remains", InvasionWithdrawalRules),
+        ("Invasion re-arm and conquest guardrails are enforced", InvasionStabilizationGuardrails),
         ("Core occupation denominator excludes unusable cells", CoreOccupationDenominator),
         ("whole run and render frequency are deterministic", WholeRunAndRenderDeterminism),
         ("serial and parallel read phases are deterministic", SerialAndParallelReadPhasesAreDeterministic),
@@ -92,7 +98,7 @@ internal static class Program
         var invalidPath = Path.Combine(Path.GetTempPath(), $"world-sim-invalid-{Guid.NewGuid():N}.json");
         try
         {
-            File.WriteAllText(invalidPath, original.Replace("\"schemaVersion\": 2", "\"schemaVersion\": 2, \"unknown\": true", StringComparison.Ordinal));
+            File.WriteAllText(invalidPath, original.Replace("\"schemaVersion\": 3", "\"schemaVersion\": 3, \"unknown\": true", StringComparison.Ordinal));
             Throws<ConfigurationException>(() => SimulationConfigLoader.Load(invalidPath));
         }
         finally
@@ -104,10 +110,10 @@ internal static class Program
         }
     }
 
-    private static void V023DefaultsAndInitialAges()
+    private static void V024DefaultsAndInitialAges()
     {
         var config = LoadConfig();
-        Equal("v0.2.3-default-2", config.Id);
+        Equal("v0.2.4-default-1", config.Id);
         Equal(5, config.Settlement.HotspotWindowSize);
         Equal(3, config.Settlement.HotspotSuccessThreshold);
         Equal(0.125, config.Concept.ExposureByDistance[4], 0);
@@ -123,6 +129,11 @@ internal static class Program
         Equal(2, config.Settlement.CoreRadius);
         Equal(8, config.Performance.MaximumDegreeOfParallelism);
         Equal(128, config.Performance.MinimumPopulationForParallelism);
+        Equal(0.02, config.Needs.DailyRestIncrease, 0);
+        Equal(0.60, config.Action.Fatigue.Attack, 0);
+        Equal(1.25, config.Settlement.GenerationPositiveVitalityMultiplier, 0);
+        Equal(90, config.Settlement.SupportWindowDays);
+        Equal(50, config.Invasion.AttackOccupationThreshold * 100, 0);
 
         var world = Simulation.Core.World.WorldFactory.Create(config, new RandomStreamFactory(915));
         True(world.Npcs.Values.All(item => item.AgeDays is >= 180 and <= 700),
@@ -404,7 +415,7 @@ internal static class Program
         config.Utility.Temperature = 0.0001;
         foreach (var effect in new[]
                  {
-                     config.Utility.Move, config.Utility.Rest, config.Utility.Communication,
+                     config.Utility.Move, config.Utility.Communication,
                      config.Utility.Reproduction, config.Utility.Attack, config.Utility.Flee
                  })
         {
@@ -415,7 +426,6 @@ internal static class Program
             effect.Reproduction = 0;
         }
 
-        config.Utility.Rest.Rest = 1;
         var world = EmptyWorld(config);
         var first = Npc(1, new Position(1, 1), 9, 0, 0, 100);
         var second = Npc(2, new Position(1, 2), 8, 0, 0, 100);
@@ -527,6 +537,43 @@ internal static class Program
             "Expected stale Communication to fail.");
         Equal(3.1, actor.Needs.Activity, 1e-9);
         Equal(7, actor.Needs.Communication, 1e-9);
+    }
+
+    private static void RestV2AndActionSpecificFatigue()
+    {
+        var config = LoadConfig();
+        var needs = new NeedsSystem(config);
+        Equal(0, needs.RestPressure(2), 0);
+        Equal(10, needs.RestPressure(10), 1e-12);
+        Equal(9, needs.RestUtility(new NeedsSnapshot(0, 10, 4, 0, 0)), 1e-12);
+
+        var expected = new Dictionary<ActionKind, double>
+        {
+            [ActionKind.Communication] = 0.15,
+            [ActionKind.Move] = 0.25,
+            [ActionKind.Reproduction] = 0.35,
+            [ActionKind.Attack] = 0.60,
+            [ActionKind.Flee] = 0.70
+        };
+        foreach (var (kind, fatigue) in expected)
+        {
+            var npc = Npc(1, new Position(0, 0), 5, 5, 5, 100);
+            npc.Needs.Activity = 5;
+            var applied = needs.ApplyActiveActionCost(npc, kind)!;
+            Equal(fatigue, applied.RequestedDelta, 1e-12);
+            Equal(fatigue, npc.Needs.Rest, 1e-12);
+            Equal(3, npc.Needs.Activity, 1e-12);
+        }
+
+        var collision = Npc(2, new Position(0, 0), 5, 5, 5, 100);
+        needs.ApplyActiveActionCost(collision, ActionKind.Move, 1, FatigueCause.CollisionAttack);
+        Equal(0.60, collision.Needs.Rest, 1e-12);
+        var reaction = Npc(3, new Position(0, 0), 5, 5, 5, 100);
+        reaction.Needs.Activity = 5;
+        needs.ApplyReactionFatigue(reaction, FatigueCause.Counterattack);
+        needs.ApplyReactionFatigue(reaction, FatigueCause.Pursuit);
+        Equal(0.70, reaction.Needs.Rest, 1e-12);
+        Equal(5, reaction.Needs.Activity, 1e-12);
     }
 
     private static void VitalityCurve()
@@ -807,6 +854,11 @@ internal static class Program
         Equal((long)engine.LastDecisionTraces.Count(item => item.DecisionReason == "initial"),
             statistics.ActionSelections.Sum(item => item.Count));
         True(statistics.AverageAgeYears > 0, "Average age was not calculated.");
+        True(statistics.RestDiagnostics.FatigueContributions.Count > 0,
+            "Action-specific fatigue was not projected.");
+        var generation = statistics.PhaseEcology.Single(item => item.Phase == WorldPhase.Generation);
+        Equal(1, generation.Days);
+        True(generation.AverageHp > 0, "Phase ecology HP was not projected.");
 
         var distribution = engine.GetCurrentAgeDistribution(183);
         Equal(statistics.Population, distribution.Population);
@@ -1028,6 +1080,186 @@ internal static class Program
         Equal(1d, orderNpc.Needs.Rest, 1e-12);
     }
 
+    private static void GenerationProtoOrderBoundaries()
+    {
+        var config = LoadConfig();
+        var world = SocialWorld(config);
+        world.Phase = WorldPhase.Generation;
+        var mover = Npc(1, new Position(1, 1), 5, 5, 5, 100);
+        var occupant = Npc(2, new Position(2, 1), 5, 5, 5, 100);
+        mover.SettlementId = 1;
+        occupant.SettlementId = 1;
+        world.Npcs.Add(mover.Id, mover);
+        world.Npcs.Add(occupant.Id, occupant);
+        var collision = ResolveRound(config, world, new[] { MoveIntent(mover.Id, occupant.Position) });
+        True(collision.Any(item => item.Type == SimulationEventType.CollisionSuppressed),
+            "Generation Proto-Order did not suppress same-Settlement collision.");
+
+        var affinityWorld = SocialWorld(config);
+        affinityWorld.Phase = WorldPhase.Generation;
+        var resident = Npc(1, new Position(2, 2), 5, 5, 5, 100);
+        resident.SettlementId = 1;
+        affinityWorld.Npcs.Add(resident.Id, resident);
+        var random = new RandomStreamFactory(840);
+        var maintenance = new SettlementMaintenanceCoordinator(config, random, new InvasionSystem(config, random));
+        maintenance.RunEndOfDay(affinityWorld, Array.Empty<SimulationEvent>(), Capture(new List<EventDraft>()));
+        Equal(config.Settlement.StayAffinityDaily * config.Settlement.GenerationAffinityMultiplier,
+            resident.SettlementAffinity[1], 1e-12);
+
+        var vitalityWorld = SocialWorld(config);
+        vitalityWorld.Phase = WorldPhase.Generation;
+        vitalityWorld.Npcs.Clear();
+        var recovering = Npc(1, new Position(2, 2), 0, 0, 0, 50);
+        recovering.AgeDays = 0;
+        recovering.Needs.Rest = 10;
+        vitalityWorld.Npcs.Add(recovering.Id, recovering);
+        config.Action.MaximumActionsPerDay = 1;
+        config.Utility.Temperature = 0.0001;
+        var before = recovering.CurrentHp;
+        SimulationEngine.CreateForTesting(config, 841, vitalityWorld).AdvanceOneDay();
+        Equal(before + new VitalitySystem(config).DailyVitalChange(0) *
+            config.Settlement.GenerationPositiveVitalityMultiplier, recovering.CurrentHp, 1e-9);
+    }
+
+    private static void SettlementMovementBiasAndFatigue()
+    {
+        var config = LoadConfig();
+        var random = new RandomStreamFactory(850);
+        var perception = new PerceptionSystem(config, random);
+        var decision = new UtilityDecisionSystem(config, random);
+        var npc = Npc(1, new Position(12, 2), 5, 5, 5, 100);
+        npc.SettlementId = 1;
+        npc.Needs.Rest = 6;
+        var rules = new WorldDecisionRules(
+            20,
+            20,
+            new HashSet<Position>(),
+            HomeSettlementId: 1,
+            SettlementRegions: new[]
+            {
+                new SettlementMovementRule(1, new Position(2, 2), 2, 7),
+                new SettlementMovementRule(2, new Position(14, 2), 2, 7)
+            });
+        var toward = 0;
+        var away = 0;
+        for (var round = 1; round <= 64; round++)
+        {
+            var move = decision.BuildCandidates(
+                    DecisionContextFor(npc, config, perception.CreateView(npc, 0), rules),
+                    0,
+                    round)
+                .Single(item => item.Kind == ActionKind.Move);
+            var delta = npc.Position.ChebyshevDistance(new Position(2, 2)) -
+                        move.Destination!.Value.ChebyshevDistance(new Position(2, 2));
+            toward += delta > 0 ? 1 : 0;
+            away += delta < 0 ? 1 : 0;
+            True(move.Breakdown["strongHomeBias"] == 1, "Strong Home Bias was not recorded.");
+        }
+        True(toward > away * 4, $"Strong Home Bias was too weak: toward={toward}, away={away}.");
+
+        npc.Needs.Rest = 0;
+        npc.CurrentHp = 50;
+        var hpStrong = decision.BuildCandidates(
+                DecisionContextFor(npc, config, perception.CreateView(npc, 0), rules),
+                0,
+                65)
+            .Single(item => item.Kind == ActionKind.Move);
+        Equal(1, hpStrong.Breakdown["strongHomeBias"], 0);
+        Equal(1, hpStrong.Breakdown["strongHomeHp"], 0);
+
+        ActionCandidate ForcedMove(
+            Position current,
+            Position destination,
+            IReadOnlyList<SettlementMovementRule> regions)
+        {
+            npc.Position = current;
+            npc.CurrentHp = 100;
+            npc.Needs.Rest = 0;
+            var blocked = current.Neighbors().Where(item => item != destination).ToHashSet();
+            var forcedRules = new WorldDecisionRules(
+                20,
+                20,
+                blocked,
+                HomeSettlementId: 1,
+                SettlementRegions: regions);
+            return decision.BuildCandidates(
+                    DecisionContextFor(npc, config, perception.CreateView(npc, 0), forcedRules),
+                    0,
+                    66)
+                .Single(item => item.Kind == ActionKind.Move);
+        }
+
+        var homeOnly = new[] { new SettlementMovementRule(1, new Position(2, 2), 2, 7) };
+        Equal(1.5, ForcedMove(new Position(12, 2), new Position(11, 2), homeOnly)
+            .Breakdown["homeBiasWeight"], 0);
+        var withForeign = new[]
+        {
+            new SettlementMovementRule(1, new Position(0, 0), 2, 7),
+            new SettlementMovementRule(2, new Position(10, 10), 2, 7)
+        };
+        Equal(0.25, ForcedMove(new Position(2, 10), new Position(3, 10), withForeign)
+            .Breakdown["foreignBiasWeight"], 0);
+        Equal(0.05, ForcedMove(new Position(7, 10), new Position(8, 10), withForeign)
+            .Breakdown["foreignBiasWeight"], 0);
+        Equal(3, ForcedMove(new Position(3, 10), new Position(2, 10), withForeign)
+            .Breakdown["foreignBiasWeight"], 0);
+
+        var world = SocialWorld(config);
+        var local = Npc(1, new Position(2, 2), 5, 5, 5, 100);
+        local.SettlementId = 1;
+        world.Npcs.Add(local.Id, local);
+        var fatigueEvents = ResolveRound(config, world, new[] { MoveIntent(local.Id, new Position(3, 2)) });
+        Equal(0.125, local.Needs.Rest, 1e-12);
+        True(fatigueEvents.Any(item => item.Type == SimulationEventType.FatigueApplied &&
+                                       item.Detail.Contains("requested=0.125", StringComparison.Ordinal)),
+            "Core Move fatigue reduction was not logged.");
+    }
+
+    private static void SettlementSupportAndHysteresis()
+    {
+        var config = LoadConfig();
+        config.Settlement.SupportWindowDays = 3;
+        config.Settlement.SupportLowDaysForDissolution = 2;
+        var world = SocialWorld(config);
+        world.Settlements[1].FoundingResidentBaseline = 8;
+        var random = new RandomStreamFactory(860);
+        var maintenance = new SettlementMaintenanceCoordinator(config, random, new InvasionSystem(config, random));
+        var events = new List<EventDraft>();
+
+        maintenance.RunEndOfDay(world, Array.Empty<SimulationEvent>(), Capture(events));
+        Equal(1, world.Settlements[1].LowSupportDays);
+
+        world.Tick++;
+        var reproductionEvents = Enumerable.Range(0, 3).Select(index => new SimulationEvent(
+            $"r-{index}", world.Tick, 1, SimulationEventType.ReproductionSuccess,
+            null, null, new Position(2, 2), true, "test")).ToArray();
+        maintenance.RunEndOfDay(world, reproductionEvents, Capture(events));
+        True(world.Settlements[1].Support is >= 25 and < 35,
+            $"Expected hysteresis band, got {world.Settlements[1].Support:R}.");
+        Equal(1, world.Settlements[1].LowSupportDays);
+
+        world.Tick++;
+        for (var id = 1L; id <= 8; id++)
+        {
+            var resident = Npc(id, new Position(2 + (int)(id % 2), 2 + (int)(id / 3)), 5, 5, 5, 100);
+            resident.SettlementId = 1;
+            world.Npcs[id] = resident;
+        }
+        maintenance.RunEndOfDay(world, Array.Empty<SimulationEvent>(), Capture(events));
+        True(world.Settlements[1].Support >= 35, "Local resident support did not reach recovery threshold.");
+        Equal(0, world.Settlements[1].LowSupportDays);
+
+        var dissolution = SocialWorld(config);
+        dissolution.Settlements[1].FoundingResidentBaseline = 8;
+        config.Settlement.SupportWindowDays = 1;
+        var secondMaintenance = new SettlementMaintenanceCoordinator(
+            config, random, new InvasionSystem(config, random));
+        secondMaintenance.RunEndOfDay(dissolution, Array.Empty<SimulationEvent>(), Capture(new List<EventDraft>()));
+        dissolution.Tick++;
+        secondMaintenance.RunEndOfDay(dissolution, Array.Empty<SimulationEvent>(), Capture(new List<EventDraft>()));
+        Equal("low-support", dissolution.Settlements[1].DissolutionReason);
+    }
+
     private static void ConceptAuraRules()
     {
         var config = LoadConfig();
@@ -1091,6 +1323,25 @@ internal static class Program
         Equal(0d, world.Frictions[pair].CurrentFriction, 0);
     }
 
+    private static void FrictionMaximumClamp()
+    {
+        var config = LoadConfig();
+        var world = EmptyWorld(config);
+        var events = new List<EventDraft>();
+        SettlementQueries.AddFriction(
+            world,
+            1,
+            2,
+            150,
+            config.Settlement.FrictionMaximum,
+            "test",
+            Capture(events),
+            1);
+        Equal(100, world.Frictions[SettlementPair.Create(1, 2)].CurrentFriction, 0);
+        True(events.Single().Detail.Contains("delta=100", StringComparison.Ordinal),
+            "Friction event did not report the clamped delta.");
+    }
+
     private static void InvasionWithdrawalRules()
     {
         var config = LoadConfig();
@@ -1130,6 +1381,91 @@ internal static class Program
         True(!participant.InvasionId.HasValue && !participant.HasAdvanceBias,
             "Rest did not withdraw the invasion participant.");
         True(participant.WithdrawnInvasionIds.Contains(1), "Rest withdrawal did not prevent same-event rejoin.");
+    }
+
+    private static void InvasionStabilizationGuardrails()
+    {
+        var config = LoadConfig();
+        var world = SocialWorld(config);
+        var attacker = Npc(1, world.Settlements[2].Center, 5, 5, 5, 100);
+        attacker.SettlementId = 1;
+        attacker.InvasionId = 1;
+        attacker.InvasionRole = InvasionRole.Attacker;
+        attacker.HasAdvanceBias = true;
+        world.Npcs.Add(attacker.Id, attacker);
+        var aliveDefender = Npc(2, new Position(9, 8), 5, 5, 5, 100);
+        aliveDefender.SettlementId = 2;
+        world.Npcs.Add(aliveDefender.Id, aliveDefender);
+        var deadDefender = Npc(3, new Position(10, 8), 5, 5, 5, 0);
+        deadDefender.IsAlive = false;
+        deadDefender.SettlementId = 2;
+        deadDefender.SettlementAtDeathId = 2;
+        world.Npcs.Add(deadDefender.Id, deadDefender);
+        var invasion = new InvasionState
+        {
+            Id = 1,
+            AttackSettlementId = 1,
+            DefenseSettlementId = 2,
+            CreatedTick = 0,
+            EffectiveTick = 0,
+            TriggerCrowdingPressure = 0.9,
+            TargetReason = "test",
+            AttackParticipantIds = new[] { attacker.Id },
+            CoreCohortIds = new[] { attacker.Id },
+            FrontierCohortIds = Array.Empty<long>()
+        };
+        world.Invasions.Add(invasion.Id, invasion);
+        var system = new InvasionSystem(config, new RandomStreamFactory(870));
+        var events = new List<EventDraft>();
+        system.ResolveVictories(world, Capture(events), 1);
+        True(!invasion.EndTick.HasValue && invasion.CenterOccupied,
+            "A single Center occupant incorrectly won the invasion.");
+
+        var usable = SettlementQueries.UsableCoreCells(world, world.Settlements[2], config);
+        var occupied = new HashSet<Position> { attacker.Position };
+        var nextId = 10L;
+        foreach (var cell in usable.Where(cell => occupied.Add(cell)).Take(12))
+        {
+            var npc = Npc(nextId++, cell, 5, 5, 5, 100);
+            npc.SettlementId = 1;
+            world.Npcs.Add(npc.Id, npc);
+        }
+        system.ResolveVictories(world, Capture(events), 2);
+        Equal(InvasionOutcome.AttackVictory, invasion.Outcome);
+        Equal(1, aliveDefender.SettlementId!.Value);
+        Equal(2, deadDefender.SettlementId!.Value);
+        True(!events.Any(item => item.Type == SimulationEventType.AffiliationChanged &&
+                                 item.ActorId == deadDefender.Id),
+            "Dead affiliation history was rewritten during conquest.");
+
+        var startWorld = SocialWorld(config);
+        startWorld.Settlements[1].CrowdingPressure = 0.9;
+        startWorld.Settlements[1].CrowdingConsecutiveDays = config.Settlement.CrowdingConsecutiveDays;
+        for (var id = 1L; id <= 3; id++)
+        {
+            var participant = Npc(id, new Position(2 + (int)id, 2), 5, 5, 5, 100);
+            participant.SettlementId = 1;
+            startWorld.Npcs.Add(id, participant);
+        }
+        system.StartEligibleInvasions(startWorld, new HashSet<long>(), Capture(events));
+        True(startWorld.Invasions.Count == 1 && !startWorld.Settlements[1].CrowdingInvasionArmed,
+            "Invasion creation did not disarm the crowding episode.");
+
+        var rearmWorld = SocialWorld(config);
+        var source = rearmWorld.Settlements[1];
+        source.CrowdingInvasionArmed = false;
+        config.Invasion.CrowdingRearmConsecutiveDays = 2;
+        config.Invasion.CrowdingRearmPressureThreshold = 0.70;
+        config.Settlement.CrowdingWindowDays = 1;
+        var random = new RandomStreamFactory(871);
+        var maintenance = new SettlementMaintenanceCoordinator(config, random, new InvasionSystem(config, random));
+        for (var tick = 0; tick < 2; tick++)
+        {
+            rearmWorld.Tick = tick;
+            maintenance.RunEndOfDay(rearmWorld, Array.Empty<SimulationEvent>(), Capture(events));
+        }
+        True(source.CrowdingInvasionArmed, "Crowding did not re-arm after 30-day-rule test equivalent.");
+        Equal(1, source.CrowdingRearmCount);
     }
 
     private static void CoreOccupationDenominator()

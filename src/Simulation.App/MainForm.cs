@@ -919,11 +919,27 @@ public sealed class MainForm : Form
             $"連続 {statistics.WorldPhase.StabilityConsecutiveDays}日");
         AddSocialRow("World", "所属 / 無所属",
             $"{statistics.AffiliatedPopulation:N0} / {statistics.UnaffiliatedPopulation:N0}");
+        AddSocialRow("Rest v2", "休息率 / 平均Need / 選択時Need / Pressure",
+            $"{statistics.RestDiagnostics.RestActionRate:P1} / " +
+            $"{statistics.RestDiagnostics.AverageRestNeed:0.00} / " +
+            $"{statistics.RestDiagnostics.AverageSelectedRestNeed:0.00} / " +
+            $"{statistics.RestDiagnostics.AverageSelectedRestPressure:0.00}");
+        AddSocialRow("Rest v2", "Invasion休息 / 離脱",
+            $"{statistics.RestDiagnostics.InvasionRestActions:N0} (攻 {statistics.RestDiagnostics.AttackerRestActions:N0} / 守 {statistics.RestDiagnostics.DefenderRestActions:N0}) / " +
+            $"{statistics.RestDiagnostics.InvasionWithdrawals:N0}");
         foreach (var window in statistics.OrderTransitionWindows)
         {
             AddSocialRow("Order比較", window.Window,
                 $"{window.Days}日 / 人口平均{window.AveragePopulation:0.0} / 出生{window.Births} 死亡{window.Deaths} " +
                 $"戦闘死{window.CombatDeaths} 衝突攻撃{window.CollisionAttacks} / 所属率{window.AverageAffiliationRate:P1}");
+        }
+        foreach (var phase in statistics.PhaseEcology)
+        {
+            AddSocialRow("Phase生態", phase.Phase.ToString(),
+                $"{phase.Days:N0}日 / 人口{phase.AveragePopulation:0.0} 年齢{phase.AverageAgeYears:0.00} HP{phase.AverageHp:0.0} / " +
+                $"出生{phase.Births:N0} 繁殖{phase.ReproductionSuccesses:N0}/{phase.ReproductionAttempts:N0} / " +
+                $"戦闘死{phase.CombatDeaths:N0} 生命力死{phase.VitalityDeaths:N0} / " +
+                $"Damage Collision {phase.CollisionDamage:0.0} Explicit {phase.ExplicitAttackDamage:0.0}");
         }
         foreach (var group in statistics.AffiliationGroups)
         {
@@ -938,7 +954,9 @@ public sealed class MainForm : Form
             var status = settlement.IsActive ? "Active" : "Pending";
             AddSocialRow("Settlement", $"#{settlement.Id}",
                 $"{status} Center {settlement.Center} / 人口 {settlement.Population} ({settlement.WorldPopulationRatio:P1}) / " +
-                $"Core {settlement.CoreOccupancy:P0} / Crowding {settlement.CrowdingPressure:0.00}");
+                $"Core/Influence/外 {settlement.CorePopulation}/{settlement.InfluenceOnlyPopulation}/{settlement.OutsidePopulation} / " +
+                $"Support {settlement.Support:0.0} / Crowding {settlement.CrowdingPressure:0.00} " +
+                $"{(settlement.CrowdingInvasionArmed ? "armed" : "disarmed")}");
         }
         foreach (var invasion in statistics.Invasions.OrderBy(item => item.Id))
         {
@@ -988,6 +1006,12 @@ public sealed class MainForm : Form
         }
         AddDiagnosticRow("Hotspot", "候補 / 競合 / 棄却",
             $"{statistics.HotspotCandidates:N0} / {statistics.HotspotConflicts:N0} / {statistics.HotspotRejections:N0}");
+        foreach (var fatigue in statistics.RestDiagnostics.FatigueContributions)
+        {
+            AddDiagnosticRow("疲労", fatigue.Cause,
+                $"{fatigue.Applications:N0}回 / 要求{fatigue.RequestedTotal:0.00} / 実加算{fatigue.AppliedTotal:0.00}");
+        }
+        AddDiagnosticRow("Invasion", "re-arm防止", $"{statistics.InvasionStartPrevented:N0}件");
         AddDiagnosticRow("暴力", "衝突攻撃 / 抑制",
             $"{statistics.Violence.CollisionAttacks:N0} / " +
             $"{statistics.Violence.SameSettlementSuppressions + statistics.Violence.UnaffiliatedProtectionCollisions + statistics.Violence.OtherSettlementCollisions:N0}");
@@ -1028,9 +1052,16 @@ public sealed class MainForm : Form
         AddSettlementRow("形成日", $"D{settlement.FormedTick + 1}");
         AddSettlementRow("Founder数", settlement.FounderCount.ToString("N0"));
         AddSettlementRow("人口", $"{settlement.Population:N0} ({settlement.WorldPopulationRatio:P1})");
+        AddSettlementRow("人口配置", $"Core {settlement.CorePopulation:N0} / Influence {settlement.InfluenceOnlyPopulation:N0} / 外部 {settlement.OutsidePopulation:N0}");
+        AddSettlementRow("Support", $"{settlement.Support:0.00} (P {settlement.SupportPopulationComponent:0.000} / R {settlement.SupportReproductionComponent:0.000} / S {settlement.SupportSocialComponent:0.000})");
+        AddSettlementRow("Support 90日内訳", $"{settlement.SupportWindowDays:N0}日 / 居住平均 {settlement.AverageAffiliatedResidentsInInfluence:0.00} ÷ baseline {settlement.FoundingResidentBaseline:N0} / 繁殖 {settlement.ReproductionSuccessesInSupportWindow:N0} / 社会 {settlement.SocialActionsInSupportWindow:N0} ÷ target {settlement.TargetSocialActions:0.00} (member-days {settlement.MemberDaysInSupportWindow:N0})");
+        AddSettlementRow("LowSupport", $"{settlement.LowSupportDays:N0}日");
+        AddSettlementRow("Home Bias", $"発動 {settlement.HomeBiasApplications:N0} / Strong {settlement.StrongHomeBiasApplications:N0} (Rest {settlement.StrongHomeRestApplications:N0} / HP {settlement.StrongHomeHpApplications:N0}) / 帰還方向 {settlement.HomewardMoves:N0} / Core帰還 {settlement.CoreReturns:N0}");
+        AddSettlementRow("Foreign移動", $"接近 {settlement.ForeignApproaches:N0} / 離脱 {settlement.ForeignDepartures:N0}");
         AddSettlementRow("Core占有率", settlement.CoreOccupancy.ToString("P1"));
         AddSettlementRow("Crowding", settlement.CrowdingPressure.ToString("0.000"));
         AddSettlementRow("Crowding連続", $"{settlement.CrowdingConsecutiveDays:N0}日");
+        AddSettlementRow("Invasion re-arm", $"{(settlement.CrowdingInvasionArmed ? "armed" : "disarmed")} / 低圧 {settlement.CrowdingRearmConsecutiveDays:N0}日 / 再arm {settlement.CrowdingRearmCount:N0}回");
         if (settlement.DissolvedTick.HasValue)
         {
             AddSettlementRow("消滅日", $"D{settlement.DissolvedTick.Value + 1}");

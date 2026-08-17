@@ -77,6 +77,15 @@ public sealed class InvasionSystem
                 continue;
             }
 
+            if (!source.CrowdingInvasionArmed)
+            {
+                world.InvasionStartPreventedCount++;
+                emit(0, SimulationEventType.InvasionStartPrevented, null, null, source.Center, true,
+                    $"settlement={source.Id};reason=crowding-not-rearmed;pressure={source.CrowdingPressure:R};" +
+                    $"rearmDays={source.CrowdingRearmConsecutiveDays}");
+                continue;
+            }
+
             var target = SelectTarget(world, source);
             if (target is null || IsSettlementEngaged(world, target.Value.Settlement.Id))
             {
@@ -146,6 +155,8 @@ public sealed class InvasionSystem
                 FrontierCohortIds = frontier.Select(item => item.Id).OrderBy(item => item).ToArray()
             };
             world.Invasions.Add(invasion.Id, invasion);
+            source.CrowdingInvasionArmed = false;
+            source.CrowdingRearmConsecutiveDays = 0;
             emit(0, SimulationEventType.SettlementMaintenance, null, null, source.Center, true,
                 $"phase=11;invasion={invasion.Id};status=pending;effectiveTick={invasion.EffectiveTick}");
         }
@@ -244,10 +255,10 @@ public sealed class InvasionSystem
                 item.SettlementId == invasion.AttackSettlementId && item.Position == defense.Center);
             invasion.MaximumCoreOccupationRate = Math.Max(invasion.MaximumCoreOccupationRate, rate);
             invasion.CenterOccupied |= centerOccupied;
-            if (centerOccupied || rate >= _config.Invasion.AttackOccupationThreshold)
+            if (rate >= _config.Invasion.AttackOccupationThreshold)
             {
                 End(world, invasion, InvasionOutcome.AttackVictory, emit, microRound,
-                    centerOccupied ? "center-occupied" : "core-occupation");
+                    "core-occupation");
             }
         }
     }
@@ -320,7 +331,9 @@ public sealed class InvasionSystem
             defeated.DissolvedTick = world.Tick;
             defeated.DissolutionReason = "integrated";
             defeated.IntegratedIntoSettlementId = invasion.AttackSettlementId;
-            foreach (var npc in world.Npcs.Values.Where(item => item.SettlementId == defeated.Id).OrderBy(item => item.Id))
+            foreach (var npc in world.Npcs.Values
+                         .Where(item => item.IsAlive && item.SettlementId == defeated.Id)
+                         .OrderBy(item => item.Id))
             {
                 var previous = npc.SettlementId;
                 npc.SettlementId = invasion.AttackSettlementId;

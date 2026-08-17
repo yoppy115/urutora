@@ -2,6 +2,8 @@
 
 **Status:** Baseline / v0.2 configurable Landmark and Aura / Draft future concepts
 
+v0.2.4ではLandmark、ConceptMark、Exposure、Auraを再調整しない。Settlement定住性が変わったRunを観測した後に取得率を再評価する。
+
 ## Baseline: role
 
 概念は世界が獲得した答え・適応であり、困難はその答えによって生まれた脆弱性、またはその答えでは解決しにくい次の問いである。

@@ -63,6 +63,8 @@ v0.2.3ではActive Settlement Centerをクリックすると専用詳細Tabを�
 
 同時に表示するActive Settlement色は60色を用意し、Active中は同じSettlementへ固定する。消滅したSettlementの色は解放し、次に成立するSettlementの色抽選候補へ戻す。この色割当はPresentation専用であり、Simulation乱数や結果を変更しない。
 
+v0.2.4ではCurrent Support、P/R/S、LowSupportDays、所属者のCore / Influence / 外部分布、Home Bias、Rest、Foreign movement、Invasion診断をSettlement詳細とStatisticsへ追加可能にする。
+
 配置、UI framework、旗形状を含む具体デザインは実装時の裁量とする。
 
 Simulation TickとUI Render Updateを分離する。高速進行では複数Tick後の最新Stateだけを描画してよく、render頻度、frame rate、UI操作がSimulation Event列を変えてはならない。自動テストはGUIなしで実行可能にする。

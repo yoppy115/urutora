@@ -1,6 +1,6 @@
 {
-  "schemaVersion": 2,
-  "id": "v0.2.3-default-2",
+  "schemaVersion": 3,
+  "id": "v0.2.4-default-1",
   "world": {
     "width": 64,
     "height": 64,
@@ -31,13 +31,27 @@
     "repeatDenominator": 5.0,
     "secondStepFactor": 0.02,
     "activeActivityChange": -2.0,
-    "activeRestChange": 0.5,
     "restRestChange": -4.0,
-    "restActivityChange": 1.0
+    "restActivityChange": 1.0,
+    "fatigue": {
+      "communication": 0.15,
+      "move": 0.25,
+      "reproductionAttempt": 0.35,
+      "attack": 0.60,
+      "collisionAttack": 0.60,
+      "flee": 0.70,
+      "counterattack": 0.30,
+      "pursuit": 0.40
+    },
+    "restPressure": {
+      "threshold": 2.0,
+      "scale": 10.0,
+      "activityPenalty": 0.25
+    }
   },
   "needs": {
     "dailyActivityIncrease": 0.10,
-    "dailyRestIncrease": 0.04,
+    "dailyRestIncrease": 0.02,
     "dailyCommunicationIncrease": 0.05,
     "dailyReproductionIncrease": 0.04,
     "initiatedCommunicationChange": -3.0,
@@ -58,7 +72,6 @@
     "topCandidates": 3,
     "temperature": 1.0,
     "move": { "survival": 0.0, "rest": -0.125, "activity": 0.5, "communication": 0.0, "reproduction": 0.0 },
-    "rest": { "survival": 0.0, "rest": 1.0, "activity": -0.25, "communication": 0.0, "reproduction": 0.0 },
     "communication": { "survival": 0.0, "rest": -0.125, "activity": 0.5, "communication": 0.75, "reproduction": 0.0 },
     "reproduction": { "survival": -0.4, "rest": -0.2, "activity": 0.5, "communication": 0.0, "reproduction": 1.0 },
     "attack": { "survival": 1.0, "rest": -0.125, "activity": 0.5, "communication": 0.0, "reproduction": 0.0 },
@@ -143,13 +156,35 @@
     "frictionExplicitThreatIncrease": 3.0,
     "frictionDecayIntervalDays": 30,
     "frictionDecayAmount": 1.0,
+    "frictionMaximum": 100.0,
     "crowdingOccupancyWeight": 0.5,
     "crowdingBlockedMovementWeight": 0.5,
     "crowdingThreshold": 0.70,
     "crowdingWindowDays": 30,
     "crowdingConsecutiveDays": 30,
-    "naturalDissolutionPopulationRatio": 0.10,
-    "naturalDissolutionConsecutiveDays": 365
+    "moveFatigueInfluenceMultiplier": 0.75,
+    "moveFatigueCoreMultiplier": 0.50,
+    "homeBiasTowardWeight": 1.50,
+    "homeBiasAwayWeight": 0.75,
+    "strongHomeBiasTowardWeight": 5.0,
+    "strongHomeBiasAwayWeight": 0.20,
+    "strongHomeBiasRestThreshold": 6.0,
+    "strongHomeBiasHpRatioThreshold": 0.60,
+    "foreignInfluenceEntryWeight": 0.25,
+    "foreignCoreEntryWeight": 0.05,
+    "foreignExitWeight": 3.0,
+    "foreignDeeperWeight": 0.25,
+    "generationPositiveVitalityMultiplier": 1.25,
+    "generationAffinityMultiplier": 2.0,
+    "supportWindowDays": 90,
+    "supportFoundingResidentFloor": 8,
+    "supportPopulationWeight": 50.0,
+    "supportReproductionWeight": 30.0,
+    "supportSocialWeight": 20.0,
+    "supportSocialActionsPerMemberDay": 0.25,
+    "supportLowThreshold": 25.0,
+    "supportRecoveryThreshold": 35.0,
+    "supportLowDaysForDissolution": 365
   },
   "invasion": {
     "mobilizationBase": 0.20,
@@ -160,7 +195,9 @@
     "attackOccupationThreshold": 0.50,
     "advanceBiasWeight": 4.0,
     "defenseBiasWeight": 2.0,
-    "auraCohesionWeight": 0.75
+    "auraCohesionWeight": 0.75,
+    "crowdingRearmPressureThreshold": 0.70,
+    "crowdingRearmConsecutiveDays": 30
   },
   "aura": {
     "radius": 2,

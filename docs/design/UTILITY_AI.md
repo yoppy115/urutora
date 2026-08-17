@@ -22,8 +22,8 @@ Survival、Rest、Activity、Communication、Reproductionを0〜10へClampする
 ```text
 Survival = Clamp(10 * (1 - CurrentHP / EffectiveMaxHP), 0, 10)
 
-daily: Activity +0.10, Rest +0.04
-active Action: Activity -2.0, Rest +0.5
+daily: Activity +0.10, Rest +0.02 (v0.2.4)
+active Action: Activity -2.0; Rest fatigueはAction別
 Rest Action: Rest -4.0, Activity +1.0
 
 daily: Communication +0.05
@@ -36,13 +36,13 @@ successful Reproduction: both participants -6.0
 
 受動的な会話参加者のCommunication Needは減らさない。ActivityとRestは完全な対称系にしない。将来は性格や必要人数等でNeed Weightや増加量を変えられる構造にする。
 
-Move、Communication、Attack、Collision Attack、Flee、Reproduction Attemptは通常の能動Actionである。1 Micro Roundを消費した時点で、成功、失敗、miss、Rejectに関係なくActivity -2.0、Rest +0.5を適用する。
+Move、Communication、Attack、Collision Attack、Flee、Reproduction Attemptは通常の能動Actionである。1 Micro Roundを消費した時点で、成功、失敗、miss、Rejectに関係なくActivity -2.0を適用する。v0.2.4のRest fatigueは順にMove`+0.25`、Communication`+0.15`、Attack`+0.60`、Collision Attack`+0.60`、Flee`+0.70`、Reproduction Attempt`+0.35`。Collision AttackはMove疲労と二重加算しない。
 
-Restだけは専用のRest -4.0、Activity +1.0を使い、通常能動Actionの変化を重ねない。Counterattack、Pursuit Attack、Reproduction Accept / RejectはReactionであり、通常Action回数を消費せず、Activity / Restの通常変化も適用しない。
+Restだけは専用のRest -4.0、Activity +1.0を使い、通常能動Actionの変化を重ねない。CounterattackとPursuitはReactionであり通常Action回数とActivity変化を消費しないが、身体疲労としてそれぞれRest`+0.30`、`+0.40`を適用する。Reproduction Accept / Rejectには通常Action用Need変化を適用しない。
 
 Communication Need -3は選択した側だけへ適用する。Reproduction Need -6とCooldown開始はReproduction Success時だけで、Reject時には適用しない。
 
-v0.15でもRest Actionと既存Need変化は変更しない。Reproduction Needの日次増加だけを旧+0.01から+0.04へ変更する。
+Reproduction Needの日次増加はv0.15の`+0.04`を維持する。旧一律Rest fatigueと日次`+0.04`はv0.2.4 Rest v2が置換する。
 
 ## Utility baseline
 
@@ -61,14 +61,22 @@ v0で遺伝可能な具体的Utility評価係数はRiskPreferenceだけ。0は�
 
 ```text
 U_move          = 0.50 * A - 0.125 * R
-U_rest          = 1.00 * R - 0.25 * A
 U_communication = 0.75 * C + 0.50 * A - 0.125 * R
 U_reproduce     = 1.00 * P + 0.50 * A - 0.40 * S - 0.20 * R
 ```
 
+v0.2.4では旧線形`U_rest`を次で置換する。
+
+```text
+R <= 2: RestPressure = 0
+R > 2:  RestPressure = 10 * ln(1 + R - 2) / ln(9)
+
+U_rest = RestPressure - 0.25 * A
+```
+
 Order中、Reproduction参加者2名が同一Active Settlement Core内にいる場合だけPenaltyを免除する。それ以外はv0.2 defaultとして `U_reproduce -= 2.0`、受諾側の `U_accept -= 2.0` を適用する。Generation中は適用しない。MembershipではなくAction位置を基準とし、成功率へ別のrandom penaltyを加えず、野外Reproductionを禁止しない。
 
-Move自体にRiskCostを置かず、方向はPerceptionに占有NPCが見えていてもseed付きランダムのままとする。Reality占有状態でMove Utilityや方向を変えず、Collision AttackはResolutionで発生させる。
+Move自体にRiskCostを置かず、Reality占有状態でMove Utilityを変えない。Collision AttackはResolutionで発生させる。v0.2.4では所属NPCの通常Move候補だけをHome / Foreign Settlement weightで歪める。FleeとActive InvasionのAdvance / Defenseを上書きせず、詳細は[`V0_2_4_SETTLEMENT_STABILIZATION.md`](V0_2_4_SETTLEMENT_STABILIZATION.md)を正本とする。
 
 Invasion ParticipantのMoveはv0.2でTarget Settlement CenterへのAdvance Biasを受ける。近傍のConceptMark HolderによるCohesion Biasは副とし、Advanceを上書きしない。これはMove方向のConfig / implementation detailであり、新Actionや別Utility式を追加しない。通常時のMove方向は従来通りseed付きランダムである。
 

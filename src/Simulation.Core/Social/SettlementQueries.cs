@@ -75,15 +75,15 @@ public static class SettlementQueries
         NpcState occupant,
         SimulationConfig config)
     {
-        if (world.Phase != WorldPhase.Order || AreInvasionOpponents(world, mover, occupant))
-        {
-            return CollisionPolicy.Combat;
-        }
-
         if (mover.SettlementId.HasValue && mover.SettlementId == occupant.SettlementId &&
             ActiveSettlement(world, mover.SettlementId) is not null)
         {
             return CollisionPolicy.SameSettlementSuppressed;
+        }
+
+        if (world.Phase != WorldPhase.Order || AreInvasionOpponents(world, mover, occupant))
+        {
+            return CollisionPolicy.Combat;
         }
 
         if (mover.SettlementId.HasValue && !occupant.SettlementId.HasValue &&
@@ -229,6 +229,7 @@ public static class SettlementQueries
         int firstSettlementId,
         int secondSettlementId,
         double amount,
+        double maximum,
         string reason,
         DomainEventEmitter emit,
         int microRound)
@@ -249,7 +250,9 @@ public static class SettlementQueries
             world.Frictions.Add(pair, friction);
         }
 
-        friction.CurrentFriction += amount;
+        var previous = friction.CurrentFriction;
+        friction.CurrentFriction = Math.Clamp(previous + amount, 0, maximum);
+        var applied = friction.CurrentFriction - previous;
         friction.LastFrictionEventTick = world.Tick;
         friction.LifetimeFrictionEvents++;
         if (reason == "collision")
@@ -262,6 +265,7 @@ public static class SettlementQueries
         }
 
         emit(microRound, SimulationEventType.SettlementFrictionChanged, null, null, null, true,
-            $"pair={pair.FirstId},{pair.SecondId};reason={reason};delta={amount:R};current={friction.CurrentFriction:R}");
+            $"pair={pair.FirstId},{pair.SecondId};reason={reason};delta={applied:R};requested={amount:R};" +
+            $"current={friction.CurrentFriction:R}");
     }
 }

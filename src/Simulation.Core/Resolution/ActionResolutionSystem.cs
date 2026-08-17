@@ -149,7 +149,7 @@ public sealed class ActionResolutionSystem
                         break;
                 }
 
-                _needs.ApplyActiveActionCost(actor, intent.Kind);
+                ApplyActiveCost(actor, intent.Kind);
             }
         }
 
@@ -189,9 +189,19 @@ public sealed class ActionResolutionSystem
                 var collisionPolicy = collisionTarget is null
                     ? CollisionPolicy.Combat
                     : SettlementQueries.Collision(world, actor, collisionTarget, _config);
+                var origin = actor.Position;
+                EmitMovementBias(actor, intent);
                 var attacked = ResolveMovement(
                     world, actor, intent, microRound, intent.Kind == ActionKind.Flee, emit);
-                _needs.ApplyActiveActionCost(actor, intent.Kind);
+                var collisionAttack = collisionTarget is not null && collisionPolicy == CollisionPolicy.Combat;
+                var fatigueMultiplier = intent.Kind == ActionKind.Move && !collisionAttack
+                    ? SettlementMoveFatigueMultiplier(world, actor, origin, actor.Position)
+                    : 1;
+                ApplyActiveCost(
+                    actor,
+                    intent.Kind,
+                    fatigueMultiplier,
+                    collisionAttack ? FatigueCause.CollisionAttack : null);
                 foreach (var victimId in attacked.OrderBy(item => item))
                 {
                     ReplaceUnexecutedIntent(
@@ -224,11 +234,15 @@ public sealed class ActionResolutionSystem
                 pending.Remove(actor.Id);
                 if (intent.Kind == ActionKind.Rest)
                 {
+                    var selectedRestNeed = actor.Needs.Rest;
+                    var selectedRestPressure = _needs.RestPressure(selectedRestNeed);
                     var orderCore = world.Phase == WorldPhase.Order &&
                                     SettlementQueries.FindActiveCore(world, actor.Position, _config) is not null;
                     _needs.ApplyRest(actor, orderCore ? _config.Settlement.OrderRestMultiplier : 1);
                     Emit(emit, microRound, SimulationEventType.Rest, actor.Id, null, actor.Position, true,
-                        orderCore ? "order-core" : "standard");
+                        $"{(orderCore ? "order-core" : "standard")};selectedRestNeed={selectedRestNeed:R};" +
+                        $"restPressure={selectedRestPressure:R};invasion={actor.InvasionId?.ToString() ?? "-"};" +
+                        $"invasionRole={actor.InvasionRole?.ToString() ?? "-"}");
                     _invasion.WithdrawForRest(world, actor, EmitDomain, microRound);
                 }
                 else
@@ -237,9 +251,76 @@ public sealed class ActionResolutionSystem
                         "No perceived action candidate.");
                 }
 
-                _needs.ApplyActiveActionCost(actor, intent.Kind);
+                ApplyActiveCost(actor, intent.Kind);
             }
         }
+
+        void ApplyActiveCost(
+            NpcState actor,
+            ActionKind kind,
+            double fatigueMultiplier = 1,
+            FatigueCause? causeOverride = null)
+        {
+            var application = _needs.ApplyActiveActionCost(actor, kind, fatigueMultiplier, causeOverride);
+            if (application is null)
+            {
+                return;
+            }
+
+            Emit(emit, microRound, SimulationEventType.FatigueApplied, actor.Id, null, actor.Position, true,
+                $"cause={application.Cause};requested={application.RequestedDelta:R};" +
+                $"applied={application.AppliedDelta:R};rest={actor.Needs.Rest:R}");
+        }
+
+        void EmitMovementBias(NpcState actor, ActionIntent intent)
+        {
+            if (intent.Kind != ActionKind.Move || intent.Decision.Selected.Breakdown is not { } breakdown ||
+                !breakdown.TryGetValue("homeBiasWeight", out var homeWeight) ||
+                !breakdown.TryGetValue("foreignBiasWeight", out var foreignWeight) ||
+                (Math.Abs(homeWeight - 1) < 1e-12 && Math.Abs(foreignWeight - 1) < 1e-12))
+            {
+                return;
+            }
+
+            breakdown.TryGetValue("strongHomeBias", out var strong);
+            breakdown.TryGetValue("strongHomeRest", out var strongRest);
+            breakdown.TryGetValue("strongHomeHp", out var strongHp);
+            breakdown.TryGetValue("enteredHomeCore", out var enteredHomeCore);
+            breakdown.TryGetValue("homeDistanceDelta", out var homeDelta);
+            breakdown.TryGetValue("foreignDirection", out var foreignDirection);
+            Emit(emit, microRound, SimulationEventType.MovementBiasApplied, actor.Id, null,
+                intent.Destination, true,
+                $"home={homeWeight:R};strong={(strong > 0 ? 1 : 0)};" +
+                $"strongRest={(strongRest > 0 ? 1 : 0)};strongHp={(strongHp > 0 ? 1 : 0)};" +
+                $"enteredCore={(enteredHomeCore > 0 ? 1 : 0)};homeDelta={homeDelta:R};" +
+                $"foreign={foreignWeight:R};foreignDirection={foreignDirection:R};" +
+                $"settlement={actor.SettlementId?.ToString() ?? "-"}");
+        }
+    }
+
+    private double SettlementMoveFatigueMultiplier(
+        WorldState world,
+        NpcState actor,
+        Position origin,
+        Position destination)
+    {
+        var settlement = SettlementQueries.ActiveSettlement(world, actor.SettlementId);
+        if (settlement is null)
+        {
+            return 1;
+        }
+
+        var originDistance = origin.ChebyshevDistance(settlement.Center);
+        var destinationDistance = destination.ChebyshevDistance(settlement.Center);
+        if (originDistance <= _config.Settlement.CoreRadius && destinationDistance <= _config.Settlement.CoreRadius)
+        {
+            return _config.Settlement.MoveFatigueCoreMultiplier;
+        }
+
+        return originDistance <= _config.Settlement.InfluenceRadius &&
+               destinationDistance <= _config.Settlement.InfluenceRadius
+            ? _config.Settlement.MoveFatigueInfluenceMultiplier
+            : 1;
     }
 
     private IReadOnlyList<ActionIntent> OrderForPhase(
@@ -378,7 +459,7 @@ public sealed class ActionResolutionSystem
                 {
                     SettlementQueries.AddFriction(
                         world, actor.SettlementId.Value, occupant.SettlementId.Value,
-                        _config.Settlement.FrictionCollisionIncrease, "collision",
+                        _config.Settlement.FrictionCollisionIncrease, _config.Settlement.FrictionMaximum, "collision",
                         (round, type, actorId, targetId, position, success, detail) =>
                             Emit(emit, round, type, actorId, targetId, position, success, detail),
                         microRound);
@@ -466,7 +547,7 @@ public sealed class ActionResolutionSystem
         {
             SettlementQueries.AddFriction(
                 world, actor.SettlementId.Value, target.SettlementId.Value,
-                _config.Settlement.FrictionExplicitThreatIncrease, "explicit-threat",
+                _config.Settlement.FrictionExplicitThreatIncrease, _config.Settlement.FrictionMaximum, "explicit-threat",
                 (round, type, actorId, targetId, position, success, detail) =>
                     Emit(emit, round, type, actorId, targetId, position, success, detail),
                 microRound);
@@ -524,6 +605,11 @@ public sealed class ActionResolutionSystem
         if (!attacker.IsAlive || !defender.IsAlive)
         {
             return;
+        }
+
+        if (eventType == SimulationEventType.Counterattack)
+        {
+            ApplyReactionFatigue(attacker, FatigueCause.Counterattack, microRound, emit);
         }
 
         attacked.Add(defender.Id);
@@ -636,6 +722,8 @@ public sealed class ActionResolutionSystem
         {
             return attacked;
         }
+
+        ApplyReactionFatigue(pursuer, FatigueCause.Pursuit, microRound, emit);
 
         var chance = Math.Clamp(
             0.50 + 0.05 * (pursuer.EffectiveStats(_config).Action - fleeing.EffectiveStats(_config).Action),
@@ -755,6 +843,13 @@ public sealed class ActionResolutionSystem
             .Select(item => item.Id)
             .ToHashSet();
         var movementTarget = _invasion.MovementTarget(world, npc);
+        var settlementRegions = SettlementQueries.ActiveSettlements(world)
+            .Select(item => new SettlementMovementRule(
+                item.Id,
+                item.Center,
+                _config.Settlement.CoreRadius,
+                _config.Settlement.InfluenceRadius))
+            .ToArray();
         var rules = new WorldDecisionRules(
             _config.World.Width,
             _config.World.Height,
@@ -766,7 +861,10 @@ public sealed class ActionResolutionSystem
                 npc.HasDefenseBias ? _config.Invasion.DefenseBiasWeight : 0,
             _aura.FindCohesionTarget(world, npc),
             _config.Invasion.AuraCohesionWeight,
-            world.Phase == WorldPhase.Order);
+            world.Phase == WorldPhase.Order,
+            npc.SettlementId,
+            settlementRegions,
+            movementTarget.HasValue);
         var perception = _perception.CreateView(npc, world.Tick);
         world.AttackCandidateSuppressionCount += perception.Threats.LongCount(item =>
             rules.IsAttackSuppressed(item.EntityId));
@@ -791,6 +889,18 @@ public sealed class ActionResolutionSystem
 
     private static NpcState? FindAliveAt(WorldState world, Position position) =>
         world.Npcs.Values.FirstOrDefault(item => item.IsAlive && item.Position == position);
+
+    private void ApplyReactionFatigue(
+        NpcState npc,
+        FatigueCause cause,
+        int microRound,
+        Action<EventDraft> emit)
+    {
+        var application = _needs.ApplyReactionFatigue(npc, cause);
+        Emit(emit, microRound, SimulationEventType.FatigueApplied, npc.Id, null, npc.Position, true,
+            $"cause={application.Cause};requested={application.RequestedDelta:R};" +
+            $"applied={application.AppliedDelta:R};rest={npc.Needs.Rest:R};reaction=1");
+    }
 
     private static void Emit(
         Action<EventDraft> emit,

@@ -2,6 +2,8 @@
 
 **Status:** Baseline boundaries / v0 default and configurable mechanics
 
+Observation cacheとNPC近傍indexは非権威的な高速化である。Held Informationの入口、観測範囲、誤差、Confidence、Outcome更新を変えず、cache / index / deterministic parallelizationの有無で同一Code / Config / Seedの結果を変えてはならない。
+
 ## Reality boundary
 
 RealityとNPCごとのPerceptionを別データ層にする。NPCはRealityを直接知れず、DecisionはPerceptionだけを使う。NPCは主観上可能なActionを選べるが、ActionIntentはReality側で失敗し得る。失敗もEventと直接経験になり、後のPerceptionへ影響できる。

@@ -138,13 +138,57 @@ public sealed record SettlementStatistics(
     int FounderCount,
     bool IsActive,
     int Population,
+    int CorePopulation,
+    int InfluenceOnlyPopulation,
+    int OutsidePopulation,
     double WorldPopulationRatio,
     double CoreOccupancy,
     double CrowdingPressure,
     int CrowdingConsecutiveDays,
+    bool CrowdingInvasionArmed,
+    int CrowdingRearmConsecutiveDays,
+    int CrowdingRearmCount,
+    double Support,
+    double SupportPopulationComponent,
+    double SupportReproductionComponent,
+    double SupportSocialComponent,
+    int LowSupportDays,
+    int SupportWindowDays,
+    int FoundingResidentBaseline,
+    double AverageAffiliatedResidentsInInfluence,
+    int ReproductionSuccessesInSupportWindow,
+    int SocialActionsInSupportWindow,
+    int MemberDaysInSupportWindow,
+    double TargetSocialActions,
+    long HomeBiasApplications,
+    long StrongHomeBiasApplications,
+    long StrongHomeRestApplications,
+    long StrongHomeHpApplications,
+    long HomewardMoves,
+    long CoreReturns,
+    long ForeignApproaches,
+    long ForeignDepartures,
     int? DissolvedTick,
     string? DissolutionReason,
     int? IntegratedIntoSettlementId);
+
+public sealed record FatigueContributionStatistics(
+    string Cause,
+    long Applications,
+    double RequestedTotal,
+    double AppliedTotal);
+
+public sealed record RestDiagnosticsStatistics(
+    long RestActions,
+    double RestActionRate,
+    double AverageRestNeed,
+    double AverageSelectedRestNeed,
+    double AverageSelectedRestPressure,
+    long InvasionRestActions,
+    long AttackerRestActions,
+    long DefenderRestActions,
+    long InvasionWithdrawals,
+    IReadOnlyList<FatigueContributionStatistics> FatigueContributions);
 
 public sealed record FrictionStatistics(
     int FirstSettlementId,
@@ -233,6 +277,20 @@ public sealed record PhaseWindowStatistics(
     double AverageAgeYears,
     double AverageAffiliationRate);
 
+public sealed record PhaseEcologyStatistics(
+    WorldPhase Phase,
+    int Days,
+    double AveragePopulation,
+    double AverageAgeYears,
+    double AverageHp,
+    long Births,
+    long ReproductionAttempts,
+    long ReproductionSuccesses,
+    long CombatDeaths,
+    long VitalityDeaths,
+    double CollisionDamage,
+    double ExplicitAttackDamage);
+
 public sealed record WorldStatisticsProjection(
     int Tick,
     int Population,
@@ -251,14 +309,17 @@ public sealed record WorldStatisticsProjection(
     IReadOnlyList<SettlementStatistics> Settlements,
     IReadOnlyList<FrictionStatistics> Frictions,
     IReadOnlyList<AffiliationGroupStatistics> AffiliationGroups,
+    RestDiagnosticsStatistics RestDiagnostics,
     ViolenceStatistics Violence,
     IReadOnlyList<ReproductionScopeStatistics> ReproductionScopes,
     IReadOnlyList<InvasionStatistics> Invasions,
     AuraStatistics Auras,
     IReadOnlyList<PhaseWindowStatistics> OrderTransitionWindows,
+    IReadOnlyList<PhaseEcologyStatistics> PhaseEcology,
     long HotspotCandidates,
     long HotspotConflicts,
-    long HotspotRejections);
+    long HotspotRejections,
+    long InvasionStartPrevented);
 
 public sealed record SimulationSnapshot(
     int Tick,

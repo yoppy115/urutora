@@ -1,3 +1,4 @@
+using System.Globalization;
 using Simulation.Core.Configuration;
 using Simulation.Core.Domain;
 using Simulation.Core.Randomness;
@@ -51,6 +52,7 @@ public sealed class SettlementMaintenanceCoordinator
             emit(0, SimulationEventType.SettlementMaintenance, null, null, null, true, "phase=7;hotspot=committed");
         }
 
+        UpdateSettlementSupport(world, dayEvents, emit);
         EvaluateNaturalDissolution(world, emit);
         emit(0, SimulationEventType.SettlementMaintenance, null, null, null, true, "phase=8;dissolution=evaluated");
         EvaluateOrderTransition(world, emit);
@@ -81,12 +83,21 @@ public sealed class SettlementMaintenanceCoordinator
         var collisionAttacks = dayEvents.Count(item => item.Type == SimulationEventType.CollisionAttack);
         var reproductionAttempts = dayEvents.Count(item => item.Type == SimulationEventType.ReproductionAttempt);
         var reproductionSuccesses = dayEvents.Count(item => item.Type == SimulationEventType.ReproductionSuccess);
+        var vitalityDeaths = dayEvents.Count(item => item.Type == SimulationEventType.Death && item.Detail == "vitality");
         var alive = world.Npcs.Values.Where(item => item.IsAlive).ToArray();
         var averageAgeYears = alive.Length == 0
             ? 0
             : alive.Average(item => (double)item.AgeDays / _config.World.DaysPerYear);
         var affiliated = alive.Count(item => SettlementQueries.ActiveSettlement(world, item.SettlementId) is not null);
         var affiliationRate = alive.Length == 0 ? 0 : (double)affiliated / alive.Length;
+        var averageHp = alive.Length == 0 ? 0 : alive.Average(item => item.CurrentHp);
+        double Damage(SimulationEventType type) => dayEvents
+            .Where(item => item.Type == type && item.Detail.StartsWith("damage=", StringComparison.Ordinal))
+            .Sum(item => double.TryParse(
+                item.Detail["damage=".Length..],
+                NumberStyles.Float,
+                CultureInfo.InvariantCulture,
+                out var damage) ? damage : 0);
         world.PopulationHistory.Add(new DailyPopulationRecord(
             world.Tick,
             population,
@@ -97,7 +108,11 @@ public sealed class SettlementMaintenanceCoordinator
             reproductionAttempts,
             reproductionSuccesses,
             averageAgeYears,
-            affiliationRate));
+            averageHp,
+            affiliationRate,
+            vitalityDeaths,
+            Damage(SimulationEventType.CollisionAttack),
+            Damage(SimulationEventType.Attack)));
         emit(0, SimulationEventType.SettlementMaintenance, null, null, null, true,
             $"phase=1;population={population};births={births};deaths={deaths}");
     }
@@ -107,6 +122,9 @@ public sealed class SettlementMaintenanceCoordinator
         IReadOnlyList<SimulationEvent> dayEvents,
         DomainEventEmitter emit)
     {
+        var protoOrderMultiplier = world.Phase == WorldPhase.Generation
+            ? _config.Settlement.GenerationAffinityMultiplier
+            : 1;
         foreach (var settlement in SettlementQueries.ActiveSettlements(world))
         {
             foreach (var npc in world.Npcs.Values
@@ -114,7 +132,12 @@ public sealed class SettlementMaintenanceCoordinator
                                         item.Position.ChebyshevDistance(settlement.Center) <= _config.Settlement.CoreRadius)
                          .OrderBy(item => item.Id))
             {
-                AddAffinity(npc, settlement.Id, _config.Settlement.StayAffinityDaily, "stay", emit);
+                AddAffinity(
+                    npc,
+                    settlement.Id,
+                    _config.Settlement.StayAffinityDaily * protoOrderMultiplier,
+                    "stay",
+                    emit);
             }
         }
 
@@ -138,6 +161,7 @@ public sealed class SettlementMaintenanceCoordinator
                 continue;
             }
 
+            gain *= protoOrderMultiplier;
             AddAffinity(actor, settlement.Id, gain, item.Type.ToString(), emit);
             if (item.Type == SimulationEventType.ReproductionSuccess && item.TargetId.HasValue &&
                 world.Npcs.TryGetValue(item.TargetId.Value, out var target))
@@ -286,22 +310,18 @@ public sealed class SettlementMaintenanceCoordinator
 
     private void EvaluateNaturalDissolution(WorldState world, DomainEventEmitter emit)
     {
-        var population = Math.Max(1, world.Npcs.Values.Count(item => item.IsAlive));
         foreach (var settlement in SettlementQueries.ActiveSettlements(world).ToArray())
         {
-            var members = world.Npcs.Values.Count(item => item.IsAlive && item.SettlementId == settlement.Id);
-            var ratio = (double)members / population;
-            settlement.LowPopulationConsecutiveDays = ratio <= _config.Settlement.NaturalDissolutionPopulationRatio
-                ? settlement.LowPopulationConsecutiveDays + 1
-                : 0;
-            if (settlement.LowPopulationConsecutiveDays < _config.Settlement.NaturalDissolutionConsecutiveDays)
+            if (settlement.LowSupportDays < _config.Settlement.SupportLowDaysForDissolution)
             {
                 continue;
             }
 
             settlement.DissolvedTick = world.Tick;
-            settlement.DissolutionReason = "low-population";
-            foreach (var npc in world.Npcs.Values.Where(item => item.SettlementId == settlement.Id).OrderBy(item => item.Id))
+            settlement.DissolutionReason = "low-support";
+            foreach (var npc in world.Npcs.Values
+                         .Where(item => item.IsAlive && item.SettlementId == settlement.Id)
+                         .OrderBy(item => item.Id))
             {
                 npc.SettlementId = null;
                 npc.InvasionId = null;
@@ -313,7 +333,81 @@ public sealed class SettlementMaintenanceCoordinator
             }
 
             emit(0, SimulationEventType.SettlementDissolved, null, null, settlement.Center, true,
-                $"settlement={settlement.Id};reason=low-population;days={settlement.LowPopulationConsecutiveDays}");
+                $"settlement={settlement.Id};reason=low-support;support={settlement.Support:R};" +
+                $"days={settlement.LowSupportDays}");
+        }
+    }
+
+    private void UpdateSettlementSupport(
+        WorldState world,
+        IReadOnlyList<SimulationEvent> dayEvents,
+        DomainEventEmitter emit)
+    {
+        foreach (var settlement in SettlementQueries.ActiveSettlements(world))
+        {
+            bool InInfluence(Position position) =>
+                position.ChebyshevDistance(settlement.Center) <= _config.Settlement.InfluenceRadius;
+
+            var membersInInfluence = world.Npcs.Values.Count(item =>
+                item.IsAlive && item.SettlementId == settlement.Id && InInfluence(item.Position));
+            var reproductions = dayEvents.Count(item =>
+                item.Type == SimulationEventType.ReproductionSuccess && item.Success &&
+                item.Position.HasValue && InInfluence(item.Position.Value));
+            var socialActions = dayEvents.Count(item =>
+                item.Success && item.ActorSettlementId == settlement.Id && item.Position.HasValue &&
+                InInfluence(item.Position.Value) &&
+                item.Type is SimulationEventType.Communication or SimulationEventType.Rest);
+            settlement.SupportHistory.Add(new SettlementSupportDailyRecord(
+                world.Tick,
+                membersInInfluence,
+                reproductions,
+                socialActions,
+                membersInInfluence));
+            if (settlement.SupportHistory.Count > _config.Settlement.SupportWindowDays)
+            {
+                settlement.SupportHistory.RemoveRange(
+                    0,
+                    settlement.SupportHistory.Count - _config.Settlement.SupportWindowDays);
+            }
+
+            var history = settlement.SupportHistory;
+            var baseline = Math.Max(
+                settlement.FoundingResidentBaseline,
+                _config.Settlement.SupportFoundingResidentFloor);
+            var averageResidents = history.Count == 0
+                ? 0
+                : history.Average(item => item.AffiliatedResidentsInInfluence);
+            var reproductionCount = history.Sum(item => item.ReproductionSuccessesInInfluence);
+            var socialCount = history.Sum(item => item.SocialActionsByMembersInInfluence);
+            var memberDays = history.Sum(item => item.MemberDaysInInfluence);
+            settlement.SupportPopulationComponent = Math.Clamp(averageResidents / baseline, 0, 1);
+            settlement.SupportReproductionComponent = Math.Clamp(
+                (double)reproductionCount / _config.Settlement.HotspotSuccessThreshold,
+                0,
+                1);
+            var socialTarget = memberDays * _config.Settlement.SupportSocialActionsPerMemberDay;
+            settlement.SupportSocialComponent = socialTarget <= 0
+                ? 0
+                : Math.Clamp(socialCount / socialTarget, 0, 1);
+            settlement.Support =
+                _config.Settlement.SupportPopulationWeight * settlement.SupportPopulationComponent +
+                _config.Settlement.SupportReproductionWeight * settlement.SupportReproductionComponent +
+                _config.Settlement.SupportSocialWeight * settlement.SupportSocialComponent;
+            if (settlement.Support < _config.Settlement.SupportLowThreshold)
+            {
+                settlement.LowSupportDays++;
+            }
+            else if (settlement.Support >= _config.Settlement.SupportRecoveryThreshold)
+            {
+                settlement.LowSupportDays = 0;
+            }
+            emit(0, SimulationEventType.SettlementSupportEvaluated, null, null, settlement.Center, true,
+                $"settlement={settlement.Id};support={settlement.Support:R};" +
+                $"p={settlement.SupportPopulationComponent:R};r={settlement.SupportReproductionComponent:R};" +
+                $"s={settlement.SupportSocialComponent:R};lowDays={settlement.LowSupportDays};" +
+                $"window={history.Count};averageResidents={averageResidents:R};baseline={baseline};" +
+                $"reproductions={reproductionCount};formationThreshold={_config.Settlement.HotspotSuccessThreshold};" +
+                $"socialActions={socialCount};socialTarget={socialTarget:R};memberDays={memberDays}");
         }
     }
 
@@ -353,6 +447,25 @@ public sealed class SettlementMaintenanceCoordinator
             var rollingEligible = settlement.CrowdingHistory.Count == _config.Settlement.CrowdingWindowDays &&
                                   settlement.CrowdingHistory.Average() >= _config.Settlement.CrowdingThreshold;
             settlement.CrowdingConsecutiveDays = rollingEligible ? settlement.CrowdingConsecutiveDays + 1 : 0;
+            if (!settlement.CrowdingInvasionArmed)
+            {
+                settlement.CrowdingRearmConsecutiveDays =
+                    settlement.CrowdingPressure < _config.Invasion.CrowdingRearmPressureThreshold
+                        ? settlement.CrowdingRearmConsecutiveDays + 1
+                        : 0;
+                if (settlement.CrowdingRearmConsecutiveDays >= _config.Invasion.CrowdingRearmConsecutiveDays)
+                {
+                    settlement.CrowdingInvasionArmed = true;
+                    settlement.CrowdingRearmCount++;
+                    emit(0, SimulationEventType.InvasionCrowdingRearmed, null, null, settlement.Center, true,
+                        $"settlement={settlement.Id};pressure={settlement.CrowdingPressure:R};" +
+                        $"days={settlement.CrowdingRearmConsecutiveDays}");
+                }
+            }
+            else
+            {
+                settlement.CrowdingRearmConsecutiveDays = 0;
+            }
         }
 
         emit(0, SimulationEventType.SettlementMaintenance, null, null, null, true, "phase=10;crowding=updated");

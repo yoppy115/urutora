@@ -26,7 +26,7 @@ public sealed class SimulationConfig
     public void Validate()
     {
         var errors = new List<string>();
-        Require(SchemaVersion == 2, "schemaVersion must be 2.", errors);
+        Require(SchemaVersion == 3, "schemaVersion must be 3.", errors);
         Require(!string.IsNullOrWhiteSpace(Id), "id is required.", errors);
         Require(World.Width > 2 && World.Height > 2, "world dimensions must be greater than 2.", errors);
         Require(World.DaysPerYear > 0, "world.daysPerYear must be positive.", errors);
@@ -65,6 +65,22 @@ public sealed class SimulationConfig
         Require(Action.MaximumActionsPerDay >= 1, "action.maximumActionsPerDay must be positive.", errors);
         Require(Action.RepeatDenominator > 0, "action.repeatDenominator must be positive.", errors);
         Require(Action.SecondStepFactor >= 0, "action.secondStepFactor cannot be negative.", errors);
+        Require(new[]
+        {
+            Action.Fatigue.Communication,
+            Action.Fatigue.Move,
+            Action.Fatigue.ReproductionAttempt,
+            Action.Fatigue.Attack,
+            Action.Fatigue.CollisionAttack,
+            Action.Fatigue.Flee,
+            Action.Fatigue.Counterattack,
+            Action.Fatigue.Pursuit
+        }.All(value => double.IsFinite(value) && value >= 0),
+            "action fatigue values must be finite and non-negative.", errors);
+        Require(double.IsFinite(Action.RestPressure.Threshold) && Action.RestPressure.Threshold is >= 0 and < 10 &&
+                double.IsFinite(Action.RestPressure.Scale) && Action.RestPressure.Scale > 0 &&
+                double.IsFinite(Action.RestPressure.ActivityPenalty) && Action.RestPressure.ActivityPenalty >= 0,
+            "action.restPressure values are invalid.", errors);
 
         Require(Observation.MaximumDistance == 3, "v0 observation.maximumDistance must be 3.", errors);
         Require(Observation.ErrorFactor >= 0, "observation.errorFactor cannot be negative.", errors);
@@ -139,7 +155,7 @@ public sealed class SimulationConfig
     {
         foreach (var effect in new[]
                  {
-                     Utility.Move, Utility.Rest, Utility.Communication,
+                     Utility.Move, Utility.Communication,
                      Utility.Reproduction, Utility.Attack, Utility.Flee
                  })
         {
@@ -245,7 +261,27 @@ public sealed class SimulationConfig
             Settlement.CrowdingOccupancyWeight,
             Settlement.CrowdingBlockedMovementWeight,
             Settlement.CrowdingThreshold,
-            Settlement.NaturalDissolutionPopulationRatio
+            Settlement.FrictionMaximum,
+            Settlement.MoveFatigueInfluenceMultiplier,
+            Settlement.MoveFatigueCoreMultiplier,
+            Settlement.HomeBiasTowardWeight,
+            Settlement.HomeBiasAwayWeight,
+            Settlement.StrongHomeBiasTowardWeight,
+            Settlement.StrongHomeBiasAwayWeight,
+            Settlement.StrongHomeBiasRestThreshold,
+            Settlement.StrongHomeBiasHpRatioThreshold,
+            Settlement.ForeignInfluenceEntryWeight,
+            Settlement.ForeignCoreEntryWeight,
+            Settlement.ForeignExitWeight,
+            Settlement.ForeignDeeperWeight,
+            Settlement.GenerationPositiveVitalityMultiplier,
+            Settlement.GenerationAffinityMultiplier,
+            Settlement.SupportPopulationWeight,
+            Settlement.SupportReproductionWeight,
+            Settlement.SupportSocialWeight,
+            Settlement.SupportSocialActionsPerMemberDay,
+            Settlement.SupportLowThreshold,
+            Settlement.SupportRecoveryThreshold
         }.All(double.IsFinite), "settlement numeric values must be finite.", errors);
         Require(Settlement.StayAffinityDaily >= 0 && Settlement.RestAffinity >= 0 &&
                 Settlement.CommunicationAffinity >= 0 && Settlement.ReproductionSuccessAffinity >= 0,
@@ -262,7 +298,8 @@ public sealed class SimulationConfig
         Require(Settlement.InitialHostilityThreshold is >= 0 and <= 1,
             "settlement.initialHostilityThreshold must be within 0..1.", errors);
         Require(Settlement.FrictionCollisionIncrease >= 0 && Settlement.FrictionExplicitThreatIncrease >= 0 &&
-                Settlement.FrictionDecayIntervalDays > 0 && Settlement.FrictionDecayAmount >= 0,
+                Settlement.FrictionDecayIntervalDays > 0 && Settlement.FrictionDecayAmount >= 0 &&
+                Settlement.FrictionMaximum > 0,
             "settlement friction values are invalid.", errors);
         Require(Settlement.CrowdingOccupancyWeight >= 0 && Settlement.CrowdingBlockedMovementWeight >= 0 &&
                 Math.Abs(Settlement.CrowdingOccupancyWeight + Settlement.CrowdingBlockedMovementWeight - 1) < 1e-9,
@@ -270,9 +307,30 @@ public sealed class SimulationConfig
         Require(Settlement.CrowdingThreshold is >= 0 and <= 1 && Settlement.CrowdingWindowDays > 0 &&
                 Settlement.CrowdingConsecutiveDays > 0,
             "settlement crowding thresholds are invalid.", errors);
-        Require(Settlement.NaturalDissolutionPopulationRatio is >= 0 and <= 1 &&
-                Settlement.NaturalDissolutionConsecutiveDays > 0,
-            "settlement dissolution thresholds are invalid.", errors);
+        Require(Settlement.MoveFatigueInfluenceMultiplier is > 0 and <= 1 &&
+                Settlement.MoveFatigueCoreMultiplier > 0 &&
+                Settlement.MoveFatigueCoreMultiplier <= Settlement.MoveFatigueInfluenceMultiplier,
+            "settlement Move fatigue multipliers are invalid.", errors);
+        Require(Settlement.HomeBiasTowardWeight > 0 && Settlement.HomeBiasAwayWeight > 0 &&
+                Settlement.StrongHomeBiasTowardWeight > 0 && Settlement.StrongHomeBiasAwayWeight > 0 &&
+                Settlement.StrongHomeBiasRestThreshold is >= 0 and <= 10 &&
+                Settlement.StrongHomeBiasHpRatioThreshold is >= 0 and <= 1,
+            "settlement Home Bias values are invalid.", errors);
+        Require(Settlement.ForeignInfluenceEntryWeight > 0 && Settlement.ForeignCoreEntryWeight > 0 &&
+                Settlement.ForeignExitWeight > 0 && Settlement.ForeignDeeperWeight > 0,
+            "settlement Foreign avoidance values are invalid.", errors);
+        Require(Settlement.GenerationPositiveVitalityMultiplier >= 1 && Settlement.GenerationAffinityMultiplier >= 1,
+            "settlement Generation Proto-Order multipliers are invalid.", errors);
+        Require(Settlement.SupportWindowDays > 0 && Settlement.SupportFoundingResidentFloor > 0 &&
+                Settlement.SupportPopulationWeight >= 0 && Settlement.SupportReproductionWeight >= 0 &&
+                Settlement.SupportSocialWeight >= 0 &&
+                Math.Abs(Settlement.SupportPopulationWeight + Settlement.SupportReproductionWeight +
+                         Settlement.SupportSocialWeight - 100) < 1e-9 &&
+                Settlement.SupportSocialActionsPerMemberDay > 0 &&
+                Settlement.SupportLowThreshold >= 0 &&
+                Settlement.SupportRecoveryThreshold > Settlement.SupportLowThreshold &&
+                Settlement.SupportLowDaysForDissolution > 0,
+            "settlement Support or hysteresis values are invalid.", errors);
     }
 
     private void ValidateInvasion(ICollection<string> errors)
@@ -287,7 +345,8 @@ public sealed class SimulationConfig
             Invasion.AttackOccupationThreshold,
             Invasion.AdvanceBiasWeight,
             Invasion.DefenseBiasWeight,
-            Invasion.AuraCohesionWeight
+            Invasion.AuraCohesionWeight,
+            Invasion.CrowdingRearmPressureThreshold
         }.All(double.IsFinite), "invasion numeric values must be finite.", errors);
         Require(Invasion.MobilizationMinimum is >= 0 and <= 1 &&
                 Invasion.MobilizationMaximum is >= 0 and <= 1 &&
@@ -298,6 +357,9 @@ public sealed class SimulationConfig
         Require(Invasion.AdvanceBiasWeight > Invasion.AuraCohesionWeight &&
                 Invasion.DefenseBiasWeight >= 0 && Invasion.AuraCohesionWeight >= 0,
             "invasion bias weights must keep Advance primary and Cohesion secondary.", errors);
+        Require(Invasion.CrowdingRearmPressureThreshold is >= 0 and <= 1 &&
+                Invasion.CrowdingRearmConsecutiveDays > 0,
+            "invasion crowding re-arm values are invalid.", errors);
     }
 }
 
@@ -339,9 +401,29 @@ public sealed class ActionConfig
     public double RepeatDenominator { get; set; }
     public double SecondStepFactor { get; set; }
     public double ActiveActivityChange { get; set; }
-    public double ActiveRestChange { get; set; }
     public double RestRestChange { get; set; }
     public double RestActivityChange { get; set; }
+    public ActionFatigueConfig Fatigue { get; set; } = new();
+    public RestPressureConfig RestPressure { get; set; } = new();
+}
+
+public sealed class ActionFatigueConfig
+{
+    public double Communication { get; set; }
+    public double Move { get; set; }
+    public double ReproductionAttempt { get; set; }
+    public double Attack { get; set; }
+    public double CollisionAttack { get; set; }
+    public double Flee { get; set; }
+    public double Counterattack { get; set; }
+    public double Pursuit { get; set; }
+}
+
+public sealed class RestPressureConfig
+{
+    public double Threshold { get; set; }
+    public double Scale { get; set; }
+    public double ActivityPenalty { get; set; }
 }
 
 public sealed class NeedsConfig
@@ -374,7 +456,6 @@ public sealed class UtilityConfig
     public int TopCandidates { get; set; }
     public double Temperature { get; set; }
     public UtilityEffectConfig Move { get; set; } = new();
-    public UtilityEffectConfig Rest { get; set; } = new();
     public UtilityEffectConfig Communication { get; set; } = new();
     public UtilityEffectConfig Reproduction { get; set; } = new();
     public UtilityEffectConfig Attack { get; set; } = new();
@@ -477,13 +558,35 @@ public sealed class SettlementConfig
     public double FrictionExplicitThreatIncrease { get; set; }
     public int FrictionDecayIntervalDays { get; set; }
     public double FrictionDecayAmount { get; set; }
+    public double FrictionMaximum { get; set; }
     public double CrowdingOccupancyWeight { get; set; }
     public double CrowdingBlockedMovementWeight { get; set; }
     public double CrowdingThreshold { get; set; }
     public int CrowdingWindowDays { get; set; }
     public int CrowdingConsecutiveDays { get; set; }
-    public double NaturalDissolutionPopulationRatio { get; set; }
-    public int NaturalDissolutionConsecutiveDays { get; set; }
+    public double MoveFatigueInfluenceMultiplier { get; set; }
+    public double MoveFatigueCoreMultiplier { get; set; }
+    public double HomeBiasTowardWeight { get; set; }
+    public double HomeBiasAwayWeight { get; set; }
+    public double StrongHomeBiasTowardWeight { get; set; }
+    public double StrongHomeBiasAwayWeight { get; set; }
+    public double StrongHomeBiasRestThreshold { get; set; }
+    public double StrongHomeBiasHpRatioThreshold { get; set; }
+    public double ForeignInfluenceEntryWeight { get; set; }
+    public double ForeignCoreEntryWeight { get; set; }
+    public double ForeignExitWeight { get; set; }
+    public double ForeignDeeperWeight { get; set; }
+    public double GenerationPositiveVitalityMultiplier { get; set; }
+    public double GenerationAffinityMultiplier { get; set; }
+    public int SupportWindowDays { get; set; }
+    public int SupportFoundingResidentFloor { get; set; }
+    public double SupportPopulationWeight { get; set; }
+    public double SupportReproductionWeight { get; set; }
+    public double SupportSocialWeight { get; set; }
+    public double SupportSocialActionsPerMemberDay { get; set; }
+    public double SupportLowThreshold { get; set; }
+    public double SupportRecoveryThreshold { get; set; }
+    public int SupportLowDaysForDissolution { get; set; }
 }
 
 public sealed class InvasionConfig
@@ -497,6 +600,8 @@ public sealed class InvasionConfig
     public double AdvanceBiasWeight { get; set; }
     public double DefenseBiasWeight { get; set; }
     public double AuraCohesionWeight { get; set; }
+    public double CrowdingRearmPressureThreshold { get; set; }
+    public int CrowdingRearmConsecutiveDays { get; set; }
 }
 
 public sealed class AuraConfig

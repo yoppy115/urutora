@@ -2,7 +2,7 @@
 
 **Status:** Baseline boundaries / v0.2.3 configurable default
 
-本書はv0.15までの個体生態系へSettlement、Generation / Order、社会化、Invasion、Concept Auraを追加する。v0.15のUtility AI、Perception、Combat、Reproduction、Lifecycle、ConceptMarkは、本書が明示的に変更する範囲以外を維持する。
+本書はv0.15までの個体生態系へSettlement、Generation / Order、社会化、Invasion、Concept Auraを追加する。v0.2.1～v0.2.3の採用済み補完を収録し、v0.2.4で変更された定住・維持規則は[`V0_2_4_SETTLEMENT_STABILIZATION.md`](V0_2_4_SETTLEMENT_STABILIZATION.md)を正本とする。
 
 ## Purpose
 
@@ -14,7 +14,7 @@ Generation中、Reproduction Successが集中した場所からSettlementが自�
 
 SettlementはOrder開始を待たず、Generation中から順次生成できる。繁殖→滞在→Settlement形成→Affinity→所属という時間的連続性を保ち、過去のHotspotを後から遡及生成しない。
 
-v0.2 defaultでは、直近90日間のReproduction Successを4×4 Cell windowで集計し、4件以上の領域をSettlement Candidateとする。15日ごとにCandidateを再評価する。既存Settlement CenterからChebyshev距離7以内へ新Centerを生成しない。
+v0.2.1 defaultでは、直近90日間のReproduction Successを5×5 Cell windowで集計し、3件以上の領域をSettlement Candidateとする。15日ごとにCandidateを再評価する。旧v0.2の4×4 / Success 4をこの値で置換する。
 
 v0.2.1ではv0.2の実測2 Worldを補正根拠とし、同じ90日・15日評価の `HotspotSuccessThreshold` を3、`HotspotWindowSize` を5×5へ変更する。world-0001は385日でReproduction Success 152件、world-0002は290日で132件あったが、旧4×4評価日ごとの最大集中数はいずれも3で、Candidate評価・棄却・成立がすべて0件だった。5×5化は近接する繁殖成功を同一局所Hotspotとして扱う範囲変更であり、閾値3と組み合わせる。arbitration、Center、Founder、spacing、翌Tick反映は変更しない。
 
@@ -52,13 +52,21 @@ AffinityはGeneration中から有効で、Order前でも住民とSettlementの�
 
 1 NPCは原則1 Settlementへ所属する。Affinityが10以上になったSettlementへ所属できる。別Settlementへは `NewAffinity >= CurrentAffinity + 5` で移籍でき、頻繁な往復を抑制する。
 
+出生所属はv0.2.3 supplementとして次を確定する。
+
+- 両親が同じActive Settlement所属: 受胎位置に依存せず通常の親近傍へ出生し、そのSettlementのMembershipThreshold相当AffinityとActive Affiliationを持つ。
+- 片親だけが所属: 受胎時に両親ともそのActive Settlement Influence内なら、同Influence内へ出生し同所属で開始する。
+- 両親の所属が異なる: 受胎時に両者が同じ一意なActive Settlement Core内にいる場合だけ、同Core内へ出生し同所属で開始する。
+
+Birth解決時点で対象Settlementが非Activeなら通常の無所属出生へ戻す。親のAffinity数値そのものは複製しない。詳細は[`REPRODUCTION.md`](REPRODUCTION.md)を参照する。
+
 Invasion参加中はEvent終了までActive Affiliationを固定する。Affinity履歴自体は更新可能だが、敵地の滞在や行動で戦闘中に所属を変更しない。征服後は統合規則を適用する。
 
 両親が同じActive Settlement所属なら、受胎位置に関係なく子は通常の親近傍へ出生し、そのSettlementのMembershipThreshold相当AffinityとActive Affiliationを持って開始する。片親だけが所属する場合は、受胎時の両親がそのActive Settlement Influence内にいる場合に限り、子を同Influence内へ出生・所属させる。両親の所属が異なる場合は、受胎時に両者が同じ一意なActive Settlement Core内にいる従来条件だけを認め、子を同Core内へ出生・所属させる。出生解決時点で対象Settlementが非Activeなら通常の無所属出生へ戻す。親のAffinity数値を複製するものではない。詳細は [`REPRODUCTION.md`](REPRODUCTION.md) を正本とする。
 
 ## Generation and Order
 
-世界開始時は `WorldPhase = Generation`。Generation中もSettlement生成、Founder、Affinity、所属、Frictionは存在できるが、Settlementの社会Bonusと秩序Ruleは有効にしない。
+世界開始時は `WorldPhase = Generation`。v0.2.4以降、Generation中もSettlement生成、Founder、Affinity、所属に加え、限定的Proto-Orderを有効にする。詳細は[`V0_2_4_SETTLEMENT_STABILIZATION.md`](V0_2_4_SETTLEMENT_STABILIZATION.md)を正本とし、Order専用Bonusとは区別する。
 
 直近90日の人口系列について次を求める。
 
@@ -105,11 +113,11 @@ Order中だけ、Settlement Core内へ次を適用する。
 - `DailyVitalChange < 0` は負の絶対値を0.5倍する。
 - Reproduction参加者2名が同一のActive Settlement Core内にいる場合だけSettlement内ReproductionとしてPenaltyを免除する。それ以外はv0.2 defaultで `U_reproduce -= 2.0`、`U_accept -= 2.0` とする。両者とも外、片方だけCore内、異なるCore扱い、Core境界をまたぐ場合はPenalty対象である。Membershipではなく、Actionが同じ社会空間内で行われるかを基準にする。成功率へ別の乱数Penaltyを直接加えず、野外繁殖を禁止しない。
 
-Generation中は上記効果、Settlement治安Rule、Rest Collision Ruleを有効化しない。
+Generation中はOrder専用のRest、正負Vitality、Outside Reproduction Penalty、Rest Collisionを有効化しない。ただしv0.2.4の同所属Collision抑制、正Vitality`×1.25`、Affinity gain`×2`、Home / Foreign移動規則はGenerationから有効。
 
 ## Order collision and local security
 
-Order中のMove Collisionは関係により解決を変える。
+Order中のMove Collisionは関係により解決を変える。ただしv0.2.4以降、同一Active Settlement所属者間のCollision抑制だけはGenerationから有効。
 
 - 同一Settlement所属者同士: Collision Attackへ変換せず、原則Combatを発生させない。
 - Settlement Influence内のUnaffiliated NPC: Active PerceivedThreatでなければ、Settlement所属者はExplicit Attack Candidateを生成せず、Collisionも原則Combatへ変換しない。AttackIntent生成後もReality Resolutionで対象のUnaffiliated、Influence内、攻撃者にとってActive Threatでないという保護条件を再Validationし、古いIntentや同日State変化による迂回を防ぐ。
@@ -126,7 +134,7 @@ SettlementFrictionはSettlement Pair単位の対称な非負値とし、`Frictio
 
 v0.2 configurable defaultでは、平時の異Settlement Collisionで+1、平時の一方のSettlement所属NPCによる他Settlement所属NPCへのExplicit Attack等の直接Threat行為で+3する。Counterattackによって同じThreat Eventを二重加算しない。Active Invasion中の通常Combat一件ごとには加算せず、Invasion Eventを別のStatistics / Historyとして記録する。
 
-Pairへ新しいFriction Eventが30日間なければ、以後30日ごとにCurrentFrictionを1減らし、0未満にしない。新EventはLastFrictionEventTickを更新してdecay待機期間を再開始する。
+Pairへ新しいFriction Eventが30日間なければ、以後30日ごとにCurrentFrictionを1減らし、0未満にしない。新EventはLastFrictionEventTickを更新してdecay待機期間を再開始する。v0.2.4ではCurrentFrictionを`0..100`へClampする。
 
 新Settlement成立時、Founder cohortと成立時に即所属した初期住民について、既存Settlement B所属NPCをActive PerceivedThreatとして持つ割合をSettlement Bごとに調べる。30%以上なら `A -> B Initial Hostile` とする。Hostilityは片方向でよく、ランダム外交として生成しない。
 
@@ -181,10 +189,7 @@ Invasion中は攻撃・防衛Settlement所属者を敵対対象としてCombat�
 
 ## Invasion victory and integration
 
-Advance Biasを保持するAlive攻撃NPCが0になればDefense Victoryとする。次のどちらかでAttack Victoryとする。
-
-- 対象Settlement Coreの利用可能Cellの50%以上を攻撃Settlement所属NPCが占拠。
-- 対象Settlement Center Cellを攻撃Settlement所属NPCが占拠。
+Advance Biasを保持するAlive攻撃NPCが0になればDefense Victoryとする。v0.2.4では対象Settlement Coreの利用可能Cellの50%以上を攻撃Settlement所属NPCが占拠した場合だけAttack Victoryとする。Center Cell単独占拠はEvent / Statisticsへ記録できるが、即時勝利にしない。
 
 終了時にAdvance Bias、Defense Bias、Invasion Participant、所属変更Lockを解除する。
 
@@ -193,15 +198,13 @@ CoreOccupationRate = AttackOccupiedUsableCoreCells
                    / TotalUsableCoreCells
 ```
 
-`TotalUsableCoreCells` はCore内でNPCが物理的に占有可能なCell数とする。Map外とLandmark等の侵入不能Cellを除外し、Empty、防衛NPC占有、攻撃NPC占有、Settlement Center、その他通常移動可能なCellを含める。現在の占有状態ではなく本来利用可能かで分母を決める。`AttackOccupiedUsableCoreCells` は攻撃Settlement所属NPCが実際に占有する利用可能Core Cell数で、同一NPCを重複計上しない。50%以上でAttack Victoryとし、Center占拠の即時勝利も維持する。
+`TotalUsableCoreCells` はCore内でNPCが物理的に占有可能なCell数とする。Map外とLandmark等の侵入不能Cellを除外し、Empty、防衛NPC占有、攻撃NPC占有、Settlement Center、その他通常移動可能なCellを含める。現在の占有状態ではなく本来利用可能かで分母を決める。`AttackOccupiedUsableCoreCells` は攻撃Settlement所属NPCが実際に占有する利用可能Core Cell数で、同一NPCを重複計上しない。
 
-攻撃側勝利では敗北Settlementを独立Settlementとして消滅させ、所属NPCのActive Affiliationを勝者へ統合し、敗北Centerを無効化する。旧AffinityはHistory / diagnosticsへ保存可能だがActive Membership判断には使わない。国家、属国、占領統治、反乱・忠誠はv0.2に含めない。
+攻撃側勝利では敗北Settlementを独立Settlementとして消滅させ、Aliveな所属NPCだけのActive Affiliationを勝者へ統合し、敗北Centerを無効化する。Dead NPCの最終所属Historyを変更せず、征服理由のAffiliationChanged Eventを発生させない。
 
 ## Natural settlement dissolution
 
-所属人口がWorld Populationの10%以下である状態が365日連続したSettlementは自然消滅可能とする。旧90日案は採用しない。
-
-消滅後はActive Settlementと所属先としての資格を失い、残存所属NPCはUnaffiliatedへ戻す。旧Affinity、Founder、成立・消滅履歴はHistory / Statisticsへ保持できる。
+World Population比による旧条件はv0.2.4で廃止した。直近90日のResident Presence、Reproduction Continuity、Social Activityから`50P + 30R + 20S`を求め、25 / 35のHysteresisと365 LowSupportDaysで自然消滅を判定する。詳細は[`V0_2_4_SETTLEMENT_STABILIZATION.md`](V0_2_4_SETTLEMENT_STABILIZATION.md)を正本とする。
 
 ## Concept exposure v0.2 change
 
@@ -262,11 +265,11 @@ Raw Logを人間が直接読み続けるより、ゲーム内Statistics UIでSim
 | Friction | Collision +1、Explicit Threat +3、30日無Event後は30日ごとに-1、minimum 0 |
 | Crowding | 0.5 Occupancy + 0.5 BlockedMovement、threshold 0.70、30-day average for 30 days |
 | Mobilization | 0.20 + 0.30 × Crowding、Clamp 0.20–0.50 |
-| Natural dissolution | <= 10% World Population for 365 consecutive days |
+| Natural dissolution | v0.2.4では90-day Support、25 / 35 Hysteresis、365 LowSupportDays |
 | Exposure | radius 4、1/0.5/0.25/0.125、threshold 100 |
 | Aura | radius 2、Rest -0.10/day、stat ×1.1 |
 
-Advance BiasとAura Cohesionの具体Weightはv0.2 implementation/configurable detailである。Advanceを主、Cohesionを副とする制約を守る。
+Rest v2、Home / Foreign Bias、Proto-Order、Support、Crowding re-arm、Friction上限はv0.2.4 Configとして別文書に定める。Advance BiasとAura Cohesionの具体Weightはimplementation/configurable detailであり、Advanceを主、Cohesionを副とする制約を守る。
 
 ## Preserved v0.15 rules
 

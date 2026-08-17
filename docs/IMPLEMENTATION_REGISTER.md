@@ -35,11 +35,11 @@ DraftやTBDをこの台帳だけで確定仕様に変えてはならない。
 | Git build provenance | Implemented | `ARCHITECTURE.md`, `ADR-0019` | commit/tree stateをassemblyとrun metadataへ埋め込み、clean treeだけをrelease publishの既定とする。成果物hashはrelease manifestへ保存 |
 | Repository hygiene | Implemented | `tools/` | 生成物の誤追跡、不要な`.gitkeep`、Markdown local linkをCIとbaseline確定前に検査。finalizerはbranch/commit/tag/clean確認を行いpushしない |
 | Git ACL用管理者finalizer | Implemented | `AGENTS.md`, `tools/` | 通常processが`.git`をOSに拒否された場合だけ使うWindows PowerShell 5.1対応wrapperとCMD入口。対象をurutoraのbranch/index/commit/tagへ限定し、OS設定変更やpushは行わない。同一version追補は`-NoTag`で既存tagを移動しない |
-| v0.2.3 Config schema | Implemented | `V0_2_SETTLEMENT_ORDER.md`, `simulation/configs/v0-default.json` | schema 2 / `v0.2.3-default-2`。ゲーム値は維持し、Core radiusと実行性能設定だけを明示変更 |
+| v0.2.4 Config schema | Implemented | `V0_2_4_SETTLEMENT_STABILIZATION.md`, `simulation/configs/v0-default.json` | schema 3 / `v0.2.4-default-1`。Action別疲労、Move Bias、Proto-Order、Support、Invasion guardrailを型付き設定へ分離 |
 | Settlement domain分割 | Implemented | `MODULES.md`, `ADR-0016`–`ADR-0018` | `SettlementQueries`、Formation、Maintenance、Invasion、ConceptAuraをCore内の別責務にし、Appはprojectionだけを読む |
 | Advance / Defense / Cohesion weight | Configurable detail | `V0_2_SETTLEMENT_ORDER.md`, `v0-default.json` | 4.0 / 2.0 / 0.75。既存Move候補の重みだけを歪め、AdvanceがCohesionより常に強いvalidationを持つ |
 | Aura更新境界 | Implementation detail | `ADR-0018`, `SIMULATION_TICK.md` | Tick開始・各Micro Round前後・Concept Exposure後に決定論的snapshotを再計算。一時MaxHP解除ClampはDamage portを通さない |
-| v0.2.3 log schema | Implementation detail | `LOGGING.md`, `STATISTICS.md` | v0.2から同じ `run.json` schema 5、Event wrapper 3、diagnostics 4を継続。release別World連番・圧縮・SHA-256を維持 |
+| v0.2.4 log schema | Implementation detail | `LOGGING.md`, `STATISTICS.md` | `run.json` schema 5を維持し、Event wrapperを4、diagnosticsを5へ更新。Action別疲労、Bias、Support、re-armを追加し、release別World連番・圧縮・SHA-256を維持 |
 | v0.2.1 Hotspot補正根拠 | Configurable detail | `V0_2_SETTLEMENT_ORDER.md`, `v0-default.json` | clean v0.2 world-0001（seed 8147291、385日、Success 152）とworld-0002（seed 8147292、290日、Success 132）を分析。旧4×4評価日の最大集中数が両方3、Candidate / Rejection / Formationが0だった。現行defaultはthreshold 3、5×5。90日、15日評価、spacing 7は維持 |
 | Patch release directory | Implementation detail | `ReleaseIdentity.cs`, `publish.ps1` | patch番号が1以上ならApp表示、World log、publish先を `vMajor.Minor.Patch` とする。patch 0の既存releaseは従来どおり `vMajor.Minor` |
 | Event時点の所属projection | Implementation detail | `STATISTICS.md` | Event payloadとreplay fingerprintへActor / TargetのEvent発生時Settlement IDを保持。所属別のAction・繁殖・Concept統計が後日の所属変更や解散で遡及変化しないようにする |
@@ -53,6 +53,9 @@ DraftやTBDをこの台帳だけで確定仕様に変えてはならない。
 | v0.2.3知覚空間索引 | Implementation detail | `ARCHITECTURE.md`, `ADR-0020` | 各Observerの全Alive走査をやめ、Position索引からradius 3内だけをSubject ID順に取得。乱数key、Held Information順、Eventを維持 |
 | Settlement詳細Tab | Implementation detail | `PLAYER_OBSERVATION.md`, `STATISTICS.md` | Active Center clickをNPC clickより優先し、形成・人口・Core / Crowdingと当該Settlement PairのFrictionをread-only表示。World社会表から消滅済みSettlementとFrictionを非表示化 |
 | v0.2.3人口300性能比較 | Verification record | `Simulation.Core`, `v0-default.json` | seed 8147291、初期人口300、120日、Worldログ有効、24 logical CPUの同一PCでv0.2.2 default 27.985秒、v0.2.3直列27.379秒、v0.2.3自動並列15.057秒。Event/stateは直列・並列一致test済み。一時harnessはGit管理外 |
+| v0.2.4 Move地域判定 | Conservative implementation detail | `V0_2_4_SETTLEMENT_STABILIZATION.md`, `Settlement Movement Policy` | 自領域Move疲労軽減は移動元と最終Cellがともに自Core / Influence内の場合に適用。Influence重複時のForeign weightは、回避側の最小倍率を退出側より優先し、複数Settlementによる倍率の無制限乗算を避ける |
+| v0.2.4 Support初期window | Conservative implementation detail | `V0_2_4_SETTLEMENT_STABILIZATION.md`, `Settlement Support` | 成立後90日未満は存在する日数だけでAverage / totalsを算出する。分母のFormation thresholdとMemberDaysは正史式を維持し、365日hysteresisを早送りしない |
+| v0.2.4観測projection | Implemented | `STATISTICS.md`, `LOGGING.md` | Settlement詳細へCore / Influence / 外部人数、Support P/R/S、LowSupportDays、Home / Foreign移動、armed / re-armを追加。世界統計へRest率、選択時Need / Pressure、Action別疲労、Invasion連続開始防止を追加 |
 
 ## Open non-canon implementation items
 

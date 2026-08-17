@@ -26,6 +26,9 @@ ADRは、重要で後戻りしづらい判断について「なぜそうした�
 | [`ADR-0018`](ADR-0018-concept-aura-social-transmission.md) | Accepted | Concept Auraの社会伝播、同種抑制、一時MaxHP normalization |
 | [`ADR-0019`](ADR-0019-log-retention-and-build-provenance.md) | Accepted | 完了Worldの検証済み圧縮とclean Git provenanceへreleaseを拘束する |
 | [`ADR-0020`](ADR-0020-deterministic-parallel-read-phases.md) | Accepted | Observer / NPC単位の分離可能な読取・計画phaseだけを並列化し、NPC ID順へ決定論的mergeする |
+| [`ADR-0021`](ADR-0021-action-specific-fatigue-and-home-bias.md) | Accepted | Action別疲労、Home Bias、Generation Proto-Orderを採用する |
+| [`ADR-0022`](ADR-0022-local-settlement-support-and-hysteresis.md) | Accepted | 局所SettlementSupportとHysteresisで自然消滅を判定する |
+| [`ADR-0023`](ADR-0023-v024-invasion-stabilization-guardrails.md) | Accepted | Invasion再arm、Alive征服、Core勝利、Friction上限を暫定固定する |
 
 ## Future decisions
 

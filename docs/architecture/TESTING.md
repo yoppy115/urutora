@@ -33,8 +33,8 @@
 - Observation誤差が距離ごとの最大値を超えない。
 - Communication受信Confidenceがsource Confidenceを上回らない。
 - EffectiveCommunicationが10を超えてもdistortion率とSubjectSwap率が負にならない。
-- 失敗した通常能動ActionにもActivity -2 / Rest +0.5を適用する。
-- Reactionには通常Action用Activity / Rest変化を適用しない。
+- 失敗した通常能動ActionにもActivity -2と、そのAction種別のv0.2.4 Rest fatigueを適用する。
+- Reactionには通常Action用Activity変化を適用せず、Counterattack / Pursuitの身体疲労だけを適用する。
 
 ### Reproduction and lifecycle
 
@@ -82,7 +82,7 @@
 ### v0.2 Settlement / Order Update
 
 - A. Generation中でもReproduction HotspotからSettlementが生成される。
-- B. Generation中はSettlementのRest、Vitality、Aging、Reproduction、治安Bonusが無効である。
+- B. v0.2 originalではGeneration中の社会Bonusが無効だったことを履歴として保持する。v0.2.4回帰では限定Proto-Orderだけを有効にする。
 - C. PopulationCVとDemographicImbalanceの安定条件が連続成立した後にOrderへ移行する。
 - D. Order移行後、既存Settlementの社会Bonusが有効になる。
 - E. Settlement成立原因となったReproduction Success参加者のうちAliveなNPCをFounderとして記録する。
@@ -104,9 +104,9 @@
 - U. Rest中NPCをInvasion参加候補から除外する。
 - V. Advance ParticipantがRestするとBiasを解除しEventから離脱する。
 - W. Advance Biasを保持するAlive NPCが0になるとDefense Victoryになる。
-- X. Core 50%以上占拠またはCenter占拠でAttack Victoryになる。
-- Y. 攻撃側勝利後、敗北Settlementを無効化して所属NPCを勝者へ統合する。
-- Z. Settlement人口がWorld Populationの10%以下でも365日連続するまで自然消滅しない。
+- X. Core 50%以上占拠でAttack Victoryになる。Center単独占拠はv0.2.4で勝利条件から除外する。
+- Y. 攻撃側勝利後、敗北Settlementを無効化してAliveな所属NPCだけを勝者へ統合する。
+- Z. World Population比による旧自然消滅条件はv0.2 originalの履歴とし、v0.2.4 Support条件へ置換する。
 - AA. Landmark Exposureをradius 4まで付与し、距離4でv0.2 default +0.125となる。
 - AB. Concept Auraが同Settlement所属の味方だけに作用し、敵とUnaffiliatedへ作用しない。
 - AC. Aura RangeがChebyshev radius 2である。
@@ -166,5 +166,54 @@ Settlement Maintenance順と翌Tick反映、Aura / Core占有計算もcollection
 - Settlement CenterとNPCが同じCellにいる場合、Center clickを優先してSettlement詳細を開く。
 - Settlement色は60色をActive中に固定し、消滅後に解放された色を新規Settlementの抽選候補へ戻す。
 - World統計の社会一覧は消滅済みSettlementを除外してActive / Pendingだけを表示し、FrictionはSettlement詳細Tabだけへ表示する。
+### v0.2.1–v0.2.3 adopted minors
+
+- Hotspotは90日、5×5、Success 3、15日評価で、旧4×4 / Success 4より成立可能になる。
+- 既存Active Settlement Influence内のSuccessをHotspotから除外する。
+- 新Core全Cellが既存Influenceへ重ならず、defaultではCenter距離`> 9`となる。
+- 同じActive Settlement所属の両親は位置に依存せず出生所属を継承する。
+- 片親所属は受胎時に両親とも所属先Influence内の場合だけInfluence出生所属となる。
+- 異所属は両親が同じ一意なActive Core内の場合だけCore出生所属となる。
+- Observation cache、NPC近傍index、CPU並列化、UI速度・描画頻度・CPU core数でEvent列が変化しない。
+- 消滅Settlement非表示、色再利用、Settlement詳細、Friction表示、NPC履歴がCore stateを変更しない。
+
+### v0.2.4 Settlement Stabilization
+
+- A. ActionごとのRest fatigueがv0.2.4値に従う。
+- B. Collision AttackでMove + Attackの二重疲労が発生しない。
+- C. Daily Rest増加が`+0.02`。
+- D. `RestNeed <= 2`で`RestPressure = 0`。
+- E. RestPressureが規定の対数式に従う。
+- F. `U_rest = RestPressure - 0.25 * ActivityNeed`。
+- G. 自Settlement Influence内Move疲労が通常の75%。
+- H. 自Settlement Core内Move疲労が通常の50%。
+- I. Influence外所属NPCにWeak Home Biasが発生する。
+- J. `RestNeed >= 6`でStrong Home Biasが発生する。
+- K. HP ratio `<= 0.60`でStrong Home Biasが発生する。
+- L. Foreign Influence進入Move weightが`×0.25`。
+- M. Foreign Core進入Move weightが`×0.05`。
+- N. Foreign Settlement内部から退出方向が`×3`。
+- O. Active Invasion / Flee時にForeign avoidanceが不当に優先されない。
+- P. Generation中でも同Settlement Collision Attackを抑制する。
+- Q. Generation Coreの正Vitalityが`×1.25`。
+- R. Generationの通常Affinity gainが`×2`。
+- S. Founder `+10` / Initial Core `+7`をGeneration multiplierで二重化しない。
+- T. Order移行後はGeneration`×1.25`でなくOrder正Vitality`×2`になる。
+- U. `SettlementSupport = 50P + 30R + 20S`。
+- V. FoundingResidentBaselineが成立時人数・最低8に従う。
+- W. Reproduction Continuityが現行Formation thresholdを再利用する。
+- X. `Support < 25`でLowSupportDaysが増える。
+- Y. `25 <= Support < 35`でLowSupportDaysがfreezeする。
+- Z. `Support >= 35`でLowSupportDaysがresetする。
+- AA. LowSupportDays 365で自然消滅する。
+- AB. World Population比だけでSettlementが消滅しない。
+- AC. ConquestでDead NPCのAffiliationとHistoryを変更しない。
+- AD. Invasion開始時に`CrowdingInvasionArmed = false`となる。
+- AE. CrowdingPressure`< 0.70`が30日連続するまでre-armしない。
+- AF. Center Cell占拠だけではAttack Victoryにならない。
+- AG. Usable Core 50%占拠でAttack Victoryになる。
+- AH. Frictionを0～100へClampする。
+- AI. Rest v2導入後もRestによるInvasion離脱Ruleを維持する。
+- AJ. Observation cache、spatial index、parallelization等の有無で決定論的結果が変化しない。
 
 具体的なtest framework、fixture形式、統計的試験のsample数は実装時に決める。

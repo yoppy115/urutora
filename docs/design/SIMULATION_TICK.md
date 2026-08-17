@@ -45,6 +45,8 @@ Settlement Maintenanceの固定順は、当日Statistics確定→Affinity反映�
 
 Targeted Action PhaseはAttack → Reproduction → Communicationの固定順で、Move、Flee、Restより先にResolutionする。AttackはHP、Alive、Intentを不可逆的に変え得るため最初、ReproductionはAccept時にIntentを置換し得るため次、情報・Perceptionを主に変えるCommunicationは最後とする。
 
+v0.2.4のHome / Foreign Move weightとAction別Rest疲労は各Action ResolutionでEvent化する。ReactionのCounterattack / Pursuitには身体疲労だけを適用し、通常Action枠やActivity変化を追加しない。
+
 各後続phaseは先行phase完了後の最新RealityでIntentを再Validationする。Attackで死亡したNPCへのReproduction / Communicationは成立させない。Attack後にHP条件等が崩れたReproductionはFailure Outcome、Reproduction後にDead、距離外、不存在となったCommunicationは不成立とする。
 
 Movement PhaseはMoveとFleeを扱い、その後にRestを扱う。各phaseの競合は既存のEffectiveActionとseed付きtie-break規則へ従う。
@@ -132,8 +134,10 @@ Birth解決時点で空いている死亡Cellは利用可能。LandmarkとAlive 
 - TargetAbsent後に同じ古いPositionによるTargeted Actionを反復しない。
 - 同一Code、Config、RunSeedから同じEvent列を得る。
 - UI render頻度を変えてもSimulation結果は変化しない。
+- Observation cache、NPC近傍index、deterministic CPU parallelization、thread scheduling、CPU core数でEvent列が変化しない。
 - Generation中のSettlement形成とOrderへの人口安定判定が、collection順や表示頻度に依存しない。
 - Order中のCollisionはAffiliation / Invasion条件に従い、同Settlement・保護対象・異Settlement・戦時を混同しない。
 - Rest Collision再評価は元Action枠の置換で、同一Micro Round最大1回とする。
 - Settlement構造変更は固定Maintenance順でcommitし、新規Settlement / WorldPhase / Invasion開始を翌Tickから反映する。
 - Hotspot Candidateは同一immutable snapshotから生成し、繁殖成功数とseed tie-breakで順序非依存にarbitrateする。
+- v0.2.4のSupport rolling window / hysteresis、Crowding re-arm、自然消滅は日末Maintenanceでcommitし、日中Micro Round途中でSettlementを消滅・再armしない。

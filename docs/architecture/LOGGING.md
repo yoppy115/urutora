@@ -85,6 +85,12 @@ v0.15 Runでは少なくとも次を集計可能にする。
 - BirthRequestとBirth Eventは、条件付き出生所属に使ったSettlement ID、配置範囲（親近傍 / Core / Influence）、実際に子へ付与されたSettlement IDを追跡できる。
 
 観測AppのWorld Event、日次CSV、日次diagnosticsは論理的には毎日記録する。物理streamのflushはSimulation Eventではなく、v0.2.2 defaultではApp Configの10日間隔と終了時に行う。flush間隔を変えてもEvent列、日次行、乱数、Statistics値を変えない。App側の明示完了時は全streamを閉じた後に`completion.json`を原子的に確定し、このmarkerがあるWorldだけを完了済みarchive対象にする。未完了Worldの保存や圧縮判定はSimulation結果を変更しない。
+- v0.2.1～v0.2.3はHotspot 5×5 / Success 3、出生所属の判定経路、ConceptMark表示、Settlement詳細、Friction、NPC履歴をVersion / commit付きで追跡可能にする。
+- v0.2.4はAction別Rest fatigue、RestPressure、Home Bias、Foreign movement、Generation Proto-Order benefit、SettlementSupport P/R/S、LowSupportDays、自然消滅、Crowding re-arm、Center Occupied、Core占拠Victory、Friction clampを機械可読にする。
+- 征服時のAffiliationChangedはAlive NPCだけに発行し、Dead NPCのHistoryを変更しない。
+- ログflush間隔はOperations設定でありEvent意味論を変えない。Run identityと保存運用は[`ENGINEERING_REPRODUCIBILITY.md`](ENGINEERING_REPRODUCIBILITY.md)に従う。
+
+v0.2.4実装では`run.json` schema 5、Event wrapper schema 4、diagnostics schema 5を使用し、日次CSVへRest率、選択時Rest Need / Pressure、平均Support、LowSupportDays、armed数、連続開始防止数を追加する。
 
 必須集計項目は [`STATISTICS.md`](STATISTICS.md) を正本とする。
 

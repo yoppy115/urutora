@@ -124,7 +124,25 @@ internal sealed class WorldStatisticsProjector
             var settlementStatistics = _state.Settlements.Values.OrderBy(item => item.Id)
                 .Select(item =>
                 {
-                    var population = alive.Count(npc => npc.SettlementId == item.Id);
+                    var members = alive.Where(npc => npc.SettlementId == item.Id).ToArray();
+                    var population = members.Length;
+                    var corePopulation = members.Count(npc =>
+                        npc.Position.ChebyshevDistance(item.Center) <= _config.Settlement.CoreRadius);
+                    var influenceOnlyPopulation = members.Count(npc =>
+                    {
+                        var distance = npc.Position.ChebyshevDistance(item.Center);
+                        return distance > _config.Settlement.CoreRadius &&
+                               distance <= _config.Settlement.InfluenceRadius;
+                    });
+                    var movementBias = Events(SimulationEventType.MovementBiasApplied)
+                        .Where(simulationEvent => simulationEvent.ActorSettlementId == item.Id)
+                        .ToArray();
+                    var averageResidents = item.SupportHistory.Count == 0
+                        ? 0
+                        : item.SupportHistory.Average(day => day.AffiliatedResidentsInInfluence);
+                    var reproductionSuccesses = item.SupportHistory.Sum(day => day.ReproductionSuccessesInInfluence);
+                    var socialActions = item.SupportHistory.Sum(day => day.SocialActionsByMembersInInfluence);
+                    var memberDays = item.SupportHistory.Sum(day => day.MemberDaysInInfluence);
                     return new SettlementStatistics(
                         item.Id,
                         item.Center,
@@ -132,10 +150,43 @@ internal sealed class WorldStatisticsProjector
                         item.FounderIds.Count,
                         item.IsActive(_state.Tick),
                         population,
+                        corePopulation,
+                        influenceOnlyPopulation,
+                        population - corePopulation - influenceOnlyPopulation,
                         alive.Length == 0 ? 0 : (double)population / alive.Length,
                         item.CoreOccupancy,
                         item.CrowdingPressure,
                         item.CrowdingConsecutiveDays,
+                        item.CrowdingInvasionArmed,
+                        item.CrowdingRearmConsecutiveDays,
+                        item.CrowdingRearmCount,
+                        item.Support,
+                        item.SupportPopulationComponent,
+                        item.SupportReproductionComponent,
+                        item.SupportSocialComponent,
+                        item.LowSupportDays,
+                        item.SupportHistory.Count,
+                        Math.Max(item.FoundingResidentBaseline, _config.Settlement.SupportFoundingResidentFloor),
+                        averageResidents,
+                        reproductionSuccesses,
+                        socialActions,
+                        memberDays,
+                        memberDays * _config.Settlement.SupportSocialActionsPerMemberDay,
+                        movementBias.LongLength,
+                        movementBias.LongCount(simulationEvent =>
+                            DetailValue(simulationEvent.Detail, "strong") == "1"),
+                        movementBias.LongCount(simulationEvent =>
+                            DetailValue(simulationEvent.Detail, "strongRest") == "1"),
+                        movementBias.LongCount(simulationEvent =>
+                            DetailValue(simulationEvent.Detail, "strongHp") == "1"),
+                        movementBias.LongCount(simulationEvent =>
+                            DetailDouble(simulationEvent.Detail, "homeDelta") > 0),
+                        movementBias.LongCount(simulationEvent =>
+                            DetailValue(simulationEvent.Detail, "enteredCore") == "1"),
+                        movementBias.LongCount(simulationEvent =>
+                            DetailDouble(simulationEvent.Detail, "foreignDirection") < 0),
+                        movementBias.LongCount(simulationEvent =>
+                            DetailDouble(simulationEvent.Detail, "foreignDirection") > 0),
                         item.DissolvedTick,
                         item.DissolutionReason,
                         item.IntegratedIntoSettlementId);
@@ -158,6 +209,38 @@ internal sealed class WorldStatisticsProjector
                 CreateAffiliationGroup("affiliated", true),
                 CreateAffiliationGroup("unaffiliated", false)
             };
+            var restEvents = Events(SimulationEventType.Rest);
+            var selectedRestNeeds = restEvents
+                .Select(item => DetailDouble(item.Detail, "selectedRestNeed"))
+                .Where(item => item.HasValue)
+                .Select(item => item!.Value)
+                .ToArray();
+            var selectedRestPressures = restEvents
+                .Select(item => DetailDouble(item.Detail, "restPressure"))
+                .Where(item => item.HasValue)
+                .Select(item => item!.Value)
+                .ToArray();
+            var fatigueContributions = Events(SimulationEventType.FatigueApplied)
+                .GroupBy(item => DetailValue(item.Detail, "cause") ?? "unknown", StringComparer.Ordinal)
+                .OrderBy(item => item.Key, StringComparer.Ordinal)
+                .Select(group => new FatigueContributionStatistics(
+                    group.Key,
+                    group.LongCount(),
+                    group.Sum(item => DetailDouble(item.Detail, "requested") ?? 0),
+                    group.Sum(item => DetailDouble(item.Detail, "applied") ?? 0)))
+                .ToArray();
+            var restDiagnostics = new RestDiagnosticsStatistics(
+                restEvents.Count,
+                actionSelectionEvents.Length == 0 ? 0 : (double)restEvents.Count / actionSelectionEvents.Length,
+                alive.Length == 0 ? 0 : alive.Average(item => item.Needs.Rest),
+                selectedRestNeeds.Length == 0 ? 0 : selectedRestNeeds.Average(),
+                selectedRestPressures.Length == 0 ? 0 : selectedRestPressures.Average(),
+                restEvents.LongCount(item => DetailValue(item.Detail, "invasion") is { } value && value != "-"),
+                restEvents.LongCount(item => DetailValue(item.Detail, "invasionRole") == InvasionRole.Attacker.ToString()),
+                restEvents.LongCount(item => DetailValue(item.Detail, "invasionRole") == InvasionRole.Defender.ToString()),
+                Events(SimulationEventType.InvasionParticipantWithdrew)
+                    .LongCount(item => item.Detail.Contains("reason=rest", StringComparison.Ordinal)),
+                fatigueContributions);
             var violence = new ViolenceStatistics(
                 Events(SimulationEventType.CollisionAttack).LongCount() +
                 Events(SimulationEventType.CollisionSuppressed).LongCount(),
@@ -247,6 +330,29 @@ internal sealed class WorldStatisticsProjector
                     _state.PopulationHistory.Where(item => item.Tick >= orderTick &&
                         item.Tick < orderTick + _config.Settlement.StabilityWindowDays)));
             }
+            var phaseEcology = _state.PopulationHistory
+                .GroupBy(item => _state.OrderStartTick.HasValue && item.Tick >= _state.OrderStartTick.Value
+                    ? WorldPhase.Order
+                    : WorldPhase.Generation)
+                .OrderBy(item => item.Key)
+                .Select(group =>
+                {
+                    var values = group.ToArray();
+                    return new PhaseEcologyStatistics(
+                        group.Key,
+                        values.Length,
+                        values.Average(item => item.Population),
+                        values.Average(item => item.AverageAgeYears),
+                        values.Average(item => item.AverageHp),
+                        values.Sum(item => (long)item.Births),
+                        values.Sum(item => (long)item.ReproductionAttempts),
+                        values.Sum(item => (long)item.ReproductionSuccesses),
+                        values.Sum(item => (long)item.CombatDeaths),
+                        values.Sum(item => (long)item.VitalityDeaths),
+                        values.Sum(item => item.CollisionDamage),
+                        values.Sum(item => item.ExplicitAttackDamage));
+                })
+                .ToArray();
             return new WorldStatisticsProjection(
                 _state.Tick,
                 alive.Length,
@@ -271,14 +377,17 @@ internal sealed class WorldStatisticsProjector
                 settlementStatistics,
                 frictionStatistics,
                 affiliationGroups,
+                restDiagnostics,
                 violence,
                 reproductionScopes,
                 invasionStatistics,
                 auras,
                 transitionWindows,
+                phaseEcology,
                 _state.SettlementCandidateCount,
                 _state.SettlementCandidateConflictCount,
-                _state.SettlementCandidateRejectionCount);
+                _state.SettlementCandidateRejectionCount,
+                _state.InvasionStartPreventedCount);
 
             TargetedActionStatistics TargetedStatistics(ActionKind action, SimulationEventType eventType)
             {
@@ -379,4 +488,16 @@ internal sealed class WorldStatisticsProjector
             ? value
             : null;
     }
+
+    private static string? DetailValue(string detail, string key)
+    {
+        var prefix = key + "=";
+        return detail.Split(';', StringSplitOptions.RemoveEmptyEntries)
+            .FirstOrDefault(item => item.StartsWith(prefix, StringComparison.Ordinal))?[prefix.Length..];
+    }
+
+    private static double? DetailDouble(string detail, string key) =>
+        double.TryParse(DetailValue(detail, key), NumberStyles.Float, CultureInfo.InvariantCulture, out var value)
+            ? value
+            : null;
 }

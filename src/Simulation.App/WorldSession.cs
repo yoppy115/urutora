@@ -278,7 +278,10 @@ internal sealed class WorldLogWriter : IDisposable
                                     "populationCv,demographicImbalance,stabilityConsecutiveDays," +
                                     string.Join(',', actions.Select(item => $"selected{item}")) +
                                     ",positionInvalidations,subjectPurges,heldInformationEvictions," +
-                                    "heldInformationTotal,heldInformationAverage,heldInformationMaximum");
+                                    "heldInformationTotal,heldInformationAverage,heldInformationMaximum," +
+                                    "restActionRate,averageRestNeed,averageSelectedRestNeed,averageSelectedRestPressure," +
+                                    "activeSettlementAverageSupport,totalLowSupportDays,armedSettlementCount," +
+                                    "invasionStartPrevented");
     }
 
     public void WriteInitial(WorldStatisticsProjection statistics)
@@ -295,7 +298,7 @@ internal sealed class WorldLogWriter : IDisposable
         foreach (var simulationEvent in tick.Events)
         {
             var entry = new WorldEventLogEntry(
-                3, _info.ReleaseVersion, _info.WorldNumber, _info.WorldId, _info.Seed, simulationEvent);
+                4, _info.ReleaseVersion, _info.WorldNumber, _info.WorldId, _info.Seed, simulationEvent);
             _eventWriter.WriteLine(JsonSerializer.Serialize(entry, EventJsonOptions));
         }
 
@@ -383,7 +386,18 @@ internal sealed class WorldLogWriter : IDisposable
             statistics.Perception.HeldInformationEvictions.ToString(CultureInfo.InvariantCulture),
             statistics.Perception.HeldInformationTotal.ToString(CultureInfo.InvariantCulture),
             statistics.Perception.HeldInformationAverage.ToString("0.000000", CultureInfo.InvariantCulture),
-            statistics.Perception.HeldInformationMaximum.ToString(CultureInfo.InvariantCulture)
+            statistics.Perception.HeldInformationMaximum.ToString(CultureInfo.InvariantCulture),
+            statistics.RestDiagnostics.RestActionRate.ToString("0.000000", CultureInfo.InvariantCulture),
+            statistics.RestDiagnostics.AverageRestNeed.ToString("0.000000", CultureInfo.InvariantCulture),
+            statistics.RestDiagnostics.AverageSelectedRestNeed.ToString("0.000000", CultureInfo.InvariantCulture),
+            statistics.RestDiagnostics.AverageSelectedRestPressure.ToString("0.000000", CultureInfo.InvariantCulture),
+            (statistics.Settlements.Where(item => item.IsActive).Select(item => item.Support).DefaultIfEmpty().Average())
+                .ToString("0.000000", CultureInfo.InvariantCulture),
+            statistics.Settlements.Where(item => item.IsActive).Sum(item => item.LowSupportDays)
+                .ToString(CultureInfo.InvariantCulture),
+            statistics.Settlements.Count(item => item.IsActive && item.CrowdingInvasionArmed)
+                .ToString(CultureInfo.InvariantCulture),
+            statistics.InvasionStartPrevented.ToString(CultureInfo.InvariantCulture)
         })));
     }
 
@@ -398,7 +412,7 @@ internal sealed class WorldLogWriter : IDisposable
     private void WriteDiagnostics(WorldStatisticsProjection statistics)
     {
         var entry = new WorldStatisticsLogEntry(
-            4, _info.ReleaseVersion, _info.WorldNumber, _info.WorldId, _info.Seed, statistics);
+            5, _info.ReleaseVersion, _info.WorldNumber, _info.WorldId, _info.Seed, statistics);
         _diagnosticsWriter.WriteLine(JsonSerializer.Serialize(entry, EventJsonOptions));
     }
 

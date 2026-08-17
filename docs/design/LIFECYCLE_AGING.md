@@ -55,7 +55,9 @@ CurrentHPはEffectiveMaxHPを超えない。生存MarkはBaseMaxHPや曲線を�
 
 ## v0.2 Settlement modifier
 
-Order中にSettlement Core内にいるNPCは、基礎curveを変更せず、その日の評価済みDailyVitalChangeへ局所modifierを適用する。正なら2.0倍、負なら絶対値を0.5倍にする。Generation中は適用しない。これらはv0.2 configurable defaultsである。
+Order中にSettlement Core内にいるNPCは、基礎curveを変更せず、その日の評価済みDailyVitalChangeへ局所modifierを適用する。正なら2.0倍、負なら絶対値を0.5倍にする。
+
+v0.2.4ではGeneration中のActive Settlement Coreにも限定Proto-Orderとして、正のDailyVitalChangeだけ`×1.25`を適用する。負のVitality / AgingはGenerationでは軽減しない。Order移行後は正`×2.0`、負`×0.5`へ切り替え、Generation倍率と重ねない。これらはconfigurable defaultsである。
 
 Settlementは固定寿命や直接回復Actionを追加しない。RestがHP回復を所有しない境界も維持する。
 

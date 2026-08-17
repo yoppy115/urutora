@@ -182,6 +182,8 @@ public sealed class SettlementFormationSystem
             .Where(item => item.IsAlive && item.Position.ChebyshevDistance(center) <= _config.Settlement.CoreRadius)
             .OrderBy(item => item.Id)
             .ToArray();
+        settlement.FoundingResidentBaseline = founders.Length +
+                                                coreResidents.Count(item => !founderSet.Contains(item.Id));
         foreach (var npc in coreResidents)
         {
             var gain = founderSet.Contains(npc.Id)
