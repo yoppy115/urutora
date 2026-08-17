@@ -140,4 +140,10 @@
 
 Settlement Maintenance順と翌Tick反映、Aura / Core占有計算もcollection order、scan order、thread schedulingに依存しないことを検証する。
 
+### v0.21 Settlement Hotspot regression
+
+- v0.2のclean logを生成したseed 8147291と8147292をv0.21 defaultで再実行し、ログ上で実測された3件HotspotからSettlement CandidateとActive Settlementが生じる。
+- defaultは90日、4×4、15日評価、spacing 7を維持し、`HotspotSuccessThreshold = 3` とする。
+- 同一seed、Config、tick数のEvent列と最終stateは引き続きreplay一致する。
+
 具体的なtest framework、fixture形式、統計的試験のsample数は実装時に決める。

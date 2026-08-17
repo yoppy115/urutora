@@ -4,7 +4,7 @@
 
 ## Directories
 
-- `configs/`: v0.2 default。人口、Need、Utility、行動、戦闘、繁殖、Vitality、Settlement、Order、Invasion、Aura等。
+- `configs/`: v0.21 default。人口、Need、Utility、行動、戦闘、繁殖、Vitality、Settlement、Order、Invasion、Aura等。
 - `presets/`: 初期状態や実験条件の名前付き組み合わせ。
 - `concepts/`: 概念と困難のデータ定義。
 
@@ -45,13 +45,13 @@ Need増減、Utility Effect、Threat Risk、Observation誤差・Confidence、Com
 
 Vitality Control Point値は確定Phase形状と連続性等の制約を満たす保守的なv0.15 Config初期値として設定し、Simulation Run後に再調整する。
 
-## v0.2 adopted defaults
+## v0.21 adopted defaults
 
-v0.15値は明示変更箇所以外を維持し、次をv0.2 Configへ追加する。
+v0.15値とv0.2の社会境界は明示変更箇所以外を維持し、次をv0.21 Configとして使う。
 
 | Area | Defaults |
 | --- | --- |
-| Settlement formation | 90-day Reproduction Success window、4×4、threshold 4、15-day evaluation、Center spacing 7 |
+| Settlement formation | 90-day Reproduction Success window、4×4、threshold 3、15-day evaluation、Center spacing 7。v0.2実測2 Worldの最大集中数3に合わせたv0.21補正 |
 | Region | Core radius 3、Influence radius 7、Rest Collision radius 5 |
 | Affinity | Founder +10、initial resident +7、membership 10、switch margin +5、Stay +0.05/day、Rest +1、Communication +0.5、Reproduction Success +2 |
 | Generation → Order | 90-day window、PopulationCV 0.10、DemographicImbalance 0.20、30 consecutive days |
@@ -65,14 +65,14 @@ Advance / Cohesionの具体WeightはConfig / implementation detailだがAdvance�
 
 ## Implemented configuration and run metadata
 
-`configs/v0-default.json` はschema version 2、ID `v0.2-default-1`。観測Appは各Worldへ完全Config snapshotと次の再現情報を保存する。
+`configs/v0-default.json` はschema version 2、ID `v0.21-default-1`。観測Appは各Worldへ完全Config snapshotと次の再現情報を保存する。
 
 ```json
 {
   "schemaVersion": 5,
   "seed": 8147291,
-  "configId": "v0.2-default-1",
-  "releaseVersion": "v0.2",
+  "configId": "v0.21-default-1",
+  "releaseVersion": "v0.21",
   "repositoryCommit": "git-commit-hash",
   "repositoryTreeState": "clean",
   "simulationConfigSha256": "..."

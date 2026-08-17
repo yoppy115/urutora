@@ -21,7 +21,8 @@ internal static class Program
     private static readonly (string Name, Action Test)[] Tests =
     {
         ("configuration schema is strict", ConfigurationSchemaIsStrict),
-        ("v0.2 defaults preserve v0.15 ecology", V02DefaultsAndInitialAges),
+        ("v0.21 defaults preserve v0.15 ecology", V021DefaultsAndInitialAges),
+        ("v0.2 logged seeds form Settlements with the v0.21 threshold", LoggedV02SeedsFormSettlements),
         ("partitioned RNG is deterministic and local", PartitionedRandomIsDeterministicAndLocal),
         ("utility candidate count and edge rules", UtilityCandidateRules),
         ("decision public API cannot receive Reality", DecisionApiCannotReceiveReality),
@@ -98,11 +99,12 @@ internal static class Program
         }
     }
 
-    private static void V02DefaultsAndInitialAges()
+    private static void V021DefaultsAndInitialAges()
     {
         var config = LoadConfig();
-        Equal("v0.2-default-1", config.Id);
+        Equal("v0.21-default-1", config.Id);
         Equal(4, config.Settlement.HotspotWindowSize);
+        Equal(3, config.Settlement.HotspotSuccessThreshold);
         Equal(0.125, config.Concept.ExposureByDistance[4], 0);
         Equal(180, config.Reproduction.MatureAgeDays);
         Equal(90, config.Reproduction.CooldownDays);
@@ -117,6 +119,27 @@ internal static class Program
         var world = Simulation.Core.World.WorldFactory.Create(config, new RandomStreamFactory(915));
         True(world.Npcs.Values.All(item => item.AgeDays is >= 180 and <= 700),
             "Initial age escaped the v0.15 day range.");
+    }
+
+    private static void LoggedV02SeedsFormSettlements()
+    {
+        var cases = new[]
+        {
+            (Seed: 8147291L, Days: 110),
+            (Seed: 8147292L, Days: 50)
+        };
+
+        foreach (var (seed, days) in cases)
+        {
+            var engine = new SimulationEngine(LoadConfig(), seed);
+            engine.AdvanceDays(days);
+            var snapshot = engine.GetSnapshot();
+            var statistics = engine.GetWorldStatistics();
+            True(snapshot.Settlements.Any(item => item.IsActive),
+                $"No Settlement formed for logged seed {seed} within {days} days.");
+            True(statistics.HotspotCandidates > 0,
+                $"No Hotspot Candidate was evaluated for logged seed {seed}.");
+        }
     }
 
     private static void PartitionedRandomIsDeterministicAndLocal()

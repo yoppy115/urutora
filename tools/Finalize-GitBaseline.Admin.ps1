@@ -40,4 +40,4 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host 'Administrator-scoped baseline finalization completed.'
-Write-Host 'Rollback is Git-only: delete tag v0.2.0 if needed, then revert the created commit.'
+Write-Host 'Rollback is Git-only: delete tag v0.21.0 if needed, then revert the created commit.'

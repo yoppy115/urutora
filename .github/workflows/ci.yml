@@ -40,7 +40,7 @@ jobs:
         run: |
           $runner = '.\src\Simulation.Runner\bin\Release\net10.0\Simulation.Runner.dll'
           $config = '.\simulation\configs\v0-default.json'
-          $replay = Join-Path $env:RUNNER_TEMP 'v0.2-ci.replay.json'
+          $replay = Join-Path $env:RUNNER_TEMP 'v0.21-ci.replay.json'
           dotnet $runner record --config $config --seed 8147291 --ticks 10 --output $replay
           if ($LASTEXITCODE -ne 0) { throw 'Replay record failed.' }
           dotnet $runner verify --replay $replay

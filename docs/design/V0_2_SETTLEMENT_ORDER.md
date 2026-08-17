@@ -1,6 +1,6 @@
 # v0.2 Settlement / Order Update
 
-**Status:** Baseline boundaries / v0.2 configurable defaults
+**Status:** Baseline boundaries / v0.21 configurable Hotspot default
 
 本書はv0.15までの個体生態系へSettlement、Generation / Order、社会化、Invasion、Concept Auraを追加する。v0.15のUtility AI、Perception、Combat、Reproduction、Lifecycle、ConceptMarkは、本書が明示的に変更する範囲以外を維持する。
 
@@ -15,6 +15,8 @@ Generation中、Reproduction Successが集中した場所からSettlementが自�
 SettlementはOrder開始を待たず、Generation中から順次生成できる。繁殖→滞在→Settlement形成→Affinity→所属という時間的連続性を保ち、過去のHotspotを後から遡及生成しない。
 
 v0.2 defaultでは、直近90日間のReproduction Successを4×4 Cell windowで集計し、4件以上の領域をSettlement Candidateとする。15日ごとにCandidateを再評価する。既存Settlement CenterからChebyshev距離7以内へ新Centerを生成しない。
+
+v0.21ではv0.2の実測2 Worldを補正根拠とし、同じ90日・4×4・15日評価の `HotspotSuccessThreshold` だけを3へ変更する。world-0001は385日でReproduction Success 152件、world-0002は290日で132件あったが、評価日ごとの4×4内最大集中数はいずれも3で、Candidate評価・棄却・成立がすべて0件だった。Window拡大はworld-0001を救済せず、領域拡大は空間Hotspotの意味を変えるため採用しない。閾値3は両ログで実際に観測された局所集中を成立経路へ接続する最小変更であり、arbitration、Center、Founder、spacing、翌Tick反映は変更しない。
 
 同じevaluation日の全Candidateは、evaluation開始時の同一immutable snapshotから生成する。各Candidateは4×4領域、rolling window内Reproduction Success数、有効Center候補Cell、Founder候補を保持する。
 
@@ -235,13 +237,13 @@ Raw Logを人間が直接読み続けるより、ゲーム内Statistics UIでSim
 
 必須統計は [`STATISTICS.md`](../architecture/STATISTICS.md)、必須headless testsは [`TESTING.md`](../architecture/TESTING.md) を正本とする。
 
-## v0.2 configurable defaults
+## v0.21 configurable defaults
 
 次は初回Run用Configであり、不変のゲーム思想ではない。
 
 | Area | Default |
 | --- | --- |
-| Hotspot | 90 days、4×4、Success 4、15-day evaluation |
+| Hotspot | 90 days、4×4、Success 3、15-day evaluation。v0.2 originalはSuccess 4 |
 | Settlement spacing | Center distance > 7 |
 | Regions | Core radius 3、Influence radius 7 |
 | Initial Affinity | Founder +10、Core resident +7 |
