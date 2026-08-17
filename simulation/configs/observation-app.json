@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "defaultSeed": 8147291,
   "seedIncrement": 1,
   "logDirectory": "logs",
@@ -9,6 +9,7 @@
   "chartMaximumPoints": 1096,
   "npcActionHistoryDisplayLimit": 500,
   "ageDistributionBinYears": 0.5,
+  "logFlushIntervalDays": 10,
   "archiveCompletedWorldLogs": true,
   "deleteOtherReleaseVersionLogs": true
 }

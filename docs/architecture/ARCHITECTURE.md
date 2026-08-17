@@ -14,6 +14,7 @@
 - LLMとPresentationをSimulation Coreの外側に置く。
 - `Simulation.Core`、`Simulation.App`、`Simulation.Core.Tests` の依存方向を `App/Tests -> Core` に限定する。
 - GUIのrender loopとSimulation tickを分離し、CoreだけをRealityの権威とする。
+- 1 Worldのauthoritative tick順序は並列化せず、UI threadから分離したworkerで進める。高速化は複数Tick batch、read-only索引・cache、buffered loggingで行い、CPU thread schedulingをSimulation結果の入力にしない。
 
 ## Decision and action flow
 
@@ -66,6 +67,7 @@ flowchart LR
 16. **Settlement formation and order are separate.** Generation中からSettlement関係stateを形成し、社会RuleはOrderから明示的に有効化する。
 17. **Social conflict is typed state.** Affiliation、Friction、Hostility、Invasionを個人ThreatやSpatial Resolutionへ暗黙に埋め込まない。
 18. **Statistics are read-only projections.** 集計、UI、logging量はSimulation state、乱数、phase順を変えない。
+19. **Performance preserves authority order.** AuraやStatisticsは同値な空間・Event索引を利用できるが、権威的Action / Maintenance順を複数coreの実行順へ委ねない。
 
 ## State layers
 

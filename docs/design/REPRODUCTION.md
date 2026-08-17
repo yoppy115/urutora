@@ -1,6 +1,6 @@
 # Reproduction, Birth, and Genetics
 
-**Status:** Baseline boundaries / v0 default and configurable mechanics
+**Status:** Baseline boundaries / v0.2.2 default and configurable mechanics
 
 ## Purpose and subjective candidate boundary
 
@@ -59,7 +59,11 @@ Rejectでは対象の既存未実行Intentを維持する。Acceptでは対象�
 
 Success時にBirthRequestへParentAId、ParentBId、両者のPositionAtConception、GeneticData / seed informationを保存する。後の同日移動で位置基準を変えず、両親がBirth解決前に死亡しても成立済みRequestをキャンセルしない。
 
-Tick末に全Requestをまとめて解決する。各Requestは受胎時の両親隣接Cell和集合にある空きCellからseed付きで希望Cellを選ぶ。同一Cell競合はseed付き決定論的tie-breakで1件だけ勝者とし、敗者は残る候補から再抽選する。全候補が尽きた場合だけ出生失敗となる。queue順、Entity生成順、collection列挙順に依存させない。
+v0.2.2では、少なくとも一方がActive Settlement所属者で、受胎時の両者の位置がその同一Settlement Core内にある場合、そのSettlement IDもBirthRequestへ保存する。両親の所属から複数のActive Settlementが同時に条件を満たして一意に定まらない場合、または片方でもCore外なら保存しない。これはMembershipの遺伝ではなく、所属者が当該社会空間内で成立させた出生の場所帰属である。
+
+Tick末に全Requestをまとめて解決する。各Requestは受胎時の両親隣接Cell和集合にある空きCellからseed付きで希望Cellを選ぶ。Settlement IDを保存したRequestは、出生解決時にもそのSettlementがActiveなら候補を同Core内へ限定し、出生した子へ同SettlementのMembershipThreshold相当AffinityとActive Affiliationを設定する。全Core候補が占有等で尽きた場合はCore外へ迂回せず出生失敗とする。出生解決時にSettlementがActiveでなくなっていれば通常の無所属出生へ戻す。
+
+同一Cell競合はseed付き決定論的tie-breakで1件だけ勝者とし、敗者は残る候補から再抽選する。全候補が尽きた場合だけ出生失敗となる。queue順、Entity生成順、collection列挙順に依存させない。
 
 Tick中に死亡して空いたCellは利用できるが、LandmarkとAlive NPC占有Cellは利用できない。出生失敗でもSuccess時に発生済みのNeed減少とCooldownは戻さない。子は次Tickから行動する。
 
@@ -92,10 +96,10 @@ v0 defaultは `mutationChance = 0.10`、`mutationStdDev = 0.25`。0〜10能力�
 
 ConceptMarkによるEffective補正はBase遺伝値を書き換えず、子へ継承しない。
 
-Settlement Affinity、Active Affiliation、Founder状態、Invasion参加、Auraも遺伝対象ではない。Settlement Core内のReproduction Successは、当事者へv0.2 ConfigのSettlement Affinityを加え、Hotspot生成判定の機械可読Eventとなる。
+Settlement Affinity、Active Affiliation、Founder状態、Invasion参加、Auraも遺伝対象ではない。v0.2.2の条件付き出生所属は出生位置とBirthRequestの社会状態から新規設定するものであり、親のAffinity値や所属stateを遺伝子として複製しない。Settlement Core内のReproduction Successは、当事者へv0.2 ConfigのSettlement Affinityを加え、Hotspot生成判定の機械可読Eventとなる。
 
 ## Tests
 
-非遺伝情報が子へ移らないこと、各項目の独立blend、Mutation再現性とClamp、MarkがBase値を変更しないこと、Candidateが対象RealityのHP/Cooldownを読まないこと、Reality precondition検証、Reject時のIntentとNeed/Cooldown不変、Accept時最大1回のIntent置換、Birth位置競合のqueue順非依存と失敗時コスト維持をheadless testで検証する。
+非遺伝情報が子へ移らないこと、条件付きSettlement出生だけがCore内・MembershipThresholdで開始すること、Core境界跨ぎが自動所属しないこと、各項目の独立blend、Mutation再現性とClamp、MarkがBase値を変更しないこと、Candidateが対象RealityのHP/Cooldownを読まないこと、Reality precondition検証、Reject時のIntentとNeed/Cooldown不変、Accept時最大1回のIntent置換、Birth位置競合のqueue順非依存と失敗時コスト維持をheadless testで検証する。
 
 採用理由は [`ADR-0005`](../decisions/ADR-0005-heritable-genotype-scope.md) を参照する。

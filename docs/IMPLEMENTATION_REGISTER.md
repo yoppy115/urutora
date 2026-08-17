@@ -19,7 +19,7 @@ DraftやTBDをこの台帳だけで確定仕様に変えてはならない。
 | NPC行動履歴 | Implemented | `PLAYER_OBSERVATION.md` | NPCがactor / targetの既存EventからMove / MoveFailedだけを除外。新規Eventや因果を生成せず、表示上限500件をApp Config化 |
 | 世界統計graph / table | Implemented | `PLAYER_OBSERVATION.md`, `V0_15_ECOLOGY.md`, `STATISTICS.md` | 人口・所属率・平均年齢graph、選択Action、死因、現在年齢分布、World Phase、Settlement、Friction、Invasion、Aura、繁殖・Combat等をread-only表示 |
 | 現在年齢分布の表示bin | Implementation detail | `simulation/configs/observation-app.json` | 生存NPCだけを0歳から隙間なく0.5年幅で集計。0件binも表示し、人数・構成比・相対barを表示 |
-| App観測設定 | Implemented | `simulation/configs/observation-app.json` | schema 3。既存項目に完了World圧縮と旧release log削除policyを追加 |
+| App観測設定 | Implemented | `simulation/configs/observation-app.json` | schema 4。完了World圧縮、旧release log削除、Worldログflush間隔を管理 |
 | Windows Formsの具体layout・色・描画 | Implementation detail | `ARCHITECTURE.md` | Simulation規則ではなく交換可能なPresentation詳細 |
 | Update情報の取得順 | Workflow | `AGENTS.md` | Git commit / diff / tag / branchと正史を一次情報にし、過去chatを更新根拠にしない |
 | 管理者権限が必要な導入 | Workflow | `AGENTS.md` | 回避試行を重ねず、対象とrollbackを限定した管理者用installerを別成果物として作る。自動実行しない |
@@ -32,15 +32,20 @@ DraftやTBDをこの台帳だけで確定仕様に変えてはならない。
 | Git build provenance | Implemented | `ARCHITECTURE.md`, `ADR-0019` | commit/tree stateをassemblyとrun metadataへ埋め込み、clean treeだけをrelease publishの既定とする。成果物hashはrelease manifestへ保存 |
 | Repository hygiene | Implemented | `tools/` | 生成物の誤追跡、不要な`.gitkeep`、Markdown local linkをCIとbaseline確定前に検査。finalizerはbranch/commit/tag/clean確認を行いpushしない |
 | Git ACL用管理者finalizer | Implemented | `AGENTS.md`, `tools/` | 通常processが`.git`をOSに拒否された場合だけ使うWindows PowerShell 5.1対応wrapperとCMD入口。対象をurutoraのbranch/index/commit/tagへ限定し、OS設定変更やpushは行わない |
-| v0.2.1 Config schema | Implemented | `V0_2_SETTLEMENT_ORDER.md`, `simulation/configs/v0-default.json` | schema 2 / `v0.2.1-default-1`。Settlement、Invasion、Auraの全調整値をstrict JSONへ分離 |
+| v0.2.2 Config schema | Implemented | `V0_2_SETTLEMENT_ORDER.md`, `simulation/configs/v0-default.json` | schema 2 / `v0.2.2-default-1`。v0.2.1調整値を維持し、Settlement、Invasion、Auraの全調整値をstrict JSONへ分離 |
 | Settlement domain分割 | Implemented | `MODULES.md`, `ADR-0016`–`ADR-0018` | `SettlementQueries`、Formation、Maintenance、Invasion、ConceptAuraをCore内の別責務にし、Appはprojectionだけを読む |
 | Advance / Defense / Cohesion weight | Configurable detail | `V0_2_SETTLEMENT_ORDER.md`, `v0-default.json` | 4.0 / 2.0 / 0.75。既存Move候補の重みだけを歪め、AdvanceがCohesionより常に強いvalidationを持つ |
 | Aura更新境界 | Implementation detail | `ADR-0018`, `SIMULATION_TICK.md` | Tick開始・各Micro Round前後・Concept Exposure後に決定論的snapshotを再計算。一時MaxHP解除ClampはDamage portを通さない |
-| v0.2.1 log schema | Implementation detail | `LOGGING.md`, `STATISTICS.md` | v0.2から同じ `run.json` schema 5、Event wrapper 3、diagnostics 4を継続。release別World連番・圧縮・SHA-256を維持 |
+| v0.2.2 log schema | Implementation detail | `LOGGING.md`, `STATISTICS.md` | v0.2から同じ `run.json` schema 5、Event wrapper 3、diagnostics 4を継続。release別World連番・圧縮・SHA-256を維持 |
 | v0.2.1 Hotspot補正根拠 | Configurable detail | `V0_2_SETTLEMENT_ORDER.md`, `v0-default.json` | clean v0.2 world-0001（seed 8147291、385日、Success 152）とworld-0002（seed 8147292、290日、Success 132）を分析。旧4×4評価日の最大集中数が両方3、Candidate / Rejection / Formationが0だった。現行defaultはthreshold 3、5×5。90日、15日評価、spacing 7は維持 |
 | Patch release directory | Implementation detail | `ReleaseIdentity.cs`, `publish.ps1` | patch番号が1以上ならApp表示、World log、publish先を `vMajor.Minor.Patch` とする。patch 0の既存releaseは従来どおり `vMajor.Minor` |
 | Event時点の所属projection | Implementation detail | `STATISTICS.md` | Event payloadとreplay fingerprintへActor / TargetのEvent発生時Settlement IDを保持。所属別のAction・繁殖・Concept統計が後日の所属変更や解散で遡及変化しないようにする |
 | Settlement Map描画 | Implementation detail | `PLAYER_OBSERVATION.md` | ID由来paletteでInfluence / Core / Center、所属outline、Active Invasion arrowを描画。描画はCore state・乱数を変更しない |
+| v0.2.2 Settlement出生所属 | Implemented | `REPRODUCTION.md`, `V0_2_SETTLEMENT_ORDER.md`, `ADR-0016` | 受胎時に少なくとも一方が所属し、両者が同じ一意なActive Core内ならBirthRequestへSettlement IDを保存。出生時にもActiveならCore内Cellだけを候補にし、AffinityをMembershipThresholdへ設定。親Affinityの遺伝ではない |
+| ConceptMark旗 | Implementation detail | `PLAYER_OBSERVATION.md` | NPC本体は中立色、Settlementは輪郭色、ConceptMarkはLandmarkと同色の小旗を複数描画。Presentation専用でCoreへ影響しない |
+| v0.2.2速度段階 | Implementation detail | `PLAYER_OBSERVATION.md` | 100ms描画timerごとのSimulation batchを1 / 2 / 3 / 5 / 10 / 50日に固定。authoritative tickはUI thread外の単一順序workerで実行し、renderはbatch後だけ更新 |
+| v0.2.2観測性能補正 | Implementation detail | `ARCHITECTURE.md`, `observation-app.json` | Concept AuraをSettlement / Concept / Position索引、Statistics Eventをtype索引、同一Tickの統計をcache化。決定論を壊すCore並列化は行わない。ログはdefault 10日ごとにflushし、終了時は必ずflush |
+| v0.2.2性能比較 | Verification record | `Simulation.App`, v0.2.1 release artifact | seed 8147292、120日、Worldログ有効の同一PC比較でv0.2.1 15.828秒、v0.2.2 14.493秒。比較用一時harnessはGit管理外 |
 
 ## Open non-canon implementation items
 

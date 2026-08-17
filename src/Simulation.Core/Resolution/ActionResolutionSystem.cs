@@ -696,9 +696,11 @@ public sealed class ActionResolutionSystem
         target.Needs.ClampAll();
         actor.ReproductionCooldownDays = _config.Reproduction.CooldownDays;
         target.ReproductionCooldownDays = _config.Reproduction.CooldownDays;
-        world.BirthRequests.Add(_reproduction.CreateRequest(actor, target, world.Tick, microRound));
+        var birthSettlementId = SettlementQueries.BirthSettlement(world, actor, target, _config);
+        world.BirthRequests.Add(_reproduction.CreateRequest(
+            actor, target, world.Tick, microRound, birthSettlementId));
         Emit(emit, microRound, SimulationEventType.ReproductionSuccess, actor.Id, target.Id, actor.Position, true,
-            $"birth request queued;scope={scope}");
+            $"birth request queued;scope={scope};birth-settlement={birthSettlementId?.ToString() ?? "-"}");
         return new ReproductionResolution(true, target.Id);
     }
 

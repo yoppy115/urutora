@@ -2,6 +2,7 @@ using Simulation.Core.Configuration;
 using Simulation.Core.Decision;
 using Simulation.Core.Domain;
 using Simulation.Core.Randomness;
+using Simulation.Core.Social;
 
 namespace Simulation.Core.Reproduction;
 
@@ -50,7 +51,12 @@ public sealed class ReproductionSystem
     public static double AcceptanceUtility(NpcState target, double utilityPenalty = 0) =>
         target.Needs.Reproduction - 0.40 * target.Needs.Survival - 0.20 * target.Needs.Rest - utilityPenalty;
 
-    public BirthRequest CreateRequest(NpcState first, NpcState second, int tick, int microRound)
+    public BirthRequest CreateRequest(
+        NpcState first,
+        NpcState second,
+        int tick,
+        int microRound,
+        int? birthSettlementId = null)
     {
         var minimum = Math.Min(first.Id, second.Id);
         var maximum = Math.Max(first.Id, second.Id);
@@ -62,7 +68,8 @@ public sealed class ReproductionSystem
             second.Position,
             new GeneticSnapshot(first.BaseStats.Copy(), first.RiskPreference),
             new GeneticSnapshot(second.BaseStats.Copy(), second.RiskPreference),
-            tick);
+            tick,
+            birthSettlementId);
     }
 
     public IReadOnlyList<BirthResolution> ResolveBirths(WorldState world)
@@ -77,9 +84,13 @@ public sealed class ReproductionSystem
 
         var occupied = world.Npcs.Values.Where(item => item.IsAlive).Select(item => item.Position).ToHashSet();
         var landmarks = world.Landmarks.Select(item => item.Position).ToHashSet();
+        var birthSettlements = requests.ToDictionary(
+            request => request.RequestId,
+            request => SettlementQueries.ActiveSettlement(world, request.BirthSettlementId),
+            StringComparer.Ordinal);
         var preferences = requests.ToDictionary(
             request => request.RequestId,
-            request => CreatePreferences(request, occupied, landmarks),
+            request => CreatePreferences(request, occupied, landmarks, birthSettlements[request.RequestId]),
             StringComparer.Ordinal);
         var reserved = new HashSet<Position>();
         var assignments = new Dictionary<string, Position>(StringComparer.Ordinal);
@@ -165,6 +176,11 @@ public sealed class ReproductionSystem
                 ParentAId = request.ParentAId,
                 ParentBId = request.ParentBId
             };
+            if (birthSettlements[request.RequestId] is { } birthSettlement)
+            {
+                child.SettlementId = birthSettlement.Id;
+                child.SettlementAffinity[birthSettlement.Id] = _config.Settlement.MembershipThreshold;
+            }
             child.Needs.Activity = _config.Reproduction.NewbornInitialNeed;
             child.Needs.Rest = _config.Reproduction.NewbornInitialNeed;
             child.Needs.Communication = _config.Reproduction.NewbornInitialNeed;
@@ -206,7 +222,8 @@ public sealed class ReproductionSystem
     private List<Position> CreatePreferences(
         BirthRequest request,
         IReadOnlySet<Position> occupied,
-        IReadOnlySet<Position> landmarks)
+        IReadOnlySet<Position> landmarks,
+        SettlementState? birthSettlement)
     {
         var candidates = request.ParentAPositionAtConception.Neighbors()
             .Concat(request.ParentBPositionAtConception.Neighbors())
@@ -214,6 +231,8 @@ public sealed class ReproductionSystem
             .Where(position => position.X >= 0 && position.X < _config.World.Width &&
                                position.Y >= 0 && position.Y < _config.World.Height)
             .Where(position => !occupied.Contains(position) && !landmarks.Contains(position))
+            .Where(position => birthSettlement is null ||
+                               birthSettlement.Center.ChebyshevDistance(position) <= _config.Settlement.CoreRadius)
             .OrderBy(position => _random.StablePriority(
                 "birth", request.ConceptionTick, 0, "location-preference", $"{request.RequestId}:{position.X}:{position.Y}"))
             .ThenBy(position => position)

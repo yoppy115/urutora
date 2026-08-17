@@ -4,7 +4,7 @@
 
 - `RepositoryProvenance.ps1`: buildへGit commitとtree stateを渡す共通関数。
 - `Test-RepositoryHygiene.ps1`: 生成物の誤追跡、不要な`.gitkeep`、主要Markdownの壊れたlocal linkを検査する。
-- `Finalize-GitBaseline.ps1`: 全test、staging安全確認、release commit、`v0.2.1` tag、clean確認を一続きで実行する。pushは行わない。
+- `Finalize-GitBaseline.ps1`: 全test、staging安全確認、release commit、`v0.2.2` tag、clean確認を一続きで実行する。pushは行わない。
 - `Finalize-GitBaseline.Admin.ps1`: `.git` ACLで通常processからfinalizeできない環境専用の昇格wrapper。対象はこのrepositoryのbranch、index、commit、tagだけで、OS設定を変更しない。
 - `Finalize-GitBaseline.Admin.cmd`: Windows PowerShellの実行policyに阻まれず、上記wrapperを起動する入口。PowerShell 7は不要。
 

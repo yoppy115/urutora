@@ -18,6 +18,7 @@ public sealed class ConceptAuraSystem
     public void Refresh(WorldState world, DomainEventEmitter emit, int microRound)
     {
         var alive = world.Npcs.Values.Where(item => item.IsAlive).OrderBy(item => item.Id).ToArray();
+        var holderIndex = BuildHolderIndex(world, alive);
         foreach (var npc in alive)
         {
             var desired = new HashSet<ConceptKind>();
@@ -25,11 +26,7 @@ public sealed class ConceptAuraSystem
             {
                 foreach (var concept in Enum.GetValues<ConceptKind>())
                 {
-                    var holderExists = alive.Any(holder =>
-                        holder.Id != npc.Id &&
-                        holder.SettlementId == npc.SettlementId &&
-                        holder.ConceptMarks.Contains(concept) &&
-                        holder.Position.ChebyshevDistance(npc.Position) <= _config.Aura.Radius);
+                    var holderExists = HasOtherHolder(holderIndex, npc, concept);
                     if (!holderExists)
                     {
                         continue;
@@ -78,6 +75,60 @@ public sealed class ConceptAuraSystem
         {
             dead.ActiveAuras.Clear();
         }
+    }
+
+    private static Dictionary<(int SettlementId, ConceptKind Concept, Position Position), List<long>> BuildHolderIndex(
+        WorldState world,
+        IReadOnlyList<NpcState> alive)
+    {
+        var result = new Dictionary<(int SettlementId, ConceptKind Concept, Position Position), List<long>>();
+        foreach (var holder in alive)
+        {
+            if (SettlementQueries.ActiveSettlement(world, holder.SettlementId) is null)
+            {
+                continue;
+            }
+
+            foreach (var concept in holder.ConceptMarks.OrderBy(item => item))
+            {
+                var key = (holder.SettlementId!.Value, concept, holder.Position);
+                if (!result.TryGetValue(key, out var ids))
+                {
+                    ids = new List<long>();
+                    result.Add(key, ids);
+                }
+
+                ids.Add(holder.Id);
+            }
+        }
+
+        return result;
+    }
+
+    private bool HasOtherHolder(
+        IReadOnlyDictionary<(int SettlementId, ConceptKind Concept, Position Position), List<long>> holderIndex,
+        NpcState npc,
+        ConceptKind concept)
+    {
+        if (!npc.SettlementId.HasValue)
+        {
+            return false;
+        }
+
+        for (var y = npc.Position.Y - _config.Aura.Radius; y <= npc.Position.Y + _config.Aura.Radius; y++)
+        {
+            for (var x = npc.Position.X - _config.Aura.Radius; x <= npc.Position.X + _config.Aura.Radius; x++)
+            {
+                if (holderIndex.TryGetValue(
+                        (npc.SettlementId.Value, concept, new Position(x, y)), out var ids) &&
+                    ids.Any(id => id != npc.Id))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     public Position? FindCohesionTarget(WorldState world, NpcState npc)

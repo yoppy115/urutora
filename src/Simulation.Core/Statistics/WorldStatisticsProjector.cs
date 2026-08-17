@@ -44,8 +44,14 @@ internal sealed class WorldStatisticsProjector
                 .OrderBy(item => item.Key)
                 .Select(item => new ActionSelectionCount(item.Key, item.Value))
                 .ToArray();
-            var deathCauses = _events
-                .Where(item => item.Type == SimulationEventType.Death)
+            var eventsByType = _events
+                .GroupBy(item => item.Type)
+                .ToDictionary(item => item.Key, item => (IReadOnlyList<SimulationEvent>)item.ToArray());
+            var actionSelectionEvents = eventsByType.Values
+                .SelectMany(item => item)
+                .Where(IsActionSelectionEvent)
+                .ToArray();
+            var deathCauses = Events(SimulationEventType.Death)
                 .GroupBy(item => DetailReason(item.Detail), StringComparer.Ordinal)
                 .OrderBy(item => item.Key, StringComparer.Ordinal)
                 .Select(group =>
@@ -58,8 +64,8 @@ internal sealed class WorldStatisticsProjector
                     return new DeathCauseStatistics(group.Key, group.LongCount(), ages.Length == 0 ? 0 : ages.Average());
                 })
                 .ToArray();
-            var reproductionOutcomes = _events
-                .Where(item => item.Type is SimulationEventType.ReproductionSuccess or SimulationEventType.ReproductionFailure)
+            var reproductionOutcomes = Events(SimulationEventType.ReproductionSuccess)
+                .Concat(Events(SimulationEventType.ReproductionFailure))
                 .GroupBy(item => item.Type == SimulationEventType.ReproductionSuccess ? "success" : DetailReason(item.Detail),
                     StringComparer.Ordinal)
                 .OrderBy(item => item.Key, StringComparer.Ordinal)
@@ -80,8 +86,8 @@ internal sealed class WorldStatisticsProjector
                 }
                 .Select(type =>
                 {
-                    var results = _events.Where(item => item.Type == type &&
-                        (item.Detail == "miss" || item.Detail.StartsWith("damage=", StringComparison.Ordinal))).ToArray();
+                    var results = Events(type).Where(item =>
+                        item.Detail == "miss" || item.Detail.StartsWith("damage=", StringComparison.Ordinal)).ToArray();
                     var damage = results
                         .Select(item => ParseDamage(item.Detail))
                         .Where(item => item.HasValue)
@@ -106,8 +112,8 @@ internal sealed class WorldStatisticsProjector
                     return new ConceptMarkStatistics(
                         concept,
                         alive.Count(item => item.ConceptMarks.Contains(concept)),
-                        _events.LongCount(item => item.Type == SimulationEventType.ConceptMarkAcquired &&
-                                                  item.Detail == concept.ToString()),
+                        Events(SimulationEventType.ConceptMarkAcquired)
+                            .LongCount(item => item.Detail == concept.ToString()),
                         exposure.Sum(),
                         exposure.Length == 0 ? 0 : exposure.Average(),
                         exposure.Length == 0 ? 0 : exposure.Max());
@@ -153,31 +159,32 @@ internal sealed class WorldStatisticsProjector
                 CreateAffiliationGroup("unaffiliated", false)
             };
             var violence = new ViolenceStatistics(
-                _events.LongCount(item => item.Type is SimulationEventType.CollisionAttack or SimulationEventType.CollisionSuppressed),
-                _events.LongCount(item => item.Type == SimulationEventType.CollisionAttack),
-                _events.LongCount(item => item.Type == SimulationEventType.CollisionSuppressed &&
-                                          item.Detail.Contains("same-settlement", StringComparison.Ordinal)),
-                _events.LongCount(item => item.Type == SimulationEventType.CollisionSuppressed &&
-                                          item.Detail.Contains("unaffiliated-protected", StringComparison.Ordinal)),
-                _events.LongCount(item => item.Type == SimulationEventType.CollisionSuppressed &&
-                                          item.Detail.Contains("other-settlement-friction", StringComparison.Ordinal)),
-                _events.LongCount(item => item.Type == SimulationEventType.SettlementFrictionChanged &&
-                                          !item.Detail.Contains("reason=decay", StringComparison.Ordinal)),
-                _events.LongCount(item => item.Type == SimulationEventType.Attack),
-                _events.LongCount(item => item.Type == SimulationEventType.Counterattack),
-                _events.LongCount(item => item.Type == SimulationEventType.Pursuit),
+                Events(SimulationEventType.CollisionAttack).LongCount() +
+                Events(SimulationEventType.CollisionSuppressed).LongCount(),
+                Events(SimulationEventType.CollisionAttack).LongCount(),
+                Events(SimulationEventType.CollisionSuppressed)
+                    .LongCount(item => item.Detail.Contains("same-settlement", StringComparison.Ordinal)),
+                Events(SimulationEventType.CollisionSuppressed)
+                    .LongCount(item => item.Detail.Contains("unaffiliated-protected", StringComparison.Ordinal)),
+                Events(SimulationEventType.CollisionSuppressed)
+                    .LongCount(item => item.Detail.Contains("other-settlement-friction", StringComparison.Ordinal)),
+                Events(SimulationEventType.SettlementFrictionChanged)
+                    .LongCount(item => !item.Detail.Contains("reason=decay", StringComparison.Ordinal)),
+                Events(SimulationEventType.Attack).LongCount(),
+                Events(SimulationEventType.Counterattack).LongCount(),
+                Events(SimulationEventType.Pursuit).LongCount(),
                 _state.AttackCandidateSuppressionCount,
-                _events.LongCount(item => item.Type == SimulationEventType.AttackSuppressed),
+                Events(SimulationEventType.AttackSuppressed).LongCount(),
                 _state.UnaffiliatedThreatExceptionAttackCount);
             var reproductionScopes = new[] { "same-core", "outside-penalty", "unknown" }
                 .Select(scope => new ReproductionScopeStatistics(
                     scope,
-                    _events.LongCount(item => item.Type == SimulationEventType.ReproductionAttempt &&
-                                              item.Detail.Contains($"scope={scope}", StringComparison.Ordinal)),
-                    _events.LongCount(item => item.Type == SimulationEventType.ReproductionSuccess &&
-                                              item.Detail.Contains($"scope={scope}", StringComparison.Ordinal)),
-                    _events.LongCount(item => item.Type == SimulationEventType.ReproductionFailure &&
-                                              item.Detail.Contains($"scope={scope}", StringComparison.Ordinal))))
+                    Events(SimulationEventType.ReproductionAttempt)
+                        .LongCount(item => item.Detail.Contains($"scope={scope}", StringComparison.Ordinal)),
+                    Events(SimulationEventType.ReproductionSuccess)
+                        .LongCount(item => item.Detail.Contains($"scope={scope}", StringComparison.Ordinal)),
+                    Events(SimulationEventType.ReproductionFailure)
+                        .LongCount(item => item.Detail.Contains($"scope={scope}", StringComparison.Ordinal))))
                 .Where(item => item.Attempts + item.Successes + item.Failures > 0)
                 .ToArray();
             var invasionStatistics = _state.Invasions.Values.OrderBy(item => item.Id)
@@ -189,8 +196,9 @@ internal sealed class WorldStatisticsProjector
                     var occupied = _state.Npcs.Values.Where(npc => npc.IsAlive &&
                             npc.SettlementId == item.AttackSettlementId && usable.Contains(npc.Position))
                         .Select(npc => npc.Position).Distinct().Count();
-                    var fleeing = _events.Where(simulationEvent => simulationEvent.Tick == _state.Tick - 1 &&
-                            simulationEvent.Type == SimulationEventType.Flee && simulationEvent.ActorId.HasValue)
+                    var fleeing = Events(SimulationEventType.Flee)
+                        .Where(simulationEvent => simulationEvent.Tick == _state.Tick - 1 &&
+                            simulationEvent.ActorId.HasValue)
                         .Select(simulationEvent => simulationEvent.ActorId!.Value)
                         .Distinct()
                         .Count(id => _state.Npcs.TryGetValue(id, out var npc) && npc.InvasionId == item.Id);
@@ -217,13 +225,13 @@ internal sealed class WorldStatisticsProjector
                 })
                 .ToArray();
             var auras = new AuraStatistics(
-                _events.LongCount(item => item.Type == SimulationEventType.AuraApplied),
-                _events.LongCount(item => item.Type == SimulationEventType.AuraExpired),
+                Events(SimulationEventType.AuraApplied).LongCount(),
+                Events(SimulationEventType.AuraExpired).LongCount(),
                 _state.AuraSelfMarkSuppressionCount,
-                _events.LongCount(item => item.Type == SimulationEventType.AuraApplied &&
-                                          item.Detail.Contains("concept=Survival", StringComparison.Ordinal)),
-                _events.LongCount(item => item.Type == SimulationEventType.AuraExpired &&
-                                          item.Detail.Contains("concept=Survival", StringComparison.Ordinal)),
+                Events(SimulationEventType.AuraApplied)
+                    .LongCount(item => item.Detail.Contains("concept=Survival", StringComparison.Ordinal)),
+                Events(SimulationEventType.AuraExpired)
+                    .LongCount(item => item.Detail.Contains("concept=Survival", StringComparison.Ordinal)),
                 alive.Count(item => item.ActiveAuras.Count > 0),
                 alive.Count(item => item.InvasionId.HasValue && item.ConceptMarks.Count > 0));
             var transitionWindows = new List<PhaseWindowStatistics>();
@@ -274,12 +282,11 @@ internal sealed class WorldStatisticsProjector
 
             TargetedActionStatistics TargetedStatistics(ActionKind action, SimulationEventType eventType)
             {
-                var attempts = _events.Where(item => item.Type == eventType).ToArray();
+                var attempts = Events(eventType);
                 var absent = action == ActionKind.Reproduction
-                    ? _events.LongCount(item => item.Type == SimulationEventType.ReproductionFailure &&
-                                                item.Detail == "target-absent")
+                    ? Events(SimulationEventType.ReproductionFailure).LongCount(item => item.Detail == "target-absent")
                     : attempts.LongCount(item => item.Detail == "target-absent");
-                return new TargetedActionStatistics(action, attempts.LongLength, absent);
+                return new TargetedActionStatistics(action, attempts.Count, absent);
             }
 
             AffiliationGroupStatistics CreateAffiliationGroup(string name, bool affiliated)
@@ -294,8 +301,8 @@ internal sealed class WorldStatisticsProjector
                 }
                 var dead = _state.Npcs.Values.Where(item => !item.IsAlive && item.DeathAgeDays.HasValue &&
                     IsAffiliated(item, true) == affiliated).ToArray();
-                var groupActionEvents = _events.Where(item =>
-                    IsActionSelectionEvent(item) && item.ActorSettlementId.HasValue == affiliated).ToArray();
+                var groupActionEvents = actionSelectionEvents
+                    .Where(item => item.ActorSettlementId.HasValue == affiliated).ToArray();
                 var groupActions = groupActionEvents.LongLength;
                 var restActions = groupActionEvents.LongCount(item => item.Type == SimulationEventType.Rest);
                 return new AffiliationGroupStatistics(
@@ -308,15 +315,18 @@ internal sealed class WorldStatisticsProjector
                     dead.LongCount(item => item.DeathCause == "vitality"),
                     restActions,
                     groupActions == 0 ? 0 : (double)restActions / groupActions,
-                    _events.LongCount(item => item.Type == SimulationEventType.ReproductionAttempt &&
-                                              item.ActorSettlementId.HasValue == affiliated),
-                    _events.LongCount(item => item.Type == SimulationEventType.ReproductionSuccess &&
-                                              item.ActorSettlementId.HasValue == affiliated),
-                    _events.LongCount(item => item.Type == SimulationEventType.Birth &&
-                                              item.TargetSettlementId.HasValue == affiliated),
-                    _events.LongCount(item => item.Type == SimulationEventType.ConceptMarkAcquired &&
-                                              item.ActorSettlementId.HasValue == affiliated));
+                    Events(SimulationEventType.ReproductionAttempt)
+                        .LongCount(item => item.ActorSettlementId.HasValue == affiliated),
+                    Events(SimulationEventType.ReproductionSuccess)
+                        .LongCount(item => item.ActorSettlementId.HasValue == affiliated),
+                    Events(SimulationEventType.Birth)
+                        .LongCount(item => item.TargetSettlementId.HasValue == affiliated),
+                    Events(SimulationEventType.ConceptMarkAcquired)
+                        .LongCount(item => item.ActorSettlementId.HasValue == affiliated));
             }
+
+            IReadOnlyList<SimulationEvent> Events(SimulationEventType type) =>
+                eventsByType.TryGetValue(type, out var values) ? values : Array.Empty<SimulationEvent>();
 
             static PhaseWindowStatistics AggregateWindow(
                 string name,

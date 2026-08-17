@@ -193,7 +193,7 @@ public static class ReplayService
         if (replay.ExternalInputs.Length != 0)
         {
             throw new InvalidDataException(
-                "This v0.2.1 runner cannot apply external inputs; only an empty externalInputs array is supported.");
+                "This v0.2.2 runner cannot apply external inputs; only an empty externalInputs array is supported.");
         }
 
         if (replay.Expected.CompletedTick != replay.Ticks)

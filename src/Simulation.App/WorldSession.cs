@@ -180,6 +180,8 @@ internal sealed class WorldLogWriter : IDisposable
     private readonly StreamWriter _eventWriter;
     private readonly StreamWriter _statisticsWriter;
     private readonly StreamWriter _diagnosticsWriter;
+    private readonly int _flushIntervalDays;
+    private int _daysSinceFlush;
     private bool _disposed;
 
     public WorldLogWriter(
@@ -192,6 +194,7 @@ internal sealed class WorldLogWriter : IDisposable
     {
         _info = info;
         _daysPerYear = simulationConfig.World.DaysPerYear;
+        _flushIntervalDays = appConfig.LogFlushIntervalDays;
         var simulationConfigSnapshotPath = Path.Combine(info.DirectoryPath, "simulation-config.json");
         var appConfigSnapshotPath = Path.Combine(info.DirectoryPath, "observation-app-config.json");
         CopyOrSerialize(
@@ -257,9 +260,11 @@ internal sealed class WorldLogWriter : IDisposable
 
         WriteStatistics(statistics);
         WriteDiagnostics(statistics);
-        _eventWriter.Flush();
-        _statisticsWriter.Flush();
-        _diagnosticsWriter.Flush();
+        _daysSinceFlush++;
+        if (_daysSinceFlush >= _flushIntervalDays)
+        {
+            Flush();
+        }
     }
 
     public void Dispose()
@@ -270,6 +275,7 @@ internal sealed class WorldLogWriter : IDisposable
         }
 
         _disposed = true;
+        Flush();
         _eventWriter.Dispose();
         _statisticsWriter.Dispose();
         _diagnosticsWriter.Dispose();
@@ -308,6 +314,14 @@ internal sealed class WorldLogWriter : IDisposable
             statistics.Perception.HeldInformationAverage.ToString("0.000000", CultureInfo.InvariantCulture),
             statistics.Perception.HeldInformationMaximum.ToString(CultureInfo.InvariantCulture)
         })));
+    }
+
+    private void Flush()
+    {
+        _eventWriter.Flush();
+        _statisticsWriter.Flush();
+        _diagnosticsWriter.Flush();
+        _daysSinceFlush = 0;
     }
 
     private void WriteDiagnostics(WorldStatisticsProjection statistics)

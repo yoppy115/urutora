@@ -140,6 +140,29 @@ public static class SettlementQueries
         return firstCore is not null && firstCore.Id == secondCore?.Id;
     }
 
+    public static int? BirthSettlement(
+        WorldState world,
+        NpcState first,
+        NpcState second,
+        SimulationConfig config)
+    {
+        var candidates = new[] { first.SettlementId, second.SettlementId }
+            .Where(item => item.HasValue)
+            .Select(item => item!.Value)
+            .Distinct()
+            .Where(settlementId =>
+            {
+                var settlement = ActiveSettlement(world, settlementId);
+                return settlement is not null &&
+                       settlement.Center.ChebyshevDistance(first.Position) <= config.Settlement.CoreRadius &&
+                       settlement.Center.ChebyshevDistance(second.Position) <= config.Settlement.CoreRadius;
+            })
+            .OrderBy(item => item)
+            .ToArray();
+
+        return candidates.Length == 1 ? candidates[0] : null;
+    }
+
     public static IReadOnlyList<Position> UsableCoreCells(
         WorldState world,
         SettlementState settlement,

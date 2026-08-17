@@ -52,12 +52,14 @@ v0はheadless Coreに加え、観測用Desktop Applicationを実装対象とす�
 
 1. 64×64 World Map。NPC、Empty、闘争・生存・交流Landmarkを視覚的に識別できる。
 2. 現在のYear / Day。
-3. Pause、通常速度、複数の高速化段階。可能ならMax Speed。
+3. Pause、1倍、2倍、3倍、5倍、10倍、50倍の速度段階。
 4. 最近のBirth、Death、Attack、CollisionAttack、Communication、Reproduction、ConceptMark Eventのスクロールログ。
 
 v0.2ではMap上でSettlement Centerと、必要に応じてCore / Influenceを識別可能にする。Current World Phase、Settlement数、主要Statistics、Invasion中Settlementも確認可能にする。Generation→Orderの条件、Settlement / Affiliation、暴力、Reproduction、Invasion、Concept / Auraの最低限統計は [`STATISTICS.md`](../architecture/STATISTICS.md) に従う。
 
-具体倍率、配置、UI framework、デザインは実装時の裁量とする。
+v0.2.2ではSettlement所属色とConceptMarkを同じNPC記号の色だけで重ねない。所属は従来の輪郭色、ConceptMarkは該当Concept / Landmarkと同色の旗として別レイヤーに描画し、複数Markは複数旗で識別可能にする。
+
+配置、UI framework、旗形状を含む具体デザインは実装時の裁量とする。
 
 Simulation TickとUI Render Updateを分離する。高速進行では複数Tick後の最新Stateだけを描画してよく、render頻度、frame rate、UI操作がSimulation Event列を変えてはならない。自動テストはGUIなしで実行可能にする。
 

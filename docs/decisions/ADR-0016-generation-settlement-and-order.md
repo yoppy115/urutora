@@ -15,6 +15,8 @@ GenerationからOrderへの移行は絶対人口や固定日数でなく、rolli
 
 Settlement構造変更は固定順のTick末Maintenanceでcommitし、新規Settlement、WorldPhase、Invasion開始は原則翌Tickから有効にする。同日Hotspot Candidateは一つのimmutable snapshotから生成し、Reproduction Success数を優先、同数だけnamed seedでtie-breakする。Center選択後に既存Settlement排他へ違反したCandidateは別Centerへrerollせず不成立とする。
 
+v0.2.2では、所属者を少なくとも一方に含む繁殖が受胎時にその同一Active Settlement Core内で成立した場合、子を同Core内へ出生させ、当該Settlement所属として開始する。これは遺伝ではなく「繁殖→滞在→集落→所属」の因果を出生世代へ連続させる場所帰属であり、Core外や曖昧な所属候補へは適用しない。
+
 ## Reasons
 
 - 繁殖→滞在→集落形成→所属という因果を保つ。
@@ -27,3 +29,4 @@ Settlement構造変更は固定順のTick末Maintenanceでcommitし、新規Sett
 - Order前後で同じSettlementのRule setが変化する。
 - PhaseとSettlement統計をUI / headless diagnosticsへ公開する。
 - 日中Eventと日末構造commitを分離し、scan / collection / thread順へ依存しないarbitrationと翌Tick反映を実装する必要がある。
+- 条件付きSettlement出生はBirthRequestへ受胎時の一意なSettlement IDを保存し、出生時にもActiveである場合だけ適用する必要がある。

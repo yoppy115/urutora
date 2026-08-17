@@ -15,7 +15,8 @@ internal static class Program
         ("Observation App configuration schema is strict", ObservationAppConfigurationIsStrict),
         ("world sessions are numbered and logged", WorldSessionsAreNumberedAndLogged),
         ("world logging does not change Simulation events", LoggingDoesNotChangeSimulationEvents),
-        ("statistics chart renders changing series", StatisticsChartRendersChangingSeries)
+        ("statistics chart renders changing series", StatisticsChartRendersChangingSeries),
+        ("ConceptMark renders as a concept-colored flag", ConceptMarkRendersAsColoredFlag)
     };
 
     [STAThread]
@@ -44,17 +45,18 @@ internal static class Program
     private static void ObservationAppConfigurationIsStrict()
     {
         var config = ObservationAppConfigLoader.Load(AppConfigPath());
-        Equal(3, config.SchemaVersion);
+        Equal(4, config.SchemaVersion);
         Equal(1, config.SeedIncrement);
         Equal(500, config.NpcActionHistoryDisplayLimit);
         Equal(0.5, config.AgeDistributionBinYears);
+        Equal(10, config.LogFlushIntervalDays);
         True(config.ArchiveCompletedWorldLogs);
         True(config.DeleteOtherReleaseVersionLogs);
         var invalidPath = Path.Combine(Path.GetTempPath(), $"world-sim-app-invalid-{Guid.NewGuid():N}.json");
         try
         {
             var json = File.ReadAllText(AppConfigPath())
-                .Replace("\"schemaVersion\": 3", "\"schemaVersion\": 3, \"unknown\": true", StringComparison.Ordinal);
+                .Replace("\"schemaVersion\": 4", "\"schemaVersion\": 4, \"unknown\": true", StringComparison.Ordinal);
             File.WriteAllText(invalidPath, json);
             Throws<ConfigurationException>(() => ObservationAppConfigLoader.Load(invalidPath));
         }
@@ -83,8 +85,8 @@ internal static class Program
             using (var first = store.CreateNextWorld(simulationConfig, SimulationConfigPath(), 9000))
             {
                 Equal(1, first.Info.WorldNumber);
-                Equal("v0.2.1", first.Info.ReleaseVersion);
-                Equal("v0.2.1", Directory.GetParent(first.Info.DirectoryPath)!.Name);
+                Equal("v0.2.2", first.Info.ReleaseVersion);
+                Equal("v0.2.2", Directory.GetParent(first.Info.DirectoryPath)!.Name);
                 Equal(9000L, first.Info.Seed);
                 tick = first.AdvanceOneDay();
                 firstInfo = first.Info;
@@ -194,6 +196,53 @@ internal static class Program
         }
 
         True(sampledColors.Count > 12);
+    }
+
+    private static void ConceptMarkRendersAsColoredFlag()
+    {
+        using var panel = new WorldMapPanel
+        {
+            Size = new Size(660, 660),
+            Snapshot = new SimulationSnapshot(
+                0,
+                365,
+                10,
+                10,
+                WorldPhase.Generation,
+                new[]
+                {
+                    new NpcProjection(
+                        1,
+                        new Position(4, 4),
+                        new HashSet<ConceptKind> { ConceptKind.Struggle },
+                        new HashSet<ConceptKind>(),
+                        1,
+                        null)
+                },
+                Array.Empty<LandmarkProjection>(),
+                new[]
+                {
+                    new SettlementProjection(1, new Position(4, 4), 3, 7, 0, true, 1, 0)
+                },
+                Array.Empty<InvasionProjection>(),
+                Array.Empty<SimulationEvent>())
+        };
+        using var bitmap = new Bitmap(panel.Width, panel.Height);
+        panel.DrawToBitmap(bitmap, panel.ClientRectangle);
+        var conceptColor = Color.FromArgb(224, 72, 72).ToArgb();
+        var conceptPixels = 0;
+        for (var y = 0; y < bitmap.Height; y++)
+        {
+            for (var x = 0; x < bitmap.Width; x++)
+            {
+                if (bitmap.GetPixel(x, y).ToArgb() == conceptColor)
+                {
+                    conceptPixels++;
+                }
+            }
+        }
+
+        True(conceptPixels > 10);
     }
 
     private static string TemporaryDirectory()

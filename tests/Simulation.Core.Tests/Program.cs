@@ -21,7 +21,7 @@ internal static class Program
     private static readonly (string Name, Action Test)[] Tests =
     {
         ("configuration schema is strict", ConfigurationSchemaIsStrict),
-        ("v0.2.1 defaults preserve v0.15 ecology", V021DefaultsAndInitialAges),
+        ("v0.2.2 defaults preserve v0.15 ecology", V022DefaultsAndInitialAges),
         ("v0.2 logged seeds form Settlements with the v0.2.1 hotspot", LoggedV02SeedsFormSettlements),
         ("partitioned RNG is deterministic and local", PartitionedRandomIsDeterministicAndLocal),
         ("utility candidate count and edge rules", UtilityCandidateRules),
@@ -38,10 +38,12 @@ internal static class Program
         ("vitality curve is continuous and eventually lethal", VitalityCurve),
         ("ConceptMark preserves Base stats", ConceptMarkPreservesBaseStats),
         ("genetics allowlist excludes acquired state", GeneticsAllowlist),
+        ("qualifying Settlement birth starts affiliated inside its Core", SettlementBirthStartsAffiliatedInsideCore),
         ("birth batch arbitration is queue-order independent", BirthArbitrationIsOrderIndependent),
         ("NPC detail projection exposes stable lineage", NpcDetailProjectionExposesStableLineage),
         ("NPC action history excludes movement events", NpcActionHistoryExcludesMovementEvents),
         ("world statistics count selected action commands", WorldStatisticsCountSelectedActions),
+        ("world statistics projection is cached until the next advance", WorldStatisticsCacheInvalidatesOnAdvance),
         ("Generation hotspot forms a deterministic Settlement", GenerationHotspotFormsSettlement),
         ("Order transition commits on the following tick", OrderTransitionCommitsNextTick),
         ("Order collision policies suppress and convert combat", OrderCollisionPolicies),
@@ -99,10 +101,10 @@ internal static class Program
         }
     }
 
-    private static void V021DefaultsAndInitialAges()
+    private static void V022DefaultsAndInitialAges()
     {
         var config = LoadConfig();
-        Equal("v0.2.1-default-1", config.Id);
+        Equal("v0.2.2-default-1", config.Id);
         Equal(5, config.Settlement.HotspotWindowSize);
         Equal(3, config.Settlement.HotspotSuccessThreshold);
         Equal(0.125, config.Concept.ExposureByDistance[4], 0);
@@ -620,6 +622,43 @@ internal static class Program
             second.OrderBy(item => item.Key).Select(item => $"{item.Key}:{item.Value}"));
     }
 
+    private static void SettlementBirthStartsAffiliatedInsideCore()
+    {
+        var config = LoadConfig();
+        config.World.Width = 12;
+        config.World.Height = 12;
+        var world = SocialWorld(config);
+        var resident = Npc(1, new Position(2, 2), 5, 5, 5, 100);
+        resident.SettlementId = 1;
+        resident.SettlementAffinity[1] = config.Settlement.MembershipThreshold;
+        var partner = Npc(2, new Position(3, 2), 5, 5, 5, 100);
+        world.Npcs.Add(resident.Id, resident);
+        world.Npcs.Add(partner.Id, partner);
+        world.NextNpcId = 3;
+
+        var birthSettlementId = SettlementQueries.BirthSettlement(world, resident, partner, config);
+        Equal(1, birthSettlementId!.Value);
+        var reproduction = new ReproductionSystem(config, new RandomStreamFactory(922));
+        world.BirthRequests.Add(reproduction.CreateRequest(resident, partner, world.Tick, 1, birthSettlementId));
+        var result = reproduction.ResolveBirths(world).Single();
+
+        True(result.Success, "Qualifying Settlement birth had no Core birth cell.");
+        Equal(1, result.Child!.SettlementId!.Value);
+        Equal(config.Settlement.MembershipThreshold, result.Child.SettlementAffinity[1], 0);
+        True(world.Settlements[1].Center.ChebyshevDistance(result.Child.Position) <= config.Settlement.CoreRadius,
+            "Affiliated child was born outside the Settlement Core.");
+
+        partner.Position = new Position(6, 2);
+        True(SettlementQueries.BirthSettlement(world, resident, partner, config) is null,
+            "A reproduction crossing the Core boundary inherited Settlement affiliation.");
+
+        partner.Position = new Position(3, 2);
+        partner.SettlementId = 2;
+        config.Settlement.CoreRadius = 7;
+        True(SettlementQueries.BirthSettlement(world, resident, partner, config) is null,
+            "Overlapping parental Settlement candidates were resolved by arbitrary order.");
+    }
+
     private static void WholeRunAndRenderDeterminism()
     {
         const long seed = 8147291;
@@ -721,6 +760,18 @@ internal static class Program
                 item.MinimumAgeDays == index * 183 && item.MaximumAgeDaysExclusive == (index + 1) * 183)
             .All(item => item), "Age distribution buckets were not contiguous.");
         Throws<ArgumentOutOfRangeException>(() => engine.GetCurrentAgeDistribution(0));
+    }
+
+    private static void WorldStatisticsCacheInvalidatesOnAdvance()
+    {
+        var engine = new SimulationEngine(LoadConfig(), 9221);
+        var first = engine.GetWorldStatistics();
+        var repeated = engine.GetWorldStatistics();
+        True(ReferenceEquals(first, repeated), "Unchanged World statistics were recomputed.");
+        engine.AdvanceOneDay();
+        var advanced = engine.GetWorldStatistics();
+        True(!ReferenceEquals(first, advanced), "World statistics cache survived an authoritative advance.");
+        Equal(1, advanced.Tick);
     }
 
     private static void GenerationHotspotFormsSettlement()

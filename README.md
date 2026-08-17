@@ -6,12 +6,12 @@
 
 ## Current status
 
-- フェーズ: v0.2.1 Settlement Hotspot補正・観測実験
+- フェーズ: v0.2.2 Settlement出生所属・観測性能補正
 - 実装: headless Core、Windows Desktop観測App、SimRunner、全自動testを実装済み
 - 実装基盤: C# / .NET 10。`Simulation.Core`、`Simulation.App`、`Simulation.Runner`、各Testsを分離
 - 外部依存: test-onlyのFsCheck 3.3.4。Production Core / App / Runnerは外部packageなし
 
-v0.15の個体生態系とv0.2のGeneration、Settlement、Order、Invasion、Aura、Statisticsを維持し、v0.2.1ではHotspot thresholdを3、判定範囲を5×5へ補正した。Windows Formsは交換可能なPresentation Adapterであり、GUIはRealityの権威を持たない。
+v0.15の個体生態系とv0.2のGeneration、Settlement、Order、Invasion、Aura、Statistics、v0.2.1の5×5 Hotspot補正を維持する。v0.2.2では同一Settlement Core内の所属者による繁殖から生まれた子を同Core内へ出生・所属させ、ConceptMark旗、6段階速度、観測処理の性能補正を追加した。Windows Formsは交換可能なPresentation Adapterであり、GUIはRealityの権威を持たない。
 
 ## Source of truth
 
@@ -63,18 +63,18 @@ dotnet run --project src\Simulation.App\Simulation.App.csproj -c Release --no-bu
 .\publish.ps1
 ```
 
-成果物は `outputs\World Sim v0.2.1\Simulation.App.exe` と `outputs\World Sim v0.2.1\tools\Simulation.Runner\Simulation.Runner.exe`。同梱Configを使い、ログはreleaseごとに `logs/v0.2.1/world-NNNN/`、完了後はZIPへ保存する。
+成果物は `outputs\World Sim v0.2.2\Simulation.App.exe` と `outputs\World Sim v0.2.2\tools\Simulation.Runner\Simulation.Runner.exe`。同梱Configを使い、ログはreleaseごとに `logs/v0.2.2/world-NNNN/`、完了後はZIPへ保存する。
 
 headless実行と決定論的replay:
 
 ```powershell
 dotnet run --project src\Simulation.App\Simulation.App.csproj -c Release --no-build -- --headless --ticks 120 --seed 8147291
-dotnet run --project src\Simulation.Runner\Simulation.Runner.csproj -c Release --no-build -- record --config simulation\configs\v0-default.json --seed 8147291 --ticks 120 --output work\replays\v0.2.1-seed-8147291.json
-dotnet run --project src\Simulation.Runner\Simulation.Runner.csproj -c Release --no-build -- verify --replay work\replays\v0.2.1-seed-8147291.json
+dotnet run --project src\Simulation.Runner\Simulation.Runner.csproj -c Release --no-build -- record --config simulation\configs\v0-default.json --seed 8147291 --ticks 120 --output work\replays\v0.2.2-seed-8147291.json
+dotnet run --project src\Simulation.Runner\Simulation.Runner.csproj -c Release --no-build -- verify --replay work\replays\v0.2.2-seed-8147291.json
 ```
 
-Appは世界生成、速度制御、Settlement / Core / Influence / Invasion Map、NPC詳細、移動以外の行動履歴、人口・所属率・平均年齢graph、社会・戦闘・繁殖・死因・年齢分布診断を提供する。
+Appは世界生成、1/2/3/5/10/50倍の速度制御、Settlement / Core / Influence / Invasion Map、ConceptMark旗、NPC詳細、移動以外の行動履歴、人口・所属率・平均年齢graph、社会・戦闘・繁殖・死因・年齢分布診断を提供する。
 
 ## Next validation
 
-固定seed実験でGeneration→Order前後、Settlement形成率、所属率、個人暴力からFrictionへの移行、CrowdingとInvasion、Auraの生態系影響を比較する。永続snapshot、国家、占領統治、反乱等はv0.2.1へ先取りしない。
+固定seed実験でGeneration→Order前後、Settlement形成率、所属率、Settlement出生、個人暴力からFrictionへの移行、CrowdingとInvasion、Auraの生態系影響を比較する。永続snapshot、国家、占領統治、反乱等はv0.2.2へ先取りしない。

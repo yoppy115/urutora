@@ -1,6 +1,6 @@
 # v0.2 Settlement / Order Update
 
-**Status:** Baseline boundaries / v0.2.1 configurable Hotspot default
+**Status:** Baseline boundaries / v0.2.2 configurable default
 
 本書はv0.15までの個体生態系へSettlement、Generation / Order、社会化、Invasion、Concept Auraを追加する。v0.15のUtility AI、Perception、Combat、Reproduction、Lifecycle、ConceptMarkは、本書が明示的に変更する範囲以外を維持する。
 
@@ -51,6 +51,8 @@ AffinityはGeneration中から有効で、Order前でも住民とSettlementの�
 1 NPCは原則1 Settlementへ所属する。Affinityが10以上になったSettlementへ所属できる。別Settlementへは `NewAffinity >= CurrentAffinity + 5` で移籍でき、頻繁な往復を抑制する。
 
 Invasion参加中はEvent終了までActive Affiliationを固定する。Affinity履歴自体は更新可能だが、敵地の滞在や行動で戦闘中に所属を変更しない。征服後は統合規則を適用する。
+
+v0.2.2では、Active Settlement所属者を少なくとも一方に含み、受胎時に両者がその同一Settlement Core内で繁殖成立した場合、その子は同Core内へ出生し、当該SettlementのMembershipThreshold相当AffinityとActive Affiliationを持って開始する。Core境界をまたぐ繁殖、所属から一意のSettlementを定められない繁殖、出生解決時点で非ActiveとなったSettlementには適用しない。これは親のAffinity値の遺伝ではなく、出生した社会空間への所属付与である。詳細は [`REPRODUCTION.md`](REPRODUCTION.md) を正本とする。
 
 ## Generation and Order
 
@@ -237,7 +239,7 @@ Raw Logを人間が直接読み続けるより、ゲーム内Statistics UIでSim
 
 必須統計は [`STATISTICS.md`](../architecture/STATISTICS.md)、必須headless testsは [`TESTING.md`](../architecture/TESTING.md) を正本とする。
 
-## v0.2.1 configurable defaults
+## v0.2.2 configurable defaults
 
 次は初回Run用Configであり、不変のゲーム思想ではない。
 
@@ -249,6 +251,7 @@ Raw Logを人間が直接読み続けるより、ゲーム内Statistics UIでSim
 | Initial Affinity | Founder +10、Core resident +7 |
 | Affiliation | threshold 10、switch margin +5 |
 | Core Affinity | Stay +0.05/day、Rest +1、Communication +0.5、Reproduction Success +2 |
+| Settlement birth | 条件を満たすCore内出生は同Settlement所属・Affinity 10から開始 |
 | Generation → Order | 90-day window、CV <= 0.10、Imbalance <= 0.20、30 consecutive days |
 | Order benefits | Rest ×1.5、positive Vitality ×2、negative Vitality ×0.5 |
 | Outside Core reproduction | 同一Active Settlement Core内の2名だけ免除。それ以外はU_reproduce -2、U_accept -2 |
@@ -269,7 +272,7 @@ C# / .NET、Core / App分離、1 Tick = 1日、64×64 Map、InitialPopulation 20
 
 ## Future direction preserved
 
-Settlementへの所属を規則で強制しない。回復、休息、長寿、繁殖、治安の強い利益により、結果として所属系統が長期的に有利となり、ほぼ全NPCが何らかのSettlementへ所属し得る社会化を目指す。
+一般のNPCをSettlementへ一律所属させない。v0.2.2の条件付きCore内出生だけは出生時所属の例外とし、それ以外は滞在、休息、交流、繁殖等のAffinity蓄積で所属する。回復、休息、長寿、繁殖、治安の強い利益により、結果として所属系統が長期的に有利となり、ほぼ全NPCが何らかのSettlementへ所属し得る社会化を目指す。
 
 その成功が高密度、疾病、依存、階層、内部対立、資源不足、Settlement間戦争等の新Difficultyを生む方向性を維持する。v0.2はCrowdingからInvasionへ至る最初の接続だけを実装対象とし、他の将来制度を前倒ししない。
 

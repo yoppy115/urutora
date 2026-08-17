@@ -39,6 +39,7 @@ public sealed class SimulationEngine
     private readonly Dictionary<long, Dictionary<ActionKind, long>> _selectedActionCountsByNpc = new();
     private int _minimumPopulation;
     private int _eventSequence;
+    private WorldStatisticsProjection? _cachedWorldStatistics;
 
     public SimulationEngine(SimulationConfig config, long runSeed)
         : this(config, runSeed, null)
@@ -79,6 +80,7 @@ public sealed class SimulationEngine
     {
         lock (_gate)
         {
+            _cachedWorldStatistics = null;
             var eventStart = _events.Count;
             _eventSequence = 0;
             _lastDecisionTraces.Clear();
@@ -407,7 +409,8 @@ public sealed class SimulationEngine
                             item.ParentBGenetics.BaseStats.Communication,
                             item.ParentBGenetics.RiskPreference
                         },
-                        item.ConceptionTick
+                        item.ConceptionTick,
+                        item.BirthSettlementId
                     })
                     .ToArray(),
                 Events = _events.Select(item => item.Fingerprint()).ToArray()
@@ -530,13 +533,14 @@ public sealed class SimulationEngine
     {
         lock (_gate)
         {
-            return new WorldStatisticsProjector(
+            _cachedWorldStatistics ??= new WorldStatisticsProjector(
                 Config,
                 State,
                 _events,
                 _selectedActionCounts,
                 _perception,
                 _minimumPopulation).GetWorldStatistics();
+            return _cachedWorldStatistics;
         }
     }
 
@@ -669,7 +673,8 @@ public sealed class SimulationEngine
             if (result.Success)
             {
                 AddEvent(0, SimulationEventType.Birth, result.Child!.Id, result.Request.ParentAId, result.Position, true,
-                    $"parents={result.Request.ParentAId},{result.Request.ParentBId};request={result.Request.RequestId}");
+                    $"parents={result.Request.ParentAId},{result.Request.ParentBId};request={result.Request.RequestId};" +
+                    $"settlement={result.Child.SettlementId?.ToString() ?? "-"}");
             }
             else
             {

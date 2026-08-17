@@ -72,10 +72,12 @@ public sealed class MainForm : Form
 
         _speed.Items.AddRange(new object[]
         {
-            new SpeedOption("通常", 1),
-            new SpeedOption("高速 ×10", 10),
-            new SpeedOption("高速 ×50", 50),
-            new SpeedOption("Max", 200)
+            new SpeedOption("1倍", 1),
+            new SpeedOption("2倍", 2),
+            new SpeedOption("3倍", 3),
+            new SpeedOption("5倍", 5),
+            new SpeedOption("10倍", 10),
+            new SpeedOption("50倍", 50)
         });
         _speed.SelectedIndex = 0;
 
@@ -130,7 +132,9 @@ public sealed class MainForm : Form
 
     internal async Task RunUiSmokeChecksAsync()
     {
-        if (_tabs.TabPages.Count != 3 || _diagnosticStatistics.Columns.Count != 3 || !_newWorldButton.Enabled)
+        if (_tabs.TabPages.Count != 3 || _diagnosticStatistics.Columns.Count != 3 || !_newWorldButton.Enabled ||
+            _speed.Items.Cast<SpeedOption>().Select(item => item.TicksPerFrame)
+                .SequenceEqual(new[] { 1, 2, 3, 5, 10, 50 }) is false)
         {
             throw new InvalidOperationException("Required observation controls were not initialized.");
         }

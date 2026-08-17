@@ -327,7 +327,8 @@ public sealed record BirthRequest(
     Position ParentBPositionAtConception,
     GeneticSnapshot ParentAGenetics,
     GeneticSnapshot ParentBGenetics,
-    int ConceptionTick);
+    int ConceptionTick,
+    int? BirthSettlementId = null);
 
 public enum ActionKind
 {

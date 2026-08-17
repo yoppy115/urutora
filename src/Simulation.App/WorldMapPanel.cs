@@ -127,7 +127,7 @@ public sealed class WorldMapPanel : Panel
 
         foreach (var npc in _snapshot.Npcs)
         {
-            using var brush = new SolidBrush(NpcColor(npc));
+            using var brush = new SolidBrush(NpcColor());
             var inset = Math.Max(0.6f, cell * 0.18f);
             var rectangle = CellRectangle(npc.Position, originX, originY, cell, inset);
             eventArgs.Graphics.FillEllipse(brush, rectangle);
@@ -136,6 +136,7 @@ public sealed class WorldMapPanel : Panel
                 using var affiliationPen = new Pen(SettlementColor(npc.SettlementId.Value), Math.Max(1, cell * 0.09f));
                 eventArgs.Graphics.DrawEllipse(affiliationPen, rectangle);
             }
+            DrawConceptFlags(eventArgs.Graphics, npc, rectangle, cell);
             if (npc.Id == _selectedNpcId)
             {
                 using var selectionPen = new Pen(Color.Gold, Math.Max(2, cell * 0.12f));
@@ -270,21 +271,35 @@ public sealed class WorldMapPanel : Panel
         _ => Color.White
     };
 
-    private static Color NpcColor(NpcProjection npc)
+    private static void DrawConceptFlags(Graphics graphics, NpcProjection npc, RectangleF npcRectangle, float cell)
     {
-        if (npc.ConceptMarks.Contains(ConceptKind.Struggle))
+        var concepts = npc.ConceptMarks.OrderBy(item => item).ToArray();
+        if (concepts.Length == 0)
         {
-            return Color.FromArgb(244, 164, 164);
-        }
-        if (npc.ConceptMarks.Contains(ConceptKind.Survival))
-        {
-            return Color.FromArgb(155, 225, 175);
-        }
-        if (npc.ConceptMarks.Contains(ConceptKind.Communication))
-        {
-            return Color.FromArgb(155, 190, 245);
+            return;
         }
 
+        var flagHeight = Math.Max(2f, Math.Min(cell * 0.20f, npcRectangle.Height / concepts.Length));
+        var flagWidth = Math.Max(3f, cell * 0.32f);
+        var poleX = npcRectangle.Right;
+        var top = npcRectangle.Top;
+        using var polePen = new Pen(Color.FromArgb(225, 32, 35, 40), Math.Max(1f, cell * 0.06f));
+        graphics.DrawLine(polePen, poleX, top, poleX, top + flagHeight * concepts.Length);
+        for (var index = 0; index < concepts.Length; index++)
+        {
+            var flagTop = top + index * flagHeight;
+            using var flagBrush = new SolidBrush(LandmarkColor(concepts[index]));
+            graphics.FillPolygon(flagBrush, new[]
+            {
+                new PointF(poleX, flagTop),
+                new PointF(poleX + flagWidth, flagTop + flagHeight / 2),
+                new PointF(poleX, flagTop + flagHeight)
+            });
+        }
+    }
+
+    private static Color NpcColor()
+    {
         return Color.FromArgb(238, 232, 205);
     }
 }

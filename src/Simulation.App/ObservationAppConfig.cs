@@ -16,13 +16,14 @@ public sealed class ObservationAppConfig
     public int ChartMaximumPoints { get; set; }
     public int NpcActionHistoryDisplayLimit { get; set; }
     public double AgeDistributionBinYears { get; set; }
+    public int LogFlushIntervalDays { get; set; }
     public bool ArchiveCompletedWorldLogs { get; set; }
     public bool DeleteOtherReleaseVersionLogs { get; set; }
 
     public void Validate()
     {
         var errors = new List<string>();
-        Require(SchemaVersion == 3, "schemaVersion must be 3.", errors);
+        Require(SchemaVersion == 4, "schemaVersion must be 4.", errors);
         Require(SeedIncrement != 0, "seedIncrement cannot be zero.", errors);
         Require(IsSafeRelativeDirectory(LogDirectory),
             "logDirectory must be a simple relative path inside the repository.", errors);
@@ -41,6 +42,8 @@ public sealed class ObservationAppConfig
             "npcActionHistoryDisplayLimit must be positive.", errors);
         Require(double.IsFinite(AgeDistributionBinYears) && AgeDistributionBinYears is > 0 and <= 10,
             "ageDistributionBinYears must be finite and within (0, 10].", errors);
+        Require(LogFlushIntervalDays is >= 1 and <= 365,
+            "logFlushIntervalDays must be within 1..365.", errors);
         if (errors.Count > 0)
         {
             throw new ConfigurationException(string.Join(Environment.NewLine, errors));
