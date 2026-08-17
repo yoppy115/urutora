@@ -21,7 +21,7 @@ internal static class Program
     private static readonly (string Name, Action Test)[] Tests =
     {
         ("configuration schema is strict", ConfigurationSchemaIsStrict),
-        ("v0.2.2 defaults preserve v0.15 ecology", V022DefaultsAndInitialAges),
+        ("v0.2.3 defaults preserve v0.15 ecology", V023DefaultsAndInitialAges),
         ("v0.2 logged seeds form Settlements with the v0.2.1 hotspot", LoggedV02SeedsFormSettlements),
         ("partitioned RNG is deterministic and local", PartitionedRandomIsDeterministicAndLocal),
         ("utility candidate count and edge rules", UtilityCandidateRules),
@@ -42,9 +42,11 @@ internal static class Program
         ("birth batch arbitration is queue-order independent", BirthArbitrationIsOrderIndependent),
         ("NPC detail projection exposes stable lineage", NpcDetailProjectionExposesStableLineage),
         ("NPC action history excludes movement events", NpcActionHistoryExcludesMovementEvents),
+        ("NPC kill count includes combat deaths only", NpcKillCountIncludesCombatDeathsOnly),
         ("world statistics count selected action commands", WorldStatisticsCountSelectedActions),
         ("world statistics projection is cached until the next advance", WorldStatisticsCacheInvalidatesOnAdvance),
         ("Generation hotspot forms a deterministic Settlement", GenerationHotspotFormsSettlement),
+        ("Settlement areas are excluded from new Hotspots and Cores", SettlementAreasAreExcludedFromFormation),
         ("Order transition commits on the following tick", OrderTransitionCommitsNextTick),
         ("Order collision policies suppress and convert combat", OrderCollisionPolicies),
         ("Order protects unaffiliated NPC until an active Threat exists", UnaffiliatedProtectionRules),
@@ -55,6 +57,7 @@ internal static class Program
         ("Invasion Rest withdraws while Flee state remains", InvasionWithdrawalRules),
         ("Core occupation denominator excludes unusable cells", CoreOccupationDenominator),
         ("whole run and render frequency are deterministic", WholeRunAndRenderDeterminism),
+        ("serial and parallel read phases are deterministic", SerialAndParallelReadPhasesAreDeterministic),
         ("FsCheck generated runs remain deterministic", FsCheckGeneratedRunsRemainDeterministic),
         ("daily Micro Rounds respect maximum actions", MaximumActionsPerDay)
     };
@@ -101,10 +104,10 @@ internal static class Program
         }
     }
 
-    private static void V022DefaultsAndInitialAges()
+    private static void V023DefaultsAndInitialAges()
     {
         var config = LoadConfig();
-        Equal("v0.2.2-default-1", config.Id);
+        Equal("v0.2.3-default-1", config.Id);
         Equal(5, config.Settlement.HotspotWindowSize);
         Equal(3, config.Settlement.HotspotSuccessThreshold);
         Equal(0.125, config.Concept.ExposureByDistance[4], 0);
@@ -117,6 +120,9 @@ internal static class Program
         Equal(4, config.Combat.DamageBase, 0);
         Equal(0.9, config.Combat.DamageAttackerFactor, 0);
         Equal(0.4, config.Combat.DamageDefenderFactor, 0);
+        Equal(2, config.Settlement.CoreRadius);
+        Equal(0, config.Performance.MaximumDegreeOfParallelism);
+        Equal(128, config.Performance.MinimumPopulationForParallelism);
 
         var world = Simulation.Core.World.WorldFactory.Create(config, new RandomStreamFactory(915));
         True(world.Npcs.Values.All(item => item.AgeDays is >= 180 and <= 700),
@@ -738,6 +744,19 @@ internal static class Program
         Throws<ArgumentOutOfRangeException>(() => engine.GetNpcDetails(details.Id, 0));
     }
 
+    private static void NpcKillCountIncludesCombatDeathsOnly()
+    {
+        var events = new[]
+        {
+            new SimulationEvent("combat", 1, 1, SimulationEventType.Death, 2, 1, new Position(1, 1), true, "combat:Attack"),
+            new SimulationEvent("vitality", 2, 0, SimulationEventType.Death, 3, null, new Position(2, 2), true, "vitality"),
+            new SimulationEvent("attack", 3, 1, SimulationEventType.Attack, 1, 4, new Position(3, 3), true, "damage=1")
+        };
+
+        Equal(1L, SimulationEngine.CountKills(events, 1));
+        Equal(0L, SimulationEngine.CountKills(events, 2));
+    }
+
     private static void WorldStatisticsCountSelectedActions()
     {
         var engine = new SimulationEngine(LoadConfig(), 123456);
@@ -795,10 +814,45 @@ internal static class Program
         Equal(WorldPhase.Generation, first.Phase);
         True(first.Settlements.Single().Value.EffectiveTick == first.Tick + 1,
             "Settlement did not use next-tick activation.");
-        True(first.Npcs.Values.All(item => item.SettlementAffinity.Values.Any(value => value >= 10)),
-            "Founders did not receive formation Affinity.");
+        var formed = first.Settlements.Single().Value;
+        True(first.Npcs.Values
+                .Where(item => item.Position.ChebyshevDistance(formed.Center) <= config.Settlement.CoreRadius)
+                .All(item => item.SettlementAffinity.Values.Any(value => value >= config.Settlement.CoreResidentAffinity)),
+            "Core residents did not receive formation Affinity.");
         True(firstEvents.Any(item => item.Type == SimulationEventType.SettlementFormed),
             "Settlement formation was not logged.");
+    }
+
+    private static void SettlementAreasAreExcludedFromFormation()
+    {
+        var config = LoadConfig();
+        config.Settlement.HotspotSuccessThreshold = 3;
+        var world = EmptyWorld(config);
+        world.Tick = 20;
+        world.Settlements.Add(1, new SettlementState
+        {
+            Id = 1,
+            Center = new Position(10, 10),
+            FormedTick = 0,
+            EffectiveTick = 0,
+            FounderIds = Array.Empty<long>()
+        });
+        for (var index = 0; index < 3; index++)
+        {
+            world.ReproductionSuccesses.Add(new ReproductionSuccessRecord(
+                $"inside-{index}", 18 + index, new Position(12, 10), 1, 2));
+            world.ReproductionSuccesses.Add(new ReproductionSuccessRecord(
+                $"outside-{index}", 18 + index, new Position(30, 30), 3, 4));
+        }
+
+        var candidates = new SettlementFormationSystem(config, new RandomStreamFactory(823)).CreateCandidateSnapshot(world);
+        True(candidates.Count > 0, "The unrelated external Hotspot was lost.");
+        True(candidates.All(candidate => candidate.ReproductionSuccessEventIds.All(id => id.StartsWith("outside-", StringComparison.Ordinal))),
+            "A reproduction success inside existing Influence contributed to a Hotspot.");
+        var protectedDistance = config.Settlement.InfluenceRadius + config.Settlement.CoreRadius;
+        True(candidates.SelectMany(candidate => candidate.CenterCandidates)
+                .All(center => center.ChebyshevDistance(new Position(10, 10)) > protectedDistance),
+            "A new 5x5 Core could overlap existing Settlement Influence.");
     }
 
     private static void OrderTransitionCommitsNextTick()
@@ -1055,7 +1109,7 @@ internal static class Program
         };
         world.Settlements.Add(1, settlement);
         var cells = SettlementQueries.UsableCoreCells(world, settlement, config);
-        Equal(48, cells.Count);
+        Equal(24, cells.Count);
         True(!cells.Contains(new Position(16, 16)), "Landmark was included in usable Core denominator.");
         True(cells.Contains(new Position(15, 16)), "Ordinary occupiable Core cell was excluded.");
     }
@@ -1098,6 +1152,24 @@ internal static class Program
                 .WithMaxTest(32)
                 .WithReplay(1145655947UL, 296144285UL),
             property);
+    }
+
+    private static void SerialAndParallelReadPhasesAreDeterministic()
+    {
+        var serialConfig = LoadConfig();
+        serialConfig.Performance.MaximumDegreeOfParallelism = 1;
+        serialConfig.Performance.MinimumPopulationForParallelism = 1;
+        var parallelConfig = LoadConfig();
+        parallelConfig.Performance.MaximumDegreeOfParallelism = 4;
+        parallelConfig.Performance.MinimumPopulationForParallelism = 1;
+
+        var serial = new SimulationEngine(serialConfig, 8147291);
+        var parallel = new SimulationEngine(parallelConfig, 8147291);
+        serial.AdvanceDays(20);
+        parallel.AdvanceDays(20);
+
+        SequenceEqual(serial.EventFingerprints(), parallel.EventFingerprints());
+        Equal(serial.DeterministicStateFingerprint(), parallel.DeterministicStateFingerprint());
     }
 
     private static SimulationConfig LoadConfig() => SimulationConfigLoader.Load(ConfigPath());

@@ -1,8 +1,8 @@
 [CmdletBinding()]
 param(
-    [string]$Branch = 'codex/v022-settlement-ui-performance',
-    [string]$CommitMessage = 'feat: implement v0.2.2 settlement birth and observation performance',
-    [string]$Tag = 'v0.2.2',
+    [string]$Branch = 'codex/v023-settlement-details-parallel',
+    [string]$CommitMessage = 'feat: implement v0.2.3 settlement boundaries and deterministic parallelism',
+    [string]$Tag = 'v0.2.3',
     [switch]$SkipTests,
     [switch]$Publish
 )

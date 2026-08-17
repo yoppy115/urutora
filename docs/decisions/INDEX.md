@@ -25,6 +25,7 @@ ADRは、重要で後戻りしづらい判断について「なぜそうした�
 | [`ADR-0017`](ADR-0017-settlement-conflict-and-invasion.md) | Accepted | Friction、Unaffiliated保護、同一Core繁殖、Crowding由来Invasionと占領・離脱 |
 | [`ADR-0018`](ADR-0018-concept-aura-social-transmission.md) | Accepted | Concept Auraの社会伝播、同種抑制、一時MaxHP normalization |
 | [`ADR-0019`](ADR-0019-log-retention-and-build-provenance.md) | Accepted | 完了Worldの検証済み圧縮とclean Git provenanceへreleaseを拘束する |
+| [`ADR-0020`](ADR-0020-deterministic-parallel-read-phases.md) | Accepted | Observer / NPC単位の分離可能な読取・計画phaseだけを並列化し、NPC ID順へ決定論的mergeする |
 
 ## Future decisions
 

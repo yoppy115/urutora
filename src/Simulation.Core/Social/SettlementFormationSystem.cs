@@ -32,8 +32,15 @@ public sealed class SettlementFormationSystem
     public IReadOnlyList<SettlementCandidate> CreateCandidateSnapshot(WorldState world)
     {
         var startTick = world.Tick - _config.Settlement.HotspotWindowDays + 1;
+        var existingCenters = world.Settlements.Values
+            .Where(item => item.DissolvedTick is null)
+            .OrderBy(item => item.Id)
+            .Select(item => item.Center)
+            .ToArray();
         var successes = world.ReproductionSuccesses
             .Where(item => item.Tick >= startTick && item.Tick <= world.Tick)
+            .Where(item => existingCenters.All(center =>
+                center.ChebyshevDistance(item.Position) > _config.Settlement.InfluenceRadius))
             .OrderBy(item => item.EventId, StringComparer.Ordinal)
             .ToArray();
         var landmarkCells = world.Landmarks.Select(item => item.Position).ToHashSet();
@@ -60,7 +67,7 @@ public sealed class SettlementFormationSystem
                     for (var cellX = x; cellX < x + size; cellX++)
                     {
                         var cell = new Position(cellX, cellY);
-                        if (!landmarkCells.Contains(cell))
+                        if (!landmarkCells.Contains(cell) && IsValidCenter(cell, existingCenters))
                         {
                             cells.Add(cell);
                         }
@@ -117,9 +124,9 @@ public sealed class SettlementFormationSystem
             var center = candidate.CenterCandidates[centerStream.NextInt(candidate.CenterCandidates.Count)];
             var conflictsWithExisting = world.Settlements.Values
                 .Where(item => item.DissolvedTick is null)
-                .Any(item => item.Center.ChebyshevDistance(center) <= _config.Settlement.MinimumCenterDistance);
+                .Any(item => !CentersCanCoexist(item.Center, center));
             var conflictsWithAccepted = acceptedCenters.Any(item =>
-                item.ChebyshevDistance(center) <= _config.Settlement.MinimumCenterDistance);
+                !CentersCanCoexist(item, center));
             if (conflictsWithExisting || conflictsWithAccepted)
             {
                 conflicts++;
@@ -127,7 +134,7 @@ public sealed class SettlementFormationSystem
                 world.SettlementCandidateConflictCount++;
                 world.SettlementCandidateRejectionCount++;
                 emit(0, SimulationEventType.SettlementCandidateRejected, null, null, center, false,
-                    $"candidate={candidate.CandidateId};reason=spacing;successes={candidate.ReproductionSuccessCount}");
+                    $"candidate={candidate.CandidateId};reason=spacing-or-influence-overlap;successes={candidate.ReproductionSuccessCount}");
                 continue;
             }
 
@@ -137,6 +144,17 @@ public sealed class SettlementFormationSystem
         }
 
         return new SettlementFormationResult(candidates.Count, conflicts, rejected, formed);
+    }
+
+    private bool IsValidCenter(Position center, IReadOnlyList<Position> existingCenters) =>
+        existingCenters.All(existing => CentersCanCoexist(existing, center));
+
+    private bool CentersCanCoexist(Position existingCenter, Position candidateCenter)
+    {
+        var requiredDistance = Math.Max(
+            _config.Settlement.MinimumCenterDistance,
+            _config.Settlement.InfluenceRadius + _config.Settlement.CoreRadius);
+        return existingCenter.ChebyshevDistance(candidateCenter) > requiredDistance;
     }
 
     private SettlementState FormSettlement(

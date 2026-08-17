@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.IO.Compression;
 using System.Security.Cryptography;
+using System.Reflection;
 using Simulation.App;
 using Simulation.Core;
 using Simulation.Core.Configuration;
@@ -16,7 +17,10 @@ internal static class Program
         ("world sessions are numbered and logged", WorldSessionsAreNumberedAndLogged),
         ("world logging does not change Simulation events", LoggingDoesNotChangeSimulationEvents),
         ("statistics chart renders changing series", StatisticsChartRendersChangingSeries),
-        ("ConceptMark renders as a concept-colored flag", ConceptMarkRendersAsColoredFlag)
+        ("ConceptMark renders as a concept-colored flag", ConceptMarkRendersAsColoredFlag),
+        ("Settlement palette expands and recycles dissolved colors", SettlementPaletteExpandsAndRecycles),
+        ("Settlement center click takes priority over NPC click", SettlementCenterClickTakesPriority),
+        ("Social display hides dissolved Settlements and scopes Friction", SocialDisplayFiltersSettlementsAndFriction)
     };
 
     [STAThread]
@@ -85,8 +89,8 @@ internal static class Program
             using (var first = store.CreateNextWorld(simulationConfig, SimulationConfigPath(), 9000))
             {
                 Equal(1, first.Info.WorldNumber);
-                Equal("v0.2.2", first.Info.ReleaseVersion);
-                Equal("v0.2.2", Directory.GetParent(first.Info.DirectoryPath)!.Name);
+                Equal("v0.2.3", first.Info.ReleaseVersion);
+                Equal("v0.2.3", Directory.GetParent(first.Info.DirectoryPath)!.Name);
                 Equal(9000L, first.Info.Seed);
                 tick = first.AdvanceOneDay();
                 firstInfo = first.Info;
@@ -244,6 +248,105 @@ internal static class Program
 
         True(conceptPixels > 10);
     }
+
+    private static void SettlementPaletteExpandsAndRecycles()
+    {
+        var allocator = new SettlementColorAllocator();
+        var settlements = Enumerable.Range(1, SettlementColorAllocator.PaletteSize)
+            .Select(id => Settlement(id, true))
+            .ToArray();
+        allocator.Synchronize(settlements);
+        var colors = settlements.Select(item => allocator.ColorFor(item.Id).ToArgb()).ToArray();
+        Equal(SettlementColorAllocator.PaletteSize, colors.Distinct().Count());
+
+        var releasedColor = allocator.ColorFor(1);
+        allocator.Synchronize(settlements
+            .Select(item => item.Id == 1 ? item with { IsActive = false } : item)
+            .Append(Settlement(61, true))
+            .ToArray());
+        Equal(releasedColor.ToArgb(), allocator.ColorFor(61).ToArgb());
+    }
+
+    private static void SettlementCenterClickTakesPriority()
+    {
+        using var panel = new WorldMapPanel
+        {
+            Size = new Size(660, 660),
+            Snapshot = new SimulationSnapshot(
+                0,
+                365,
+                10,
+                10,
+                WorldPhase.Generation,
+                new[]
+                {
+                    new NpcProjection(1, new Position(4, 4), new HashSet<ConceptKind>(),
+                        new HashSet<ConceptKind>(), 1, null)
+                },
+                Array.Empty<LandmarkProjection>(),
+                new[] { Settlement(1, true) },
+                Array.Empty<InvasionProjection>(),
+                Array.Empty<SimulationEvent>())
+        };
+        var settlementSelections = 0;
+        var npcSelections = 0;
+        panel.SettlementSelected += (_, args) =>
+        {
+            Equal(1, args.SettlementId);
+            settlementSelections++;
+        };
+        panel.NpcSelected += (_, _) => npcSelections++;
+        var cell = (panel.ClientSize.Width - panel.Padding.Horizontal) / 10f;
+        var click = new Point(
+            (int)Math.Round(panel.Padding.Left + 4.5f * cell),
+            (int)Math.Round(panel.Padding.Top + 4.5f * cell));
+        var method = typeof(WorldMapPanel).GetMethod("OnMouseClick", BindingFlags.Instance | BindingFlags.NonPublic)
+            ?? throw new InvalidOperationException("WorldMapPanel.OnMouseClick was not found.");
+        method.Invoke(panel, new object[] { new MouseEventArgs(MouseButtons.Left, 1, click.X, click.Y, 0) });
+
+        Equal(1, settlementSelections);
+        Equal(0, npcSelections);
+        Equal(1, panel.SelectedSettlementId!.Value);
+    }
+
+    private static void SocialDisplayFiltersSettlementsAndFriction()
+    {
+        var settlements = new[]
+        {
+            SettlementStatistics(1, active: true),
+            SettlementStatistics(2, active: false),
+            SettlementStatistics(3, active: false, dissolvedTick: 20)
+        };
+        SequenceEqual(new[] { 1, 2 },
+            ObservationDisplayPolicy.VisibleSocialSettlements(settlements).Select(item => item.Id));
+
+        var frictions = new[]
+        {
+            new FrictionStatistics(1, 2, 3, 2, 0, 1, 10),
+            new FrictionStatistics(2, 3, 8, 4, 1, 0, 12),
+            new FrictionStatistics(1, 3, 5, 3, 1, 2, 14)
+        };
+        SequenceEqual(new[] { (1, 3), (1, 2) },
+            ObservationDisplayPolicy.FrictionsForSettlement(frictions, 1)
+                .Select(item => (item.FirstSettlementId, item.SecondSettlementId)));
+
+        var events = new[]
+        {
+            new SimulationEvent("friction", 1, 0, SimulationEventType.SettlementFrictionChanged,
+                null, null, null, true, "pair=1:2"),
+            new SimulationEvent("rest", 1, 1, SimulationEventType.Rest, 1, null,
+                new Position(1, 1), true, string.Empty)
+        };
+        SequenceEqual(new[] { SimulationEventType.Rest },
+            ObservationDisplayPolicy.VisibleRecentEvents(events).Select(item => item.Type));
+    }
+
+    private static SettlementProjection Settlement(int id, bool active) =>
+        new(id, id == 1 ? new Position(4, 4) : new Position(id % 10, id % 10), 2, 7, id, active, 1, 0);
+
+    private static SettlementStatistics SettlementStatistics(int id, bool active, int? dissolvedTick = null) =>
+        new(id, new Position(id, id), id, 2, active, 4, 0.2, 0.4, 0.1, 0,
+            dissolvedTick, dissolvedTick.HasValue ? "test" : null, null);
 
     private static string TemporaryDirectory()
     {

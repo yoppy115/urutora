@@ -1,6 +1,6 @@
 # v0.2 Settlement / Order Update
 
-**Status:** Baseline boundaries / v0.2.2 configurable default
+**Status:** Baseline boundaries / v0.2.3 configurable default
 
 本書はv0.15までの個体生態系へSettlement、Generation / Order、社会化、Invasion、Concept Auraを追加する。v0.15のUtility AI、Perception、Combat、Reproduction、Lifecycle、ConceptMarkは、本書が明示的に変更する範囲以外を維持する。
 
@@ -18,11 +18,13 @@ v0.2 defaultでは、直近90日間のReproduction Successを4×4 Cell windowで
 
 v0.2.1ではv0.2の実測2 Worldを補正根拠とし、同じ90日・15日評価の `HotspotSuccessThreshold` を3、`HotspotWindowSize` を5×5へ変更する。world-0001は385日でReproduction Success 152件、world-0002は290日で132件あったが、旧4×4評価日ごとの最大集中数はいずれも3で、Candidate評価・棄却・成立がすべて0件だった。5×5化は近接する繁殖成功を同一局所Hotspotとして扱う範囲変更であり、閾値3と組み合わせる。arbitration、Center、Founder、spacing、翌Tick反映は変更しない。
 
+v0.2.3では既存Settlementの隣接エリアを当該SettlementのInfluenceと定義する。消滅していないSettlementのInfluence内で発生したReproduction Successは、新規Settlement用Hotspot集計から除外する。新規Center候補は、そのCenterを中心とするCore全Cellが既存SettlementのInfluenceと重ならないCellだけとする。同一evaluationで先に採用されたCenterにも同じ境界を適用する。消滅済みSettlementはHotspotとCenter候補を予約せず、その色と空間を後続Settlementが再利用できる。
+
 同じevaluation日の全Candidateは、evaluation開始時の同一immutable snapshotから生成する。各CandidateはConfigで定めた領域（v0.2.1 defaultは5×5）、rolling window内Reproduction Success数、有効Center候補Cell、Founder候補を保持する。
 
-排他距離で競合するCandidateはReproduction Success数の多い順、同数だけnamed seed streamで決定論的に優先する。勝利CandidateのCenter確定後、そのCenterからChebyshev距離7以内となる残りCandidateを当該evaluationでは棄却し、競合しないCandidateへ同じ処理を続ける。Map走査、配列、Dictionary、thread scheduling順へ依存させない。棄却は永久ではなく、後日のevaluationで再Candidate化できる。
+排他距離で競合するCandidateはReproduction Success数の多い順、同数だけnamed seed streamで決定論的に優先する。v0.2.3 defaultでは従来のCenter spacing 7に加え、Influence radius 7とCore radius 2の非重複条件があるため、Center間Chebyshev距離は9より大きくなければならない。勝利CandidateのCenter確定後、この有効排他距離へ違反する残りCandidateを当該evaluationでは棄却し、競合しないCandidateへ同じ処理を続ける。Map走査、配列、Dictionary、thread scheduling順へ依存させない。棄却は永久ではなく、後日のevaluationで再Candidate化できる。
 
-Candidate採用後、そのCandidate領域内のCenterとして利用可能なCellからseed付き乱数で1 Cell選ぶ。選択Centerが既存Settlementの排他条件へ違反した場合はCandidate全体を不成立とし、別Centerへ再抽選して迂回しない。Centerは物理占有物ではなく、NPCが侵入、滞在、占拠できる。
+Candidate採用後、そのCandidate領域内でLandmarkではなく、かつ提案Coreが既存Influenceへ重ならないCenter候補Cellからseed付き乱数で1 Cell選ぶ。選択Centerが同日採用済みSettlementを含む排他条件へ違反した場合はCandidate全体を不成立とし、別Centerへ再抽選して迂回しない。Centerは物理占有物ではなく、NPCが侵入、滞在、占拠できる。
 
 成立条件となったReproduction Success群の参加者のうち成立時点でAliveなNPCをFounderとして記録する。成立時に近くにいただけのNPCと区別し、History / Statisticsへ利用できる。
 
@@ -30,9 +32,9 @@ Candidate採用後、そのCandidate領域内のCenterとして利用可能なCe
 
 距離はSettlement CenterからのChebyshev距離で測る。
 
-| Region | v0.2 default | Role |
+| Region | default | Role |
 | --- | --- | --- |
-| Core | radius 3、最大7×7 | Settlement内生活、Affinity、社会Bonusの主領域 |
+| Core | v0.2–v0.2.2はradius 3、v0.2.3はradius 2（最大5×5） | Settlement内生活、Affinity、社会Bonusの主領域 |
 | Influence | radius 7、最大15×15 | 治安、所属形成、Settlement間空間関係 |
 
 Settlement成立時のAffinityはFounderへ+10、Core内のAliveな非Founderへ+7。MembershipThresholdは10であるためFounderは原則即所属し、初期Core住民は少量の追加滞在・行動で所属できる。
@@ -239,15 +241,15 @@ Raw Logを人間が直接読み続けるより、ゲーム内Statistics UIでSim
 
 必須統計は [`STATISTICS.md`](../architecture/STATISTICS.md)、必須headless testsは [`TESTING.md`](../architecture/TESTING.md) を正本とする。
 
-## v0.2.2 configurable defaults
+## v0.2.3 configurable defaults
 
 次は初回Run用Configであり、不変のゲーム思想ではない。
 
 | Area | Default |
 | --- | --- |
 | Hotspot | 90 days、5×5、Success 3、15-day evaluation。v0.2 originalは4×4 / Success 4 |
-| Settlement spacing | Center distance > 7 |
-| Regions | Core radius 3、Influence radius 7 |
+| Settlement spacing | Config最小Center distance > 7に加え、Coreと既存Influenceの非重複によりdefault実効値はCenter distance > 9 |
+| Regions | Core radius 2（5×5）、Influence radius 7。既存Influence内のSuccessはHotspotから除外 |
 | Initial Affinity | Founder +10、Core resident +7 |
 | Affiliation | threshold 10、switch margin +5 |
 | Core Affinity | Stay +0.05/day、Rest +1、Communication +0.5、Reproduction Success +2 |

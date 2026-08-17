@@ -155,4 +155,14 @@ Settlement Maintenance順と翌Tick反映、Aura / Core占有計算もcollection
 - UI smokeで速度段階が1 / 2 / 3 / 5 / 10 / 50日の順に構成される。
 - 同一TickのWorld Statistics queryは同じread-only projectionを再利用し、次のauthoritative advanceで無効化する。
 
+### v0.2.3 Settlement boundary, details, and parallel regression
+
+- Config defaultはCore radius 2（5×5）で、既存Settlement Influence内のReproduction Successを新規Hotspotへ含めない。
+- 新規Center候補の5×5 Coreは既存Settlement Influenceと重ならず、消滅済みSettlementは空間を予約しない。
+- `maximumDegreeOfParallelism = 1`と4で、固定seedのEvent fingerprint列と最終state fingerprintが完全一致する。
+- NPCキル数はCombat由来Deathだけを数え、Vitality Deathや非致死Attackを含めない。
+- Settlement CenterとNPCが同じCellにいる場合、Center clickを優先してSettlement詳細を開く。
+- Settlement色は60色をActive中に固定し、消滅後に解放された色を新規Settlementの抽選候補へ戻す。
+- World統計の社会一覧は消滅済みSettlementを除外してActive / Pendingだけを表示し、FrictionはSettlement詳細Tabだけへ表示する。
+
 具体的なtest framework、fixture形式、統計的試験のsample数は実装時に決める。

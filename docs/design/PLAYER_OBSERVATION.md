@@ -59,6 +59,10 @@ v0.2ではMap上でSettlement Centerと、必要に応じてCore / Influenceを�
 
 v0.2.2ではSettlement所属色とConceptMarkを同じNPC記号の色だけで重ねない。所属は従来の輪郭色、ConceptMarkは該当Concept / Landmarkと同色の旗として別レイヤーに描画し、複数Markは複数旗で識別可能にする。
 
+v0.2.3ではActive Settlement Centerをクリックすると専用詳細Tabを開き、Center、形成日、Founder数、人口、Core占有、Crowdingと、そのSettlementに関係するFrictionを表示する。World統計の社会表は消滅済みSettlementを除外し、Active / Pendingだけを列挙する。Friction値と変動Eventは一般の社会表・最近の出来事から外し、Settlement詳細からだけ閲覧可能にする。headless統計とWorldログには保持する。NPC詳細は既存EventからCombat Deathの最後の一撃を数えたキル数を表示する。
+
+同時に表示するActive Settlement色は60色を用意し、Active中は同じSettlementへ固定する。消滅したSettlementの色は解放し、次に成立するSettlementの色抽選候補へ戻す。この色割当はPresentation専用であり、Simulation乱数や結果を変更しない。
+
 配置、UI framework、旗形状を含む具体デザインは実装時の裁量とする。
 
 Simulation TickとUI Render Updateを分離する。高速進行では複数Tick後の最新Stateだけを描画してよく、render頻度、frame rate、UI操作がSimulation Event列を変えてはならない。自動テストはGUIなしで実行可能にする。

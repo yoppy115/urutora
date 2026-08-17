@@ -66,6 +66,7 @@ public sealed record NpcDetailsProjection(
     IReadOnlyList<SettlementAffinityProjection> SettlementAffinities,
     int? InvasionId,
     InvasionRole? InvasionRole,
+    long KillCount,
     int HeldInformationCount,
     IReadOnlyList<NpcActionRecord> ActionHistory)
 {

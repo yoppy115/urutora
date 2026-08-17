@@ -1,6 +1,6 @@
 # Reproduction, Birth, and Genetics
 
-**Status:** Baseline boundaries / v0.2.2 default and configurable mechanics
+**Status:** Baseline boundaries / v0.2.3 default and configurable mechanics
 
 ## Purpose and subjective candidate boundary
 

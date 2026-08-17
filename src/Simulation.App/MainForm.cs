@@ -40,8 +40,13 @@ public sealed class MainForm : Form
     private readonly DataGridView _diagnosticStatistics = CreateReadOnlyGrid();
     private readonly DataGridView _socialStatistics = CreateReadOnlyGrid();
     private readonly WorldStatisticsChartPanel _statisticsChart = new() { Dock = DockStyle.Fill };
+    private readonly DataGridView _settlementProperties = CreateReadOnlyGrid();
+    private readonly DataGridView _settlementFrictionStatistics = CreateReadOnlyGrid();
+    private readonly Label _settlementTitle = new()
+        { Dock = DockStyle.Top, Height = 32, Text = "マップ上のSettlement中心をクリックしてください" };
     private WorldSession _world;
     private long? _selectedNpcId;
+    private int? _selectedSettlementId;
     private volatile bool _running;
     private volatile bool _advancing;
     private bool _worldCreationRequested;
@@ -93,6 +98,7 @@ public sealed class MainForm : Form
         _runButton.Click += (_, _) => ToggleRunning();
         _stepButton.Click += async (_, _) => await AdvanceOneDayAsync();
         _map.NpcSelected += (_, eventArgs) => SelectNpc(eventArgs.NpcId);
+        _map.SettlementSelected += (_, eventArgs) => SelectSettlement(eventArgs.SettlementId);
         KeyDown += (_, eventArgs) =>
         {
             if (eventArgs.Control && eventArgs.KeyCode == Keys.N)
@@ -132,7 +138,8 @@ public sealed class MainForm : Form
 
     internal async Task RunUiSmokeChecksAsync()
     {
-        if (_tabs.TabPages.Count != 3 || _diagnosticStatistics.Columns.Count != 3 || !_newWorldButton.Enabled ||
+        if (_tabs.TabPages.Count != 4 || _diagnosticStatistics.Columns.Count != 3 ||
+            _settlementFrictionStatistics.Columns.Count != 6 || !_newWorldButton.Enabled ||
             _speed.Items.Cast<SpeedOption>().Select(item => item.TicksPerFrame)
                 .SequenceEqual(new[] { 1, 2, 3, 5, 10, 50 }) is false)
         {
@@ -218,6 +225,7 @@ public sealed class MainForm : Form
         _tabs.TabPages.Add(new TabPage("出来事") { Controls = { BuildEventPanel() } });
         _tabs.TabPages.Add(new TabPage("NPC詳細") { Controls = { BuildNpcPanel() } });
         _tabs.TabPages.Add(new TabPage("世界統計") { Controls = { BuildStatisticsPanel() } });
+        _tabs.TabPages.Add(new TabPage("Settlement詳細") { Controls = { BuildSettlementPanel() } });
         return _tabs;
     }
 
@@ -328,6 +336,49 @@ public sealed class MainForm : Form
         return panel;
     }
 
+    private Control BuildSettlementPanel()
+    {
+        _settlementProperties.Columns.Add("property", "項目");
+        _settlementProperties.Columns.Add("value", "値");
+        _settlementProperties.Columns[0].Width = 155;
+        _settlementProperties.Columns[1].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+
+        _settlementFrictionStatistics.Columns.Add("other", "相手");
+        _settlementFrictionStatistics.Columns.Add("current", "現在値");
+        _settlementFrictionStatistics.Columns.Add("collisions", "Collision");
+        _settlementFrictionStatistics.Columns.Add("threats", "Threat");
+        _settlementFrictionStatistics.Columns.Add("decay", "累積減衰");
+        _settlementFrictionStatistics.Columns.Add("last", "最終変動日");
+        _settlementFrictionStatistics.Columns[0].Width = 80;
+        _settlementFrictionStatistics.Columns[1].Width = 80;
+        _settlementFrictionStatistics.Columns[2].Width = 85;
+        _settlementFrictionStatistics.Columns[3].Width = 70;
+        _settlementFrictionStatistics.Columns[4].Width = 90;
+        _settlementFrictionStatistics.Columns[5].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+
+        var frictionPanel = new Panel { Dock = DockStyle.Fill };
+        frictionPanel.Controls.Add(_settlementFrictionStatistics);
+        frictionPanel.Controls.Add(new Label
+        {
+            Dock = DockStyle.Top,
+            Height = 28,
+            Text = "Friction",
+            Font = new Font(Font, FontStyle.Bold)
+        });
+        var split = new SplitContainer
+        {
+            Dock = DockStyle.Fill,
+            Orientation = Orientation.Horizontal,
+            SplitterDistance = 360
+        };
+        split.Panel1.Controls.Add(_settlementProperties);
+        split.Panel2.Controls.Add(frictionPanel);
+        var panel = new Panel { Dock = DockStyle.Fill, Padding = new Padding(8) };
+        panel.Controls.Add(split);
+        panel.Controls.Add(_settlementTitle);
+        return panel;
+    }
+
     private void RequestWorldCreation()
     {
         if (_worldCreationRequested)
@@ -359,7 +410,9 @@ public sealed class MainForm : Form
             _world = next;
             previous.Dispose();
             _selectedNpcId = null;
+            _selectedSettlementId = null;
             _map.SelectedNpcId = null;
+            _map.SelectedSettlementId = null;
             RefreshProjection();
         }
         catch (Exception exception)
@@ -470,21 +523,34 @@ public sealed class MainForm : Form
 
         _events.BeginUpdate();
         _events.Items.Clear();
-        foreach (var item in snapshot.RecentEvents.Reverse())
+        foreach (var item in ObservationDisplayPolicy.VisibleRecentEvents(snapshot.RecentEvents).Reverse())
         {
             _events.Items.Add(FormatEvent(item));
         }
         _events.EndUpdate();
         RefreshNpcDetails();
         RefreshStatistics(statistics, ageDistribution);
+        RefreshSettlementDetails(statistics);
     }
 
     private void SelectNpc(long npcId)
     {
         _selectedNpcId = npcId;
+        _selectedSettlementId = null;
         _map.SelectedNpcId = npcId;
+        _map.SelectedSettlementId = null;
         _tabs.SelectedIndex = 1;
         RefreshNpcDetails();
+    }
+
+    private void SelectSettlement(int settlementId)
+    {
+        _selectedSettlementId = settlementId;
+        _selectedNpcId = null;
+        _map.SelectedSettlementId = settlementId;
+        _map.SelectedNpcId = null;
+        _tabs.SelectedIndex = 3;
+        RefreshSettlementDetails(_world.Engine.GetWorldStatistics());
     }
 
     private void RefreshNpcDetails()
@@ -540,6 +606,7 @@ public sealed class MainForm : Form
         AddNpcRow("Invasion", details.InvasionId.HasValue
             ? $"#{details.InvasionId} / {details.InvasionRole}"
             : "なし");
+        AddNpcRow("キル数", details.KillCount.ToString("N0"));
         AddNpcRow("Held Information", $"{details.HeldInformationCount}件");
 
         foreach (var record in details.ActionHistory
@@ -643,17 +710,13 @@ public sealed class MainForm : Form
                 $"戦闘死{group.CombatDeaths} 生命力死{group.VitalityDeaths} / " +
                 $"休息率{group.RestActionRate:P1} 繁殖{group.ReproductionSuccesses}/{group.ReproductionAttempts} 出生{group.Births}");
         }
-        foreach (var settlement in statistics.Settlements.OrderBy(item => item.Id))
+        var visibleSettlements = ObservationDisplayPolicy.VisibleSocialSettlements(statistics.Settlements);
+        foreach (var settlement in visibleSettlements)
         {
-            var status = settlement.IsActive ? "Active" : settlement.DissolvedTick.HasValue ? "消滅" : "Pending";
+            var status = settlement.IsActive ? "Active" : "Pending";
             AddSocialRow("Settlement", $"#{settlement.Id}",
                 $"{status} Center {settlement.Center} / 人口 {settlement.Population} ({settlement.WorldPopulationRatio:P1}) / " +
                 $"Core {settlement.CoreOccupancy:P0} / Crowding {settlement.CrowdingPressure:0.00}");
-        }
-        foreach (var friction in statistics.Frictions.Where(item => item.CurrentFriction > 0))
-        {
-            AddSocialRow("Friction", $"#{friction.FirstSettlementId}–#{friction.SecondSettlementId}",
-                $"{friction.CurrentFriction:0.0} / collision {friction.CollisionEvents} / threat {friction.ExplicitThreatEvents}");
         }
         foreach (var invasion in statistics.Invasions.OrderBy(item => item.Id))
         {
@@ -663,7 +726,7 @@ public sealed class MainForm : Form
                 $"#{invasion.AttackSettlementId} → #{invasion.DefenseSettlementId} / {status} / " +
                 $"兵力 {invasion.InitialForceSize} / 最大占有 {invasion.MaximumCoreOccupationRate:P1}");
         }
-        if (_socialStatistics.Rows.Count == 3)
+        if (visibleSettlements.Count == 0)
         {
             AddSocialRow("Settlement", "—", "まだ形成されていません");
         }
@@ -719,6 +782,64 @@ public sealed class MainForm : Form
         _statisticsChart.DaysPerYear = _world.Engine.Config.World.DaysPerYear;
         _statisticsChart.Metrics = _world.Metrics;
     }
+
+    private void RefreshSettlementDetails(WorldStatisticsProjection statistics)
+    {
+        _settlementProperties.Rows.Clear();
+        _settlementFrictionStatistics.Rows.Clear();
+        if (!_selectedSettlementId.HasValue)
+        {
+            _settlementTitle.Text = "マップ上のSettlement中心をクリックしてください";
+            return;
+        }
+
+        var settlement = statistics.Settlements.FirstOrDefault(item => item.Id == _selectedSettlementId.Value);
+        if (settlement is null)
+        {
+            _settlementTitle.Text = $"Settlement #{_selectedSettlementId.Value} — データなし";
+            return;
+        }
+
+        var status = settlement.IsActive ? "Active" : settlement.DissolvedTick.HasValue ? "消滅" : "Pending";
+        _settlementTitle.Text = $"Settlement #{settlement.Id} — {status}";
+        AddSettlementRow("中心", settlement.Center.ToString());
+        AddSettlementRow("形成日", $"D{settlement.FormedTick + 1}");
+        AddSettlementRow("Founder数", settlement.FounderCount.ToString("N0"));
+        AddSettlementRow("人口", $"{settlement.Population:N0} ({settlement.WorldPopulationRatio:P1})");
+        AddSettlementRow("Core占有率", settlement.CoreOccupancy.ToString("P1"));
+        AddSettlementRow("Crowding", settlement.CrowdingPressure.ToString("0.000"));
+        AddSettlementRow("Crowding連続", $"{settlement.CrowdingConsecutiveDays:N0}日");
+        if (settlement.DissolvedTick.HasValue)
+        {
+            AddSettlementRow("消滅日", $"D{settlement.DissolvedTick.Value + 1}");
+            AddSettlementRow("消滅理由", settlement.DissolutionReason ?? "—");
+            AddSettlementRow("統合先", settlement.IntegratedIntoSettlementId.HasValue
+                ? $"#{settlement.IntegratedIntoSettlementId}"
+                : "なし");
+        }
+
+        foreach (var friction in ObservationDisplayPolicy.FrictionsForSettlement(statistics.Frictions, settlement.Id))
+        {
+            var other = friction.FirstSettlementId == settlement.Id
+                ? friction.SecondSettlementId
+                : friction.FirstSettlementId;
+            _settlementFrictionStatistics.Rows.Add(
+                $"#{other}",
+                friction.CurrentFriction.ToString("0.0"),
+                friction.CollisionEvents.ToString("N0"),
+                friction.ExplicitThreatEvents.ToString("N0"),
+                friction.LifetimeDecay.ToString("0.0"),
+                friction.LastFrictionEventTick < 0 ? "—" : $"D{friction.LastFrictionEventTick + 1}");
+        }
+
+        if (_settlementFrictionStatistics.Rows.Count == 0)
+        {
+            _settlementFrictionStatistics.Rows.Add("なし", "0.0", "0", "0", "0.0", "—");
+        }
+    }
+
+    private void AddSettlementRow(string property, string value) =>
+        _settlementProperties.Rows.Add(property, value);
 
     private void UpdateCommandState()
     {

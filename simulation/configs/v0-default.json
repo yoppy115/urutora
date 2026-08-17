@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "id": "v0.2.2-default-1",
+  "id": "v0.2.3-default-1",
   "world": {
     "width": 64,
     "height": 64,
@@ -49,6 +49,10 @@
     "confidenceByDistance": [1.0, 1.0, 0.9, 0.8],
     "threatMemoryDays": 90,
     "heldInformationCapacityPerSubjectProperty": 3
+  },
+  "performance": {
+    "maximumDegreeOfParallelism": 0,
+    "minimumPopulationForParallelism": 128
   },
   "utility": {
     "topCandidates": 3,
@@ -115,7 +119,7 @@
     "hotspotSuccessThreshold": 3,
     "evaluationIntervalDays": 15,
     "minimumCenterDistance": 7,
-    "coreRadius": 3,
+    "coreRadius": 2,
     "influenceRadius": 7,
     "founderAffinity": 10.0,
     "coreResidentAffinity": 7.0,

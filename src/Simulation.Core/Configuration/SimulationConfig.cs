@@ -12,6 +12,7 @@ public sealed class SimulationConfig
     public ActionConfig Action { get; set; } = new();
     public NeedsConfig Needs { get; set; } = new();
     public ObservationConfig Observation { get; set; } = new();
+    public PerformanceConfig Performance { get; set; } = new();
     public UtilityConfig Utility { get; set; } = new();
     public CombatConfig Combat { get; set; } = new();
     public CommunicationConfig Communication { get; set; } = new();
@@ -74,6 +75,10 @@ public sealed class SimulationConfig
         Require(Observation.ThreatMemoryDays > 0, "observation.threatMemoryDays must be positive.", errors);
         Require(Observation.HeldInformationCapacityPerSubjectProperty == 3,
             "v0.15 observation.heldInformationCapacityPerSubjectProperty must be 3.", errors);
+        Require(Performance.MaximumDegreeOfParallelism is >= 0 and <= 128,
+            "performance.maximumDegreeOfParallelism must be within 0..128.", errors);
+        Require(Performance.MinimumPopulationForParallelism > 0,
+            "performance.minimumPopulationForParallelism must be positive.", errors);
 
         Require(double.IsFinite(Utility.Temperature) && Utility.Temperature > 0,
             "utility.temperature must be finite and greater than zero.", errors);
@@ -356,6 +361,12 @@ public sealed class ObservationConfig
     public List<double> ConfidenceByDistance { get; set; } = new();
     public int ThreatMemoryDays { get; set; }
     public int HeldInformationCapacityPerSubjectProperty { get; set; }
+}
+
+public sealed class PerformanceConfig
+{
+    public int MaximumDegreeOfParallelism { get; set; }
+    public int MinimumPopulationForParallelism { get; set; } = 128;
 }
 
 public sealed class UtilityConfig

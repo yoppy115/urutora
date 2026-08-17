@@ -29,6 +29,8 @@ World全体でSettlement数、Affiliated / Unaffiliated Population、所属率�
 - Hotspot Candidate数、同時競合数、arbitration棄却数、Candidate別Reproduction Success数。
 - Settlement Pair別CurrentFriction、理由別加算件数、decay量、LastFrictionEvent。
 
+headless統計とWorldログは消滅済みSettlementと全Friction履歴を保持する。v0.2.3 Desktop AppのWorld社会一覧は消滅済みSettlementを除外してActive / Pendingだけを表示し、Pair別FrictionとFriction変動Eventは選択したSettlementの詳細Tabへ限定して表示する。これは表示範囲だけの変更で、履歴projectionを削除しない。
+
 ## Affiliated versus unaffiliated
 
 Settlement所属NPCとUnaffiliated NPCについて、最低限次を比較する。
@@ -52,6 +54,8 @@ Settlement所属NPCとUnaffiliated NPCについて、最低限次を比較する
 - Unaffiliated保護によるAttack Candidate抑制数、Resolution拒否数、Threat化後Explicit Attack数。
 
 死亡は最後の一撃だけでなく、Combat Damage Sourceの寄与を診断可能な構造にする。
+
+NPC詳細のキル数は、当該NPCが`Death` EventのTargetIdに記録され、DetailがCombat由来である件数とする。Vitality Deathや単なるAttack命中は含めない。
 
 ## Reproduction
 

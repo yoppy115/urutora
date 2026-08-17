@@ -9,8 +9,10 @@ public sealed class WorldMapPanel : Panel
 {
     private SimulationSnapshot? _snapshot;
     private readonly ToolTip _toolTip = new();
+    private readonly SettlementColorAllocator _settlementColors = new();
     private long? _selectedNpcId;
-    private long? _hoverNpcId;
+    private int? _selectedSettlementId;
+    private string? _hoverKey;
 
     public WorldMapPanel()
     {
@@ -26,6 +28,7 @@ public sealed class WorldMapPanel : Panel
         set
         {
             _snapshot = value;
+            _settlementColors.Synchronize(value?.Settlements ?? Array.Empty<SettlementProjection>());
             Invalidate();
         }
     }
@@ -41,7 +44,19 @@ public sealed class WorldMapPanel : Panel
         }
     }
 
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public int? SelectedSettlementId
+    {
+        get => _selectedSettlementId;
+        set
+        {
+            _selectedSettlementId = value;
+            Invalidate();
+        }
+    }
+
     public event EventHandler<NpcSelectedEventArgs>? NpcSelected;
+    public event EventHandler<SettlementSelectedEventArgs>? SettlementSelected;
 
     protected override void OnPaint(PaintEventArgs eventArgs)
     {
@@ -123,6 +138,11 @@ public sealed class WorldMapPanel : Panel
             var rectangle = CellRectangle(settlement.Center, originX, originY, cell, Math.Max(0.4f, cell * 0.12f));
             eventArgs.Graphics.FillRectangle(centerBrush, rectangle);
             eventArgs.Graphics.DrawRectangle(centerPen, rectangle.X, rectangle.Y, rectangle.Width, rectangle.Height);
+            if (settlement.Id == _selectedSettlementId)
+            {
+                using var selectionPen = new Pen(Color.Gold, Math.Max(2, cell * 0.16f));
+                eventArgs.Graphics.DrawRectangle(selectionPen, rectangle.X, rectangle.Y, rectangle.Width, rectangle.Height);
+            }
         }
 
         foreach (var npc in _snapshot.Npcs)
@@ -159,6 +179,14 @@ public sealed class WorldMapPanel : Panel
     protected override void OnMouseClick(MouseEventArgs eventArgs)
     {
         base.OnMouseClick(eventArgs);
+        var settlement = SettlementAt(eventArgs.Location);
+        if (settlement is not null)
+        {
+            SelectedSettlementId = settlement.Id;
+            SettlementSelected?.Invoke(this, new SettlementSelectedEventArgs(settlement.Id));
+            return;
+        }
+
         var npc = NpcAt(eventArgs.Location);
         if (npc is null)
         {
@@ -172,17 +200,21 @@ public sealed class WorldMapPanel : Panel
     protected override void OnMouseMove(MouseEventArgs eventArgs)
     {
         base.OnMouseMove(eventArgs);
+        var settlement = SettlementAt(eventArgs.Location);
         var npc = NpcAt(eventArgs.Location);
-        Cursor = npc is null ? Cursors.Default : Cursors.Hand;
-        if (npc?.Id == _hoverNpcId)
+        var hoverKey = settlement is not null ? $"settlement:{settlement.Id}" : npc is not null ? $"npc:{npc.Id}" : null;
+        Cursor = hoverKey is null ? Cursors.Default : Cursors.Hand;
+        if (hoverKey == _hoverKey)
         {
             return;
         }
 
-        _hoverNpcId = npc?.Id;
-        _toolTip.SetToolTip(this, npc is null ? string.Empty :
-            $"NPC #{npc.Id}  Settlement {(npc.SettlementId?.ToString() ?? "なし")}" +
-            (npc.InvasionId.HasValue ? $"  Invasion #{npc.InvasionId}" : string.Empty));
+        _hoverKey = hoverKey;
+        _toolTip.SetToolTip(this, settlement is not null
+            ? $"Settlement #{settlement.Id}  人口 {settlement.Population}"
+            : npc is null ? string.Empty :
+                $"NPC #{npc.Id}  Settlement {(npc.SettlementId?.ToString() ?? "なし")}" +
+                (npc.InvasionId.HasValue ? $"  Invasion #{npc.InvasionId}" : string.Empty));
     }
 
     protected override void Dispose(bool disposing)
@@ -196,6 +228,20 @@ public sealed class WorldMapPanel : Panel
     }
 
     private NpcProjection? NpcAt(Point location)
+    {
+        var position = PositionAt(location);
+        return position.HasValue ? _snapshot?.Npcs.FirstOrDefault(item => item.Position == position.Value) : null;
+    }
+
+    private SettlementProjection? SettlementAt(Point location)
+    {
+        var position = PositionAt(location);
+        return position.HasValue
+            ? _snapshot?.Settlements.FirstOrDefault(item => item.IsActive && item.Center == position.Value)
+            : null;
+    }
+
+    private Position? PositionAt(Point location)
     {
         if (_snapshot is null)
         {
@@ -217,10 +263,9 @@ public sealed class WorldMapPanel : Panel
             return null;
         }
 
-        var position = new Position(
+        return new Position(
             Math.Clamp((int)((location.X - originX) / cell), 0, _snapshot.Width - 1),
             Math.Clamp((int)((location.Y - originY) / cell), 0, _snapshot.Height - 1));
-        return _snapshot.Npcs.FirstOrDefault(item => item.Position == position);
     }
 
     private static RectangleF CellRectangle(Position position, float originX, float originY, float cell, float inset) =>
@@ -249,19 +294,7 @@ public sealed class WorldMapPanel : Panel
             (maximumY - minimumY + 1) * cell);
     }
 
-    private static Color SettlementColor(int settlementId)
-    {
-        var palette = new[]
-        {
-            Color.FromArgb(64, 156, 255),
-            Color.FromArgb(238, 139, 55),
-            Color.FromArgb(112, 190, 109),
-            Color.FromArgb(176, 112, 214),
-            Color.FromArgb(226, 88, 132),
-            Color.FromArgb(48, 184, 181)
-        };
-        return palette[Math.Abs(settlementId - 1) % palette.Length];
-    }
+    private Color SettlementColor(int settlementId) => _settlementColors.ColorFor(settlementId);
 
     private static Color LandmarkColor(ConceptKind concept) => concept switch
     {
@@ -307,4 +340,9 @@ public sealed class WorldMapPanel : Panel
 public sealed class NpcSelectedEventArgs(long npcId) : EventArgs
 {
     public long NpcId { get; } = npcId;
+}
+
+public sealed class SettlementSelectedEventArgs(int settlementId) : EventArgs
+{
+    public int SettlementId { get; } = settlementId;
 }

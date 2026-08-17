@@ -439,9 +439,11 @@ public sealed class SimulationEngine
                 .Where(item => item.ParentAId == npcId || item.ParentBId == npcId)
                 .OrderBy(item => item.Id)
                 .ToArray();
-            var actionHistory = _events
-                .Where(item => item.Type is not SimulationEventType.Move and not SimulationEventType.MoveFailed)
+            var relatedEvents = _events
                 .Where(item => item.ActorId == npcId || item.TargetId == npcId)
+                .ToArray();
+            var actionHistory = relatedEvents
+                .Where(item => item.Type is not SimulationEventType.Move and not SimulationEventType.MoveFailed)
                 .OrderBy(item => item.Tick)
                 .ThenBy(item => item.MicroRound)
                 .ThenBy(item => item.EventId, StringComparer.Ordinal)
@@ -489,10 +491,16 @@ public sealed class SimulationEngine
                     .ToArray(),
                 npc.InvasionId,
                 npc.InvasionRole,
+                CountKills(relatedEvents, npcId),
                 npc.HeldInformation.Count,
                 actionHistory);
         }
     }
+
+    internal static long CountKills(IEnumerable<SimulationEvent> events, long npcId) => events.LongCount(item =>
+        item.Type == SimulationEventType.Death &&
+        item.TargetId == npcId &&
+        item.Detail.StartsWith("combat:", StringComparison.Ordinal));
 
     public AgeDistributionProjection GetCurrentAgeDistribution(int bucketSizeDays)
     {
@@ -546,24 +554,57 @@ public sealed class SimulationEngine
 
     private IReadOnlyList<ActionIntent> CreateIntents(IReadOnlySet<long> eligible, int microRound)
     {
-        var intents = new List<ActionIntent>();
-        foreach (var id in eligible.OrderBy(item => item))
+        var ids = eligible.OrderBy(item => item).ToArray();
+        var plans = new PlannedIntent?[ids.Length];
+        var activeCores = SettlementQueries.ActiveSettlements(State)
+            .Select(item => new SettlementCoreRule(item.Id, item.Center, Config.Settlement.CoreRadius))
+            .ToArray();
+        var landmarkPositions = State.Landmarks.Select(item => item.Position).ToHashSet();
+        var degree = ParallelExecutionPolicy.ResolveDegree(Config.Performance, ids.Length);
+
+        void Plan(int index)
         {
+            var id = ids[index];
             if (!State.Npcs.TryGetValue(id, out var npc) || !npc.IsAlive)
+            {
+                return;
+            }
+
+            _needs.RefreshSurvival(npc);
+            var rules = CreateWorldDecisionRules(npc, activeCores, landmarkPositions);
+            var context = CreateDecisionContext(npc, rules, out var suppressedAttackCandidates);
+            var trace = _decision.Decide(context, State.Tick, microRound);
+            plans[index] = new PlannedIntent(trace, suppressedAttackCandidates);
+        }
+
+        if (degree == 1)
+        {
+            for (var index = 0; index < ids.Length; index++)
+            {
+                Plan(index);
+            }
+        }
+        else
+        {
+            Parallel.For(0, ids.Length, new ParallelOptions { MaxDegreeOfParallelism = degree }, Plan);
+        }
+
+        var intents = new List<ActionIntent>();
+        foreach (var plan in plans)
+        {
+            if (plan is null)
             {
                 continue;
             }
 
-            _needs.RefreshSurvival(npc);
-            var rules = CreateWorldDecisionRules(npc);
-            var context = CreateDecisionContext(npc, rules);
-            var trace = _decision.Decide(context, State.Tick, microRound);
+            var trace = plan.Trace;
+            State.AttackCandidateSuppressionCount += plan.SuppressedAttackCandidates;
             _lastDecisionTraces.Add(trace);
             _selectedActionCounts[trace.Selected.Kind]++;
-            if (!_selectedActionCountsByNpc.TryGetValue(npc.Id, out var npcCounts))
+            if (!_selectedActionCountsByNpc.TryGetValue(trace.EntityId, out var npcCounts))
             {
                 npcCounts = Enum.GetValues<ActionKind>().ToDictionary(action => action, _ => 0L);
-                _selectedActionCountsByNpc.Add(npc.Id, npcCounts);
+                _selectedActionCountsByNpc.Add(trace.EntityId, npcCounts);
             }
             npcCounts[trace.Selected.Kind]++;
             intents.Add(_decision.CreateIntent(trace));
@@ -572,11 +613,11 @@ public sealed class SimulationEngine
         return intents;
     }
 
-    private WorldDecisionRules CreateWorldDecisionRules(NpcState npc)
+    private WorldDecisionRules CreateWorldDecisionRules(
+        NpcState npc,
+        IReadOnlyList<SettlementCoreRule> activeCores,
+        IReadOnlySet<Position> landmarkPositions)
     {
-        var activeCores = SettlementQueries.ActiveSettlements(State)
-            .Select(item => new SettlementCoreRule(item.Id, item.Center, Config.Settlement.CoreRadius))
-            .ToArray();
         var suppressedTargets = State.Npcs.Values
             .Where(item => item.IsAlive && item.Id != npc.Id &&
                            SettlementQueries.ExplicitAttackProtection(State, npc, item, Config) is not null)
@@ -585,7 +626,7 @@ public sealed class SimulationEngine
         return new WorldDecisionRules(
             Config.World.Width,
             Config.World.Height,
-            State.Landmarks.Select(item => item.Position).ToHashSet(),
+            landmarkPositions,
             activeCores,
             suppressedTargets,
             _invasion.MovementTarget(State, npc),
@@ -596,10 +637,13 @@ public sealed class SimulationEngine
             State.Phase == WorldPhase.Order);
     }
 
-    private DecisionContext CreateDecisionContext(NpcState npc, WorldDecisionRules rules)
+    private DecisionContext CreateDecisionContext(
+        NpcState npc,
+        WorldDecisionRules rules,
+        out long suppressedAttackCandidates)
     {
         var perception = _perception.CreateView(npc, State.Tick);
-        State.AttackCandidateSuppressionCount += perception.Threats.LongCount(item =>
+        suppressedAttackCandidates = perception.Threats.LongCount(item =>
             rules.IsAttackSuppressed(item.EntityId));
         return new DecisionContext(
             npc.Id,
@@ -613,6 +657,8 @@ public sealed class SimulationEngine
             perception,
             rules);
     }
+
+    private sealed record PlannedIntent(DecisionTrace Trace, long SuppressedAttackCandidates);
 
     private HashSet<long> DetermineRepeatParticipants(
         IReadOnlyList<ActionIntent> intents,

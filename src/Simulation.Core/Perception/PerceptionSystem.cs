@@ -15,9 +15,13 @@ public sealed class PerceptionSystem
         _random = random;
     }
 
-    public long EvictionCount { get; private set; }
-    public long SubjectPurgeCount { get; private set; }
-    public long PositionInvalidationCount { get; private set; }
+    private long _evictionCount;
+    private long _subjectPurgeCount;
+    private long _positionInvalidationCount;
+
+    public long EvictionCount => Interlocked.Read(ref _evictionCount);
+    public long SubjectPurgeCount => Interlocked.Read(ref _subjectPurgeCount);
+    public long PositionInvalidationCount => Interlocked.Read(ref _positionInvalidationCount);
 
     public void Observe(WorldState realitySnapshot)
     {
@@ -25,53 +29,87 @@ public sealed class PerceptionSystem
             .Where(npc => npc.IsAlive)
             .OrderBy(npc => npc.Id)
             .ToArray();
+        var spatialIndex = alive
+            .GroupBy(npc => npc.Position)
+            .ToDictionary(group => group.Key, group => group.OrderBy(npc => npc.Id).ToArray());
+        var degree = ParallelExecutionPolicy.ResolveDegree(_config.Performance, alive.Length);
 
-        foreach (var observer in alive)
+        if (degree == 1)
         {
-            var directlyConfirmedGone = observer.HeldInformation
-                .Select(item => item.SubjectId)
-                .Distinct()
-                .Where(subjectId => realitySnapshot.Npcs.TryGetValue(subjectId, out var subject) &&
-                                    !subject.IsAlive &&
-                                    observer.Position.ChebyshevDistance(subject.Position) <= _config.Observation.MaximumDistance)
-                .OrderBy(item => item)
-                .ToArray();
-            foreach (var subjectId in directlyConfirmedGone)
+            foreach (var observer in alive)
             {
-                PurgeSubject(observer, subjectId);
+                ObserveOne(realitySnapshot, observer, spatialIndex);
+            }
+            return;
+        }
+
+        Parallel.ForEach(
+            alive,
+            new ParallelOptions { MaxDegreeOfParallelism = degree },
+            observer => ObserveOne(realitySnapshot, observer, spatialIndex));
+    }
+
+    private void ObserveOne(
+        WorldState realitySnapshot,
+        NpcState observer,
+        IReadOnlyDictionary<Position, NpcState[]> spatialIndex)
+    {
+        var maximumDistance = _config.Observation.MaximumDistance;
+        var directlyConfirmedGone = observer.HeldInformation
+            .Select(item => item.SubjectId)
+            .Distinct()
+            .Where(subjectId => realitySnapshot.Npcs.TryGetValue(subjectId, out var subject) &&
+                                !subject.IsAlive &&
+                                observer.Position.ChebyshevDistance(subject.Position) <= maximumDistance)
+            .OrderBy(item => item)
+            .ToArray();
+        foreach (var subjectId in directlyConfirmedGone)
+        {
+            PurgeSubject(observer, subjectId);
+        }
+
+        var nearby = new List<NpcState>();
+        for (var y = observer.Position.Y - maximumDistance; y <= observer.Position.Y + maximumDistance; y++)
+        {
+            for (var x = observer.Position.X - maximumDistance; x <= observer.Position.X + maximumDistance; x++)
+            {
+                if (spatialIndex.TryGetValue(new Position(x, y), out var occupants))
+                {
+                    nearby.AddRange(occupants);
+                }
+            }
+        }
+
+        foreach (var subject in nearby.OrderBy(item => item.Id))
+        {
+            if (observer.Id == subject.Id)
+            {
+                continue;
             }
 
-            foreach (var subject in alive)
+            var distance = observer.Position.ChebyshevDistance(subject.Position);
+            if (distance is < 1 || distance > maximumDistance)
             {
-                if (observer.Id == subject.Id)
-                {
-                    continue;
-                }
-
-                var distance = observer.Position.ChebyshevDistance(subject.Position);
-                if (distance is < 1 || distance > _config.Observation.MaximumDistance)
-                {
-                    continue;
-                }
-
-                var confidence = _config.Observation.ConfidenceByDistance[distance];
-                Add(observer, subject.Id, InformationProperty.PositionX, subject.Position.X, confidence, realitySnapshot.Tick, InformationAcquisition.Observation);
-                Add(observer, subject.Id, InformationProperty.PositionY, subject.Position.Y, confidence, realitySnapshot.Tick, InformationAcquisition.Observation);
-                Add(observer, subject.Id, InformationProperty.Alive, 1, confidence, realitySnapshot.Tick, InformationAcquisition.Observation);
-
-                var maxError = _config.Observation.ErrorFactor * (distance + 1);
-                AddNoisy(observer, subject.Id, InformationProperty.CurrentHp, subject.CurrentHp, confidence, maxError, realitySnapshot.Tick);
-                AddNoisy(observer, subject.Id, InformationProperty.Combat, subject.EffectiveStats(_config).Combat, confidence, maxError, realitySnapshot.Tick);
-                Add(observer, subject.Id, InformationProperty.LifeStage,
-                    subject.IsMature(_config) ? (double)PerceivedLifeStage.Mature : (double)PerceivedLifeStage.Child,
-                    confidence, realitySnapshot.Tick, InformationAcquisition.Observation);
-                Add(observer, subject.Id, InformationProperty.MarkStruggle, subject.ConceptMarks.Contains(ConceptKind.Struggle) ? 1 : 0,
-                    confidence, realitySnapshot.Tick, InformationAcquisition.Observation);
-                Add(observer, subject.Id, InformationProperty.MarkSurvival, subject.ConceptMarks.Contains(ConceptKind.Survival) ? 1 : 0,
-                    confidence, realitySnapshot.Tick, InformationAcquisition.Observation);
-                Add(observer, subject.Id, InformationProperty.MarkCommunication, subject.ConceptMarks.Contains(ConceptKind.Communication) ? 1 : 0,
-                    confidence, realitySnapshot.Tick, InformationAcquisition.Observation);
+                continue;
             }
+
+            var confidence = _config.Observation.ConfidenceByDistance[distance];
+            Add(observer, subject.Id, InformationProperty.PositionX, subject.Position.X, confidence, realitySnapshot.Tick, InformationAcquisition.Observation);
+            Add(observer, subject.Id, InformationProperty.PositionY, subject.Position.Y, confidence, realitySnapshot.Tick, InformationAcquisition.Observation);
+            Add(observer, subject.Id, InformationProperty.Alive, 1, confidence, realitySnapshot.Tick, InformationAcquisition.Observation);
+
+            var maxError = _config.Observation.ErrorFactor * (distance + 1);
+            AddNoisy(observer, subject.Id, InformationProperty.CurrentHp, subject.CurrentHp, confidence, maxError, realitySnapshot.Tick);
+            AddNoisy(observer, subject.Id, InformationProperty.Combat, subject.EffectiveStats(_config).Combat, confidence, maxError, realitySnapshot.Tick);
+            Add(observer, subject.Id, InformationProperty.LifeStage,
+                subject.IsMature(_config) ? (double)PerceivedLifeStage.Mature : (double)PerceivedLifeStage.Child,
+                confidence, realitySnapshot.Tick, InformationAcquisition.Observation);
+            Add(observer, subject.Id, InformationProperty.MarkStruggle, subject.ConceptMarks.Contains(ConceptKind.Struggle) ? 1 : 0,
+                confidence, realitySnapshot.Tick, InformationAcquisition.Observation);
+            Add(observer, subject.Id, InformationProperty.MarkSurvival, subject.ConceptMarks.Contains(ConceptKind.Survival) ? 1 : 0,
+                confidence, realitySnapshot.Tick, InformationAcquisition.Observation);
+            Add(observer, subject.Id, InformationProperty.MarkCommunication, subject.ConceptMarks.Contains(ConceptKind.Communication) ? 1 : 0,
+                confidence, realitySnapshot.Tick, InformationAcquisition.Observation);
         }
     }
 
@@ -104,7 +142,7 @@ public sealed class PerceptionSystem
             item.SubjectId == subjectId && item.Property is InformationProperty.PositionX or InformationProperty.PositionY);
         if (removed > 0)
         {
-            PositionInvalidationCount++;
+            Interlocked.Increment(ref _positionInvalidationCount);
             return true;
         }
 
@@ -117,7 +155,7 @@ public sealed class PerceptionSystem
         observer.ThreatMemory.Remove(subjectId);
         if (removed > 0)
         {
-            SubjectPurgeCount++;
+            Interlocked.Increment(ref _subjectPurgeCount);
             return true;
         }
 
@@ -155,7 +193,7 @@ public sealed class PerceptionSystem
         while (matching.Length > _config.Observation.HeldInformationCapacityPerSubjectProperty)
         {
             observer.HeldInformation.RemoveAt(matching[0].Index);
-            EvictionCount++;
+            Interlocked.Increment(ref _evictionCount);
             matching = observer.HeldInformation
                 .Select((item, index) => (Item: item, Index: index))
                 .Where(item => item.Item.SubjectId == subjectId && item.Item.Property == property)
@@ -223,6 +261,8 @@ public sealed class PerceptionView
 {
     private readonly IReadOnlyDictionary<long, IReadOnlyDictionary<InformationProperty, InformationRecord>> _records;
     private readonly IReadOnlySet<long> _threatIds;
+    private readonly IReadOnlyList<PerceivedEntity> _entities;
+    private readonly IReadOnlyList<PerceivedEntity> _threats;
 
     public PerceptionView(
         IReadOnlyDictionary<long, IReadOnlyDictionary<InformationProperty, InformationRecord>> records,
@@ -230,14 +270,16 @@ public sealed class PerceptionView
     {
         _records = records;
         _threatIds = threatIds;
+        _entities = _records
+            .OrderBy(item => item.Key)
+            .Select(item => BuildEntity(item.Key, item.Value))
+            .ToArray();
+        _threats = _entities.Where(item => item.IsThreat).ToArray();
     }
 
-    public IReadOnlyList<PerceivedEntity> Entities => _records
-        .OrderBy(item => item.Key)
-        .Select(item => BuildEntity(item.Key, item.Value))
-        .ToArray();
+    public IReadOnlyList<PerceivedEntity> Entities => _entities;
 
-    public IReadOnlyList<PerceivedEntity> Threats => Entities.Where(item => item.IsThreat).ToArray();
+    public IReadOnlyList<PerceivedEntity> Threats => _threats;
 
     public PerceivedEntity? Find(long subjectId)
     {
