@@ -162,7 +162,7 @@ public sealed class NpcState
     public NeedsState Needs { get; } = new();
     public HashSet<ConceptKind> ConceptMarks { get; } = new();
     public Dictionary<ConceptKind, double> ConceptExposure { get; } = new();
-    public List<InformationRecord> HeldInformation { get; } = new();
+    public HeldInformationStore HeldInformation { get; } = new();
     public long NextInformationSequence { get; set; }
     public Dictionary<long, ThreatMemory> ThreatMemory { get; } = new();
     public Dictionary<int, double> SettlementAffinity { get; } = new();
@@ -320,7 +320,12 @@ public sealed record ReproductionSuccessRecord(
     int Tick,
     Position Position,
     long ParentAId,
-    long ParentBId);
+    long ParentBId,
+    int? ParentASettlementId = null,
+    int? ParentBSettlementId = null)
+{
+    public bool HasSettlementMember => ParentASettlementId.HasValue || ParentBSettlementId.HasValue;
+}
 
 public sealed record DailyPopulationRecord(
     int Tick,

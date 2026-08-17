@@ -56,11 +56,13 @@ Home Biasは強制Actionではなく、通常Move候補のweightだけを変更�
 
 - 自Influence外でStrong条件を満たさない場合: Homeへ近づく`×1.5`、距離不変`×1.0`、離れる`×0.75`。
 - `RestNeed >= 6`または`CurrentHP / EffectiveMaxHP <= 0.60`ならStrong Home Bias。Coreへ近づく`×5.0`、距離不変`×1.0`、離れる`×0.20`。
-- Flee、Active InvasionのAdvance / Defense、その他緊急Actionを上書きしない。
+- Flee、Active InvasionのAdvance / Defense、その他緊急Actionを上書きしない。Active Invasion参加者は攻撃・防衛ともHome Biasを受けない。
 
 ### Foreign Settlement avoidance
 
-平時の所属NPCは他Settlement Influenceへ入るMove候補を`×0.25`、Coreへ入る候補を`×0.05`にする。他Influence内に既にいる場合、外へ向かう候補を`×3.0`、深部へ向かう候補を`×0.25`にする。禁止ではない。攻撃対象へのActive InvasionとFleeでは適用せず、Unaffiliated NPCにも適用しない。
+平時の所属NPCは他Settlement Influenceへ入るMove候補を`×0.25`、Coreへ入る候補を`×0.05`にする。他Influence内に既にいる場合、外へ向かう候補を`×3.0`、深部へ向かう候補を`×0.25`にする。禁止ではない。Active Invasion参加者は攻撃・防衛とも適用対象外とし、FleeとUnaffiliated NPCにも適用しない。
+
+攻撃側Invasion参加者のAdvance Biasは敵Settlement CoreのCenterをTargetとする。v0.2.4 defaultは1 Cell接近`×5.0`、距離不変`×1.0`、離脱`×0.20`とし、Strong Home Biasと同程度の前進圧を与える。Defense BiasとAura Cohesionは別の補助weightであり、Fleeを上書きしない。
 
 ## Generation Proto-Order
 
@@ -156,6 +158,7 @@ ConceptMark、Landmark、Aura、Held Informationは本版で変更しない。Ex
 
 - Action種類別Rest fatigueと閾値付き対数Rest Pressure。
 - Home Bias、自領域Move疲労軽減、平時のForeign avoidance。
+- Active Invasion参加者からHome / Foreign Biasを除外し、攻撃側へ敵Core Center方向のStrong Home相当前進Biasを与える。
 - Generationの限定Proto-Order。
 - 局所SettlementSupportとhysteresisによる自然消滅。
 - Crowding episodeごとのre-arm、Aliveだけの征服所属、Center単独到達の非勝利。

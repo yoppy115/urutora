@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Simulation.Core.Configuration;
 using Simulation.Core.Domain;
 using Simulation.Core.Randomness;
@@ -8,6 +9,7 @@ public sealed class PerceptionSystem
 {
     private readonly SimulationConfig _config;
     private readonly RandomStreamFactory _random;
+    private readonly ConcurrentDictionary<long, CachedPerceptionView> _viewCache = new();
 
     public PerceptionSystem(SimulationConfig config, RandomStreamFactory random)
     {
@@ -32,13 +34,17 @@ public sealed class PerceptionSystem
         var spatialIndex = alive
             .GroupBy(npc => npc.Position)
             .ToDictionary(group => group.Key, group => group.OrderBy(npc => npc.Id).ToArray());
+        var deadSpatialIndex = realitySnapshot.Npcs.Values
+            .Where(npc => !npc.IsAlive)
+            .GroupBy(npc => npc.Position)
+            .ToDictionary(group => group.Key, group => group.OrderBy(npc => npc.Id).ToArray());
         var degree = ParallelExecutionPolicy.ResolveDegree(_config.Performance, alive.Length);
 
         if (degree == 1)
         {
             foreach (var observer in alive)
             {
-                ObserveOne(realitySnapshot, observer, spatialIndex);
+                ObserveOne(realitySnapshot, observer, spatialIndex, deadSpatialIndex);
             }
             return;
         }
@@ -46,23 +52,31 @@ public sealed class PerceptionSystem
         Parallel.ForEach(
             alive,
             new ParallelOptions { MaxDegreeOfParallelism = degree },
-            observer => ObserveOne(realitySnapshot, observer, spatialIndex));
+            observer => ObserveOne(realitySnapshot, observer, spatialIndex, deadSpatialIndex));
     }
 
     private void ObserveOne(
         WorldState realitySnapshot,
         NpcState observer,
-        IReadOnlyDictionary<Position, NpcState[]> spatialIndex)
+        IReadOnlyDictionary<Position, NpcState[]> spatialIndex,
+        IReadOnlyDictionary<Position, NpcState[]> deadSpatialIndex)
     {
         var maximumDistance = _config.Observation.MaximumDistance;
-        var directlyConfirmedGone = observer.HeldInformation
-            .Select(item => item.SubjectId)
-            .Distinct()
-            .Where(subjectId => realitySnapshot.Npcs.TryGetValue(subjectId, out var subject) &&
-                                !subject.IsAlive &&
-                                observer.Position.ChebyshevDistance(subject.Position) <= maximumDistance)
-            .OrderBy(item => item)
-            .ToArray();
+        var directlyConfirmedGone = new List<long>();
+        for (var y = observer.Position.Y - maximumDistance; y <= observer.Position.Y + maximumDistance; y++)
+        {
+            for (var x = observer.Position.X - maximumDistance; x <= observer.Position.X + maximumDistance; x++)
+            {
+                if (!deadSpatialIndex.TryGetValue(new Position(x, y), out var subjects))
+                {
+                    continue;
+                }
+                directlyConfirmedGone.AddRange(subjects
+                    .Where(subject => observer.HeldInformation.ContainsSubject(subject.Id))
+                    .Select(subject => subject.Id));
+            }
+        }
+        directlyConfirmedGone.Sort();
         foreach (var subjectId in directlyConfirmedGone)
         {
             PurgeSubject(observer, subjectId);
@@ -176,7 +190,7 @@ public sealed class PerceptionSystem
         var sequence = observer.NextInformationSequence++;
         var id = StableHash.StableId(
             "info", observer.Id, subjectId, property, tick, acquisition, sourceId, sequence, stableScope ?? string.Empty);
-        observer.HeldInformation.Add(new InformationRecord(
+        var evicted = observer.HeldInformation.AddBounded(new InformationRecord(
             id,
             subjectId,
             property,
@@ -184,43 +198,32 @@ public sealed class PerceptionSystem
             confidence,
             sourceId,
             acquisition,
-            tick));
-
-        var matching = observer.HeldInformation
-            .Select((item, index) => (Item: item, Index: index))
-            .Where(item => item.Item.SubjectId == subjectId && item.Item.Property == property)
-            .ToArray();
-        while (matching.Length > _config.Observation.HeldInformationCapacityPerSubjectProperty)
+            tick), _config.Observation.HeldInformationCapacityPerSubjectProperty);
+        if (evicted > 0)
         {
-            observer.HeldInformation.RemoveAt(matching[0].Index);
-            Interlocked.Increment(ref _evictionCount);
-            matching = observer.HeldInformation
-                .Select((item, index) => (Item: item, Index: index))
-                .Where(item => item.Item.SubjectId == subjectId && item.Item.Property == property)
-                .ToArray();
+            Interlocked.Add(ref _evictionCount, evicted);
         }
     }
 
     public PerceptionView CreateView(NpcState owner, int tick)
     {
-        var representative = owner.HeldInformation
-            .GroupBy(item => (item.SubjectId, item.Property))
-            .Select(group => group
-                .OrderByDescending(item => item.Confidence)
-                .ThenByDescending(item => item.AcquiredTick)
-                .ThenBy(item => item.InformationId, StringComparer.Ordinal)
-                .First())
-            .GroupBy(item => item.SubjectId)
-            .ToDictionary(
-                group => group.Key,
-                group => (IReadOnlyDictionary<InformationProperty, InformationRecord>)group.ToDictionary(item => item.Property));
-
+        var informationVersion = owner.HeldInformation.RepresentativeVersion;
         var activeThreats = owner.ThreatMemory.Values
             .Where(item => tick - item.LastThreatTick <= _config.Observation.ThreatMemoryDays)
             .Select(item => item.SubjectId)
             .ToHashSet();
+        if (_viewCache.TryGetValue(owner.Id, out var cached) &&
+            cached.Tick == tick && cached.InformationVersion == informationVersion &&
+            cached.OwnerPosition == owner.Position && cached.ActiveThreatIds.SetEquals(activeThreats))
+        {
+            return cached.View;
+        }
 
-        return new PerceptionView(representative, activeThreats);
+        var view = new PerceptionView(
+            owner.HeldInformation.RepresentativeSubjectsNear(owner.Position, _config.Observation.MaximumDistance),
+            activeThreats);
+        _viewCache[owner.Id] = new CachedPerceptionView(tick, informationVersion, owner.Position, activeThreats, view);
+        return view;
     }
 
     public static double TransmissionConfidence(double sourceConfidence, double receiverEffectiveCommunication, CommunicationConfig config)
@@ -255,25 +258,30 @@ public sealed class PerceptionSystem
     {
         AddInformation(observer, subjectId, property, value, confidence, observer.Id, tick, acquisition);
     }
+
+    private sealed record CachedPerceptionView(
+        int Tick,
+        long InformationVersion,
+        Position OwnerPosition,
+        IReadOnlySet<long> ActiveThreatIds,
+        PerceptionView View);
 }
 
 public sealed class PerceptionView
 {
-    private readonly IReadOnlyDictionary<long, IReadOnlyDictionary<InformationProperty, InformationRecord>> _records;
-    private readonly IReadOnlySet<long> _threatIds;
+    private readonly IReadOnlyDictionary<long, PerceivedEntity> _entitiesById;
     private readonly IReadOnlyList<PerceivedEntity> _entities;
     private readonly IReadOnlyList<PerceivedEntity> _threats;
 
     public PerceptionView(
-        IReadOnlyDictionary<long, IReadOnlyDictionary<InformationProperty, InformationRecord>> records,
+        IEnumerable<KeyValuePair<long, IReadOnlyDictionary<InformationProperty, InformationRecord>>> records,
         IReadOnlySet<long> threatIds)
     {
-        _records = records;
-        _threatIds = threatIds;
-        _entities = _records
+        _entities = records
             .OrderBy(item => item.Key)
-            .Select(item => BuildEntity(item.Key, item.Value))
+            .Select(item => BuildEntity(item.Key, item.Value, threatIds.Contains(item.Key)))
             .ToArray();
+        _entitiesById = _entities.ToDictionary(item => item.EntityId);
         _threats = _entities.Where(item => item.IsThreat).ToArray();
     }
 
@@ -283,12 +291,13 @@ public sealed class PerceptionView
 
     public PerceivedEntity? Find(long subjectId)
     {
-        return _records.TryGetValue(subjectId, out var properties) ? BuildEntity(subjectId, properties) : null;
+        return _entitiesById.GetValueOrDefault(subjectId);
     }
 
     private PerceivedEntity BuildEntity(
         long subjectId,
-        IReadOnlyDictionary<InformationProperty, InformationRecord> properties)
+        IReadOnlyDictionary<InformationProperty, InformationRecord> properties,
+        bool isThreat)
     {
         static double? Read(IReadOnlyDictionary<InformationProperty, InformationRecord> source, InformationProperty property) =>
             source.TryGetValue(property, out var record) ? record.EstimatedValue : null;
@@ -310,7 +319,7 @@ public sealed class PerceptionView
             Read(properties, InformationProperty.CurrentHp),
             Read(properties, InformationProperty.Combat),
             lifeStage.HasValue ? (PerceivedLifeStage)(int)Math.Round(lifeStage.Value) : null,
-            _threatIds.Contains(subjectId));
+            isThreat);
     }
 }
 

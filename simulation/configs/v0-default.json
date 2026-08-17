@@ -1,6 +1,6 @@
 {
   "schemaVersion": 3,
-  "id": "v0.2.4-default-1",
+  "id": "v0.2.4-default-2",
   "world": {
     "width": 64,
     "height": 64,
@@ -193,7 +193,7 @@
     "mobilizationMaximum": 0.50,
     "coreCohortRatio": 0.50,
     "attackOccupationThreshold": 0.50,
-    "advanceBiasWeight": 4.0,
+    "advanceBiasWeight": 1.6094379124341003,
     "defenseBiasWeight": 2.0,
     "auraCohesionWeight": 0.75,
     "crowdingRearmPressureThreshold": 0.70,

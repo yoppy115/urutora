@@ -11,7 +11,7 @@
 - 実装基盤: C# / .NET 10。`Simulation.Core`、`Simulation.App`、`Simulation.Runner`、各Testsを分離
 - 外部依存: test-onlyのFsCheck 3.3.4。Production Core / App / Runnerは外部packageなし
 
-v0.2.3までのHotspot・出生所属・Core排他境界を維持し、v0.2.4のRest v2、Home / Foreign Bias、Generation Proto-Order、局所SettlementSupport、Invasion再arm・征服guardrailを実装した。Support・P/R/S・LowSupportDays、居住分布、移動Bias、Action別疲労、Invasion armed状態は観測UIとWorld diagnosticsへ投影する。Windows Formsは交換可能なPresentation Adapterであり、GUIはRealityの権威を持たない。
+v0.2.3までのHotspot・出生所属・Core排他境界を維持し、v0.2.4のRest v2、Home / Foreign Bias、Generation Proto-Order、局所SettlementSupport、Invasion再arm・征服guardrailを実装した。同版追補ではSettlement所属者の繁殖を新規Hotspotから除外し、Invasion参加中のHome / Foreign Biasを外して攻撃側を敵Coreへ前進させる。Support・P/R/S・LowSupportDays、居住分布、移動Bias、Action別疲労、Invasion armed状態は観測UIとWorld diagnosticsへ投影する。Windows Formsは交換可能なPresentation Adapterであり、GUIはRealityの権威を持たない。
 
 ## Source of truth
 

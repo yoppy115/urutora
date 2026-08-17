@@ -170,6 +170,7 @@ Settlement Maintenance順と翌Tick反映、Aura / Core占有計算もcollection
 
 - Hotspotは90日、5×5、Success 3、15日評価で、旧4×4 / Success 4より成立可能になる。
 - 既存Active Settlement Influence内のSuccessをHotspotから除外する。
+- Success発生時点で参加者の一方でもActive Settlement所属なら、Influence外でも新規Hotspotから除外する。
 - 新Core全Cellが既存Influenceへ重ならず、defaultではCenter距離`> 9`となる。
 - 同じActive Settlement所属の両親は位置に依存せず出生所属を継承する。
 - 片親所属は受胎時に両親とも所属先Influence内の場合だけInfluence出生所属となる。
@@ -194,6 +195,7 @@ Settlement Maintenance順と翌Tick反映、Aura / Core占有計算もcollection
 - M. Foreign Core進入Move weightが`×0.05`。
 - N. Foreign Settlement内部から退出方向が`×3`。
 - O. Active Invasion / Flee時にForeign avoidanceが不当に優先されない。
+- O2. Active Invasion参加者は攻撃・防衛ともHome / Foreign Biasを受けず、攻撃側は敵Core Centerへの接近`×5` / 不変`×1` / 離脱`×0.2`となる。
 - P. Generation中でも同Settlement Collision Attackを抑制する。
 - Q. Generation Coreの正Vitalityが`×1.25`。
 - R. Generationの通常Affinity gainが`×2`。
@@ -215,5 +217,6 @@ Settlement Maintenance順と翌Tick反映、Aura / Core占有計算もcollection
 - AH. Frictionを0～100へClampする。
 - AI. Rest v2導入後もRestによるInvasion離脱Ruleを維持する。
 - AJ. Observation cache、spatial index、parallelization等の有無で決定論的結果が変化しない。
+- AK. 日次CSVは欠落なく継続し、全履歴diagnosticsは設定間隔と世界完了時だけ再集計しても値とSimulation Event列を変えない。
 
 具体的なtest framework、fixture形式、統計的試験のsample数は実装時に決める。

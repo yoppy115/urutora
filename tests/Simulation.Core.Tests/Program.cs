@@ -54,6 +54,7 @@ internal static class Program
         ("Generation keeps Order Rest bonus disabled", GenerationKeepsOrderRestBonusDisabled),
         ("Generation Proto-Order applies collision, vitality, and Affinity boundaries", GenerationProtoOrderBoundaries),
         ("Settlement movement uses Home, Foreign, and local fatigue weights", SettlementMovementBiasAndFatigue),
+        ("Invasion movement suppresses Home and advances toward the enemy Core", InvasionMovementBias),
         ("Settlement Support uses local rolling activity and hysteresis", SettlementSupportAndHysteresis),
         ("outside-Core reproduction applies both utility penalties", OutsideCoreReproductionPenalty),
         ("Concept Aura is non-stacking and normalizes temporary MaxHP", ConceptAuraRules),
@@ -113,7 +114,7 @@ internal static class Program
     private static void V024DefaultsAndInitialAges()
     {
         var config = LoadConfig();
-        Equal("v0.2.4-default-1", config.Id);
+        Equal("v0.2.4-default-2", config.Id);
         Equal(5, config.Settlement.HotspotWindowSize);
         Equal(3, config.Settlement.HotspotSuccessThreshold);
         Equal(0.125, config.Concept.ExposureByDistance[4], 0);
@@ -134,6 +135,8 @@ internal static class Program
         Equal(1.25, config.Settlement.GenerationPositiveVitalityMultiplier, 0);
         Equal(90, config.Settlement.SupportWindowDays);
         Equal(50, config.Invasion.AttackOccupationThreshold * 100, 0);
+        Equal(config.Settlement.StrongHomeBiasTowardWeight, Math.Exp(config.Invasion.AdvanceBiasWeight), 1e-12);
+        Equal(config.Settlement.StrongHomeBiasAwayWeight, Math.Exp(-config.Invasion.AdvanceBiasWeight), 1e-12);
 
         var world = Simulation.Core.World.WorldFactory.Create(config, new RandomStreamFactory(915));
         True(world.Npcs.Values.All(item => item.AgeDays is >= 180 and <= 700),
@@ -255,6 +258,8 @@ internal static class Program
         var rules = new WorldDecisionRules(config.World.Width, config.World.Height, world.Landmarks.Select(item => item.Position).ToHashSet());
         observer.ThreatMemory[subject.Id] = new ThreatMemory(subject.Id, 0);
         var contextBefore = DecisionContextFor(observer, config, perceptionSystem.CreateView(observer, 0), rules);
+        True(contextBefore.Perception.Threats.Any(item => item.EntityId == subject.Id),
+            "Same-tick Threat Memory update was hidden by the Perception cache.");
         var decision = new UtilityDecisionSystem(config, random);
         var riskBefore = decision.ThreatRisk(contextBefore, contextBefore.Perception.Find(subject.Id)!);
         subject.CurrentHp = 1;
@@ -856,6 +861,20 @@ internal static class Program
         True(statistics.AverageAgeYears > 0, "Average age was not calculated.");
         True(statistics.RestDiagnostics.FatigueContributions.Count > 0,
             "Action-specific fatigue was not projected.");
+        var daily = engine.GetDailyObservation();
+        Equal(statistics.Tick, daily.Tick);
+        Equal(statistics.Population, daily.Population);
+        Equal(statistics.MinimumPopulation, daily.MinimumPopulation);
+        Equal(statistics.AverageAgeYears, daily.AverageAgeYears, 1e-12);
+        Equal(statistics.WorldPhase.CurrentPhase, daily.CurrentPhase);
+        Equal(statistics.Settlements.Count(item => item.IsActive), daily.ActiveSettlementCount);
+        Equal(statistics.AffiliatedPopulation, daily.AffiliatedPopulation);
+        SequenceEqual(statistics.ActionSelections, daily.ActionSelections);
+        Equal(statistics.Perception, daily.Perception);
+        Equal(statistics.RestDiagnostics.RestActionRate, daily.RestActionRate, 1e-12);
+        Equal(statistics.RestDiagnostics.AverageRestNeed, daily.AverageRestNeed, 1e-12);
+        Equal(statistics.RestDiagnostics.AverageSelectedRestNeed, daily.AverageSelectedRestNeed, 1e-12);
+        Equal(statistics.RestDiagnostics.AverageSelectedRestPressure, daily.AverageSelectedRestPressure, 1e-12);
         var generation = statistics.PhaseEcology.Single(item => item.Phase == WorldPhase.Generation);
         Equal(1, generation.Days);
         True(generation.AverageHp > 0, "Phase ecology HP was not projected.");
@@ -932,12 +951,14 @@ internal static class Program
                 $"inside-{index}", 18 + index, new Position(12, 10), 1, 2));
             world.ReproductionSuccesses.Add(new ReproductionSuccessRecord(
                 $"outside-{index}", 18 + index, new Position(30, 30), 3, 4));
+            world.ReproductionSuccesses.Add(new ReproductionSuccessRecord(
+                $"member-{index}", 18 + index, new Position(40, 30), 1, 5, ParentASettlementId: 1));
         }
 
         var candidates = new SettlementFormationSystem(config, new RandomStreamFactory(823)).CreateCandidateSnapshot(world);
         True(candidates.Count > 0, "The unrelated external Hotspot was lost.");
         True(candidates.All(candidate => candidate.ReproductionSuccessEventIds.All(id => id.StartsWith("outside-", StringComparison.Ordinal))),
-            "A reproduction success inside existing Influence contributed to a Hotspot.");
+            "A success inside existing Influence or involving a Settlement member contributed to a Hotspot.");
         var protectedDistance = config.Settlement.InfluenceRadius + config.Settlement.CoreRadius;
         True(candidates.SelectMany(candidate => candidate.CenterCandidates)
                 .All(center => center.ChebyshevDistance(new Position(10, 10)) > protectedDistance),
@@ -1213,6 +1234,71 @@ internal static class Program
         True(fatigueEvents.Any(item => item.Type == SimulationEventType.FatigueApplied &&
                                        item.Detail.Contains("requested=0.125", StringComparison.Ordinal)),
             "Core Move fatigue reduction was not logged.");
+    }
+
+    private static void InvasionMovementBias()
+    {
+        var config = LoadConfig();
+        var world = SocialWorld(config);
+        var participant = Npc(1, new Position(5, 5), 5, 5, 5, 100);
+        participant.SettlementId = 1;
+        participant.InvasionId = 1;
+        participant.InvasionRole = InvasionRole.Attacker;
+        participant.HasAdvanceBias = true;
+        participant.Needs.Rest = 10;
+        world.Npcs.Add(participant.Id, participant);
+        world.Invasions.Add(1, new InvasionState
+        {
+            Id = 1,
+            AttackSettlementId = 1,
+            DefenseSettlementId = 2,
+            CreatedTick = 0,
+            EffectiveTick = 0,
+            TriggerCrowdingPressure = 0.9,
+            TargetReason = "test",
+            AttackParticipantIds = new[] { participant.Id },
+            CoreCohortIds = new[] { participant.Id },
+            FrontierCohortIds = Array.Empty<long>()
+        });
+        var invasion = new InvasionSystem(config, new RandomStreamFactory(851));
+        var enemyCore = invasion.MovementTarget(world, participant);
+        Equal(world.Settlements[2].Center, enemyCore!.Value);
+        True(InvasionSystem.IsActiveParticipant(world, participant), "Active participation was not detected.");
+
+        var rules = new WorldDecisionRules(
+            config.World.Width,
+            config.World.Height,
+            new HashSet<Position>(),
+            MovementPrimaryTarget: enemyCore,
+            MovementPrimaryWeight: config.Invasion.AdvanceBiasWeight,
+            HomeSettlementId: participant.SettlementId,
+            SettlementRegions: SettlementQueries.ActiveSettlements(world)
+                .Select(item => new SettlementMovementRule(
+                    item.Id, item.Center, config.Settlement.CoreRadius, config.Settlement.InfluenceRadius))
+                .ToArray(),
+            SettlementMovementBiasDisabled: InvasionSystem.IsActiveParticipant(world, participant));
+        var random = new RandomStreamFactory(852);
+        var perception = new PerceptionSystem(config, random);
+        var decision = new UtilityDecisionSystem(config, random);
+        var toward = 0;
+        var away = 0;
+        for (var round = 1; round <= 128; round++)
+        {
+            var move = decision.BuildCandidates(
+                    DecisionContextFor(participant, config, perception.CreateView(participant, 0), rules),
+                    0,
+                    round)
+                .Single(item => item.Kind == ActionKind.Move);
+            var delta = participant.Position.ChebyshevDistance(enemyCore.Value) -
+                        move.Destination!.Value.ChebyshevDistance(enemyCore.Value);
+            toward += delta > 0 ? 1 : 0;
+            away += delta < 0 ? 1 : 0;
+            Equal(1, move.Breakdown["homeBiasWeight"], 0);
+            Equal(1, move.Breakdown["foreignBiasWeight"], 0);
+        }
+
+        True(toward > away * 4,
+            $"Enemy-Core advance was not dominant after Home suppression: toward={toward}, away={away}.");
     }
 
     private static void SettlementSupportAndHysteresis()

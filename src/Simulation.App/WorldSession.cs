@@ -103,6 +103,7 @@ public sealed class WorldSessionStore
             engine,
             logger,
             _appConfig.ChartMaximumPoints,
+            _appConfig.DiagnosticsIntervalDays,
             () => _retention.ArchiveCompletedWorld(directoryPath));
     }
 }
@@ -112,6 +113,7 @@ public sealed class WorldSession : IDisposable
     private readonly object _lifecycleGate = new();
     private readonly WorldLogWriter _logger;
     private readonly int _chartMaximumPoints;
+    private readonly int _diagnosticsIntervalDays;
     private readonly Action _onCompleted;
     private readonly List<WorldMetricPoint> _metrics = new();
     private bool _disposed;
@@ -123,15 +125,18 @@ public sealed class WorldSession : IDisposable
         SimulationEngine engine,
         WorldLogWriter logger,
         int chartMaximumPoints,
+        int diagnosticsIntervalDays,
         Action onCompleted)
     {
         Info = info;
         Engine = engine;
         _logger = logger;
         _chartMaximumPoints = chartMaximumPoints;
+        _diagnosticsIntervalDays = diagnosticsIntervalDays;
         _onCompleted = onCompleted ?? throw new ArgumentNullException(nameof(onCompleted));
-        AddMetric(Engine.GetWorldStatistics());
-        _logger.WriteInitial(Engine.GetWorldStatistics());
+        var observation = Engine.GetDailyObservation();
+        AddMetric(observation);
+        _logger.WriteInitial(observation, Engine.GetWorldStatistics());
     }
 
     public WorldSessionInfo Info { get; }
@@ -146,9 +151,12 @@ public sealed class WorldSession : IDisposable
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
             var result = Engine.AdvanceOneDay();
-            var statistics = Engine.GetWorldStatistics();
-            AddMetric(statistics);
-            _logger.Append(result, statistics);
+            var observation = Engine.GetDailyObservation();
+            AddMetric(observation);
+            var diagnostics = observation.Tick % _diagnosticsIntervalDays == 0
+                ? Engine.GetWorldStatistics()
+                : null;
+            _logger.Append(result, observation, diagnostics);
             CurrentTick = checked(result.CompletedTick + 1);
             return result;
         }
@@ -161,7 +169,7 @@ public sealed class WorldSession : IDisposable
             if (!_completionCommitted)
             {
                 ObjectDisposedException.ThrowIf(_disposed, this);
-                _logger.Complete(CurrentTick, reason);
+                _logger.Complete(CurrentTick, reason, Engine.GetWorldStatistics());
                 _completionCommitted = true;
                 _disposed = true;
             }
@@ -188,14 +196,14 @@ public sealed class WorldSession : IDisposable
         }
     }
 
-    private void AddMetric(WorldStatisticsProjection statistics)
+    private void AddMetric(DailyObservationProjection statistics)
     {
         _metrics.Add(new WorldMetricPoint(
             statistics.Tick,
             statistics.Population,
             statistics.AverageAgeYears,
-            statistics.WorldPhase.CurrentPhase,
-            statistics.Settlements.Count(item => item.IsActive),
+            statistics.CurrentPhase,
+            statistics.ActiveSettlementCount,
             statistics.Population == 0 ? 0 : (double)statistics.AffiliatedPopulation / statistics.Population,
             statistics.ActionSelections));
         if (_metrics.Count > _chartMaximumPoints)
@@ -223,6 +231,7 @@ internal sealed class WorldLogWriter : IDisposable
     private int _daysSinceFlush;
     private bool _disposed;
     private bool _completionWritten;
+    private int? _lastDiagnosticsTick;
 
     public WorldLogWriter(
         WorldSessionInfo info,
@@ -284,15 +293,18 @@ internal sealed class WorldLogWriter : IDisposable
                                     "invasionStartPrevented");
     }
 
-    public void WriteInitial(WorldStatisticsProjection statistics)
+    public void WriteInitial(DailyObservationProjection statistics, WorldStatisticsProjection diagnostics)
     {
         WriteStatistics(statistics);
-        WriteDiagnostics(statistics);
+        WriteDiagnostics(diagnostics);
         _statisticsWriter.Flush();
         _diagnosticsWriter.Flush();
     }
 
-    public void Append(TickResult tick, WorldStatisticsProjection statistics)
+    public void Append(
+        TickResult tick,
+        DailyObservationProjection statistics,
+        WorldStatisticsProjection? diagnostics)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         foreach (var simulationEvent in tick.Events)
@@ -303,7 +315,10 @@ internal sealed class WorldLogWriter : IDisposable
         }
 
         WriteStatistics(statistics);
-        WriteDiagnostics(statistics);
+        if (diagnostics is not null)
+        {
+            WriteDiagnostics(diagnostics);
+        }
         _daysSinceFlush++;
         if (_daysSinceFlush >= _flushIntervalDays)
         {
@@ -325,7 +340,10 @@ internal sealed class WorldLogWriter : IDisposable
         _diagnosticsWriter.Dispose();
     }
 
-    public void Complete(int finalTick, WorldCompletionReason reason)
+    public void Complete(
+        int finalTick,
+        WorldCompletionReason reason,
+        WorldStatisticsProjection finalStatistics)
     {
         if (_completionWritten)
         {
@@ -334,6 +352,10 @@ internal sealed class WorldLogWriter : IDisposable
 
         if (!_disposed)
         {
+            if (_lastDiagnosticsTick != finalStatistics.Tick)
+            {
+                WriteDiagnostics(finalStatistics);
+            }
             Dispose();
         }
 
@@ -355,7 +377,7 @@ internal sealed class WorldLogWriter : IDisposable
         _completionWritten = true;
     }
 
-    private void WriteStatistics(WorldStatisticsProjection statistics)
+    private void WriteStatistics(DailyObservationProjection statistics)
     {
         var counts = statistics.ActionSelections.ToDictionary(item => item.Action, item => item.Count);
         var year = statistics.Tick / _daysPerYear;
@@ -370,15 +392,15 @@ internal sealed class WorldLogWriter : IDisposable
             statistics.Population.ToString(CultureInfo.InvariantCulture),
             statistics.MinimumPopulation.ToString(CultureInfo.InvariantCulture),
             statistics.AverageAgeYears.ToString("0.000000", CultureInfo.InvariantCulture),
-            statistics.WorldPhase.CurrentPhase.ToString(),
-            statistics.Settlements.Count(item => item.IsActive).ToString(CultureInfo.InvariantCulture),
+            statistics.CurrentPhase.ToString(),
+            statistics.ActiveSettlementCount.ToString(CultureInfo.InvariantCulture),
             statistics.AffiliatedPopulation.ToString(CultureInfo.InvariantCulture),
-            statistics.UnaffiliatedPopulation.ToString(CultureInfo.InvariantCulture),
+            (statistics.Population - statistics.AffiliatedPopulation).ToString(CultureInfo.InvariantCulture),
             (statistics.Population == 0 ? 0 : (double)statistics.AffiliatedPopulation / statistics.Population)
                 .ToString("0.000000", CultureInfo.InvariantCulture),
-            statistics.WorldPhase.PopulationCv.ToString("0.000000", CultureInfo.InvariantCulture),
-            statistics.WorldPhase.DemographicImbalance.ToString("0.000000", CultureInfo.InvariantCulture),
-            statistics.WorldPhase.StabilityConsecutiveDays.ToString(CultureInfo.InvariantCulture)
+            statistics.PopulationCv.ToString("0.000000", CultureInfo.InvariantCulture),
+            statistics.DemographicImbalance.ToString("0.000000", CultureInfo.InvariantCulture),
+            statistics.StabilityConsecutiveDays.ToString(CultureInfo.InvariantCulture)
         }.Concat(values).Concat(new[]
         {
             statistics.Perception.PositionInvalidations.ToString(CultureInfo.InvariantCulture),
@@ -387,16 +409,13 @@ internal sealed class WorldLogWriter : IDisposable
             statistics.Perception.HeldInformationTotal.ToString(CultureInfo.InvariantCulture),
             statistics.Perception.HeldInformationAverage.ToString("0.000000", CultureInfo.InvariantCulture),
             statistics.Perception.HeldInformationMaximum.ToString(CultureInfo.InvariantCulture),
-            statistics.RestDiagnostics.RestActionRate.ToString("0.000000", CultureInfo.InvariantCulture),
-            statistics.RestDiagnostics.AverageRestNeed.ToString("0.000000", CultureInfo.InvariantCulture),
-            statistics.RestDiagnostics.AverageSelectedRestNeed.ToString("0.000000", CultureInfo.InvariantCulture),
-            statistics.RestDiagnostics.AverageSelectedRestPressure.ToString("0.000000", CultureInfo.InvariantCulture),
-            (statistics.Settlements.Where(item => item.IsActive).Select(item => item.Support).DefaultIfEmpty().Average())
-                .ToString("0.000000", CultureInfo.InvariantCulture),
-            statistics.Settlements.Where(item => item.IsActive).Sum(item => item.LowSupportDays)
-                .ToString(CultureInfo.InvariantCulture),
-            statistics.Settlements.Count(item => item.IsActive && item.CrowdingInvasionArmed)
-                .ToString(CultureInfo.InvariantCulture),
+            statistics.RestActionRate.ToString("0.000000", CultureInfo.InvariantCulture),
+            statistics.AverageRestNeed.ToString("0.000000", CultureInfo.InvariantCulture),
+            statistics.AverageSelectedRestNeed.ToString("0.000000", CultureInfo.InvariantCulture),
+            statistics.AverageSelectedRestPressure.ToString("0.000000", CultureInfo.InvariantCulture),
+            statistics.ActiveSettlementAverageSupport.ToString("0.000000", CultureInfo.InvariantCulture),
+            statistics.TotalLowSupportDays.ToString(CultureInfo.InvariantCulture),
+            statistics.ArmedSettlementCount.ToString(CultureInfo.InvariantCulture),
             statistics.InvasionStartPrevented.ToString(CultureInfo.InvariantCulture)
         })));
     }
@@ -414,6 +433,7 @@ internal sealed class WorldLogWriter : IDisposable
         var entry = new WorldStatisticsLogEntry(
             5, _info.ReleaseVersion, _info.WorldNumber, _info.WorldId, _info.Seed, statistics);
         _diagnosticsWriter.WriteLine(JsonSerializer.Serialize(entry, EventJsonOptions));
+        _lastDiagnosticsTick = statistics.Tick;
     }
 
     private static StreamWriter CreateWriter(string path)

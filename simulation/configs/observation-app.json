@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "defaultSeed": 8147291,
   "seedIncrement": 1,
   "logDirectory": "logs",
@@ -10,6 +10,7 @@
   "npcActionHistoryDisplayLimit": 500,
   "ageDistributionBinYears": 0.5,
   "logFlushIntervalDays": 10,
+  "diagnosticsIntervalDays": 30,
   "automaticAdvanceWorkSliceDays": 2,
   "automaticAdvanceCooldownMilliseconds": 15,
   "archiveCompletedWorldLogs": true,

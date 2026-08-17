@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using System.Globalization;
 using System.Text.Json;
 using Simulation.Core.Communication;
 using Simulation.Core.Configuration;
@@ -40,6 +41,9 @@ public sealed class SimulationEngine
     private int _minimumPopulation;
     private int _eventSequence;
     private WorldStatisticsProjection? _cachedWorldStatistics;
+    private long _restActions;
+    private double _selectedRestNeedTotal;
+    private double _selectedRestPressureTotal;
 
     public SimulationEngine(SimulationConfig config, long runSeed)
         : this(config, runSeed, null)
@@ -563,12 +567,65 @@ public sealed class SimulationEngine
         }
     }
 
+    public DailyObservationProjection GetDailyObservation()
+    {
+        lock (_gate)
+        {
+            var alive = State.Npcs.Values.Where(item => item.IsAlive).ToArray();
+            var affiliatedPopulation = alive.Count(item =>
+                SettlementQueries.ActiveSettlement(State, item.SettlementId) is not null);
+            var activeSettlements = SettlementQueries.ActiveSettlements(State);
+            var selections = _selectedActionCounts
+                .OrderBy(item => item.Key)
+                .Select(item => new ActionSelectionCount(item.Key, item.Value))
+                .ToArray();
+            var heldCounts = alive.Select(item => item.HeldInformation.Count).ToArray();
+            var selectedActions = _selectedActionCounts.Values.Sum();
+
+            return new DailyObservationProjection(
+                State.Tick,
+                alive.Length,
+                _minimumPopulation,
+                alive.Length == 0 ? 0 : alive.Average(item => (double)item.AgeDays / Config.World.DaysPerYear),
+                State.Phase,
+                activeSettlements.Count,
+                affiliatedPopulation,
+                State.PopulationCv,
+                State.DemographicImbalance,
+                State.StabilityConsecutiveDays,
+                selections,
+                new PerceptionStatistics(
+                    _perception.PositionInvalidationCount,
+                    _perception.SubjectPurgeCount,
+                    _perception.EvictionCount,
+                    heldCounts.Sum(),
+                    heldCounts.Length == 0 ? 0 : heldCounts.Average(),
+                    heldCounts.Length == 0 ? 0 : heldCounts.Max()),
+                selectedActions == 0 ? 0 : (double)_restActions / selectedActions,
+                alive.Length == 0 ? 0 : alive.Average(item => item.Needs.Rest),
+                _restActions == 0 ? 0 : _selectedRestNeedTotal / _restActions,
+                _restActions == 0 ? 0 : _selectedRestPressureTotal / _restActions,
+                activeSettlements.Count == 0 ? 0 : activeSettlements.Average(item => item.Support),
+                activeSettlements.Sum(item => item.LowSupportDays),
+                activeSettlements.Count(item => item.CrowdingInvasionArmed),
+                State.InvasionStartPreventedCount);
+        }
+    }
+
     private IReadOnlyList<ActionIntent> CreateIntents(IReadOnlySet<long> eligible, int microRound)
     {
         var ids = eligible.OrderBy(item => item).ToArray();
         var plans = new PlannedIntent?[ids.Length];
-        var activeCores = SettlementQueries.ActiveSettlements(State)
+        var activeSettlements = SettlementQueries.ActiveSettlements(State);
+        var activeCores = activeSettlements
             .Select(item => new SettlementCoreRule(item.Id, item.Center, Config.Settlement.CoreRadius))
+            .ToArray();
+        var settlementRegions = activeSettlements
+            .Select(item => new SettlementMovementRule(
+                item.Id,
+                item.Center,
+                Config.Settlement.CoreRadius,
+                Config.Settlement.InfluenceRadius))
             .ToArray();
         var landmarkPositions = State.Landmarks.Select(item => item.Position).ToHashSet();
         var degree = ParallelExecutionPolicy.ResolveDegree(Config.Performance, ids.Length);
@@ -582,8 +639,9 @@ public sealed class SimulationEngine
             }
 
             _needs.RefreshSurvival(npc);
-            var rules = CreateWorldDecisionRules(npc, activeCores, landmarkPositions);
-            var context = CreateDecisionContext(npc, rules, out var suppressedAttackCandidates);
+            var perception = _perception.CreateView(npc, State.Tick);
+            var rules = CreateWorldDecisionRules(npc, perception, activeCores, settlementRegions, landmarkPositions);
+            var context = CreateDecisionContext(npc, perception, rules, out var suppressedAttackCandidates);
             var trace = _decision.Decide(context, State.Tick, microRound);
             plans[index] = new PlannedIntent(trace, suppressedAttackCandidates);
         }
@@ -626,22 +684,18 @@ public sealed class SimulationEngine
 
     private WorldDecisionRules CreateWorldDecisionRules(
         NpcState npc,
+        PerceptionView perception,
         IReadOnlyList<SettlementCoreRule> activeCores,
+        IReadOnlyList<SettlementMovementRule> settlementRegions,
         IReadOnlySet<Position> landmarkPositions)
     {
-        var suppressedTargets = State.Npcs.Values
-            .Where(item => item.IsAlive && item.Id != npc.Id &&
-                           SettlementQueries.ExplicitAttackProtection(State, npc, item, Config) is not null)
-            .Select(item => item.Id)
+        var suppressedTargets = perception.Threats
+            .Select(item => item.EntityId)
+            .Distinct()
+            .Where(id => State.Npcs.TryGetValue(id, out var target) && target.IsAlive && target.Id != npc.Id &&
+                         SettlementQueries.ExplicitAttackProtection(State, npc, target, Config) is not null)
             .ToHashSet();
         var movementTarget = _invasion.MovementTarget(State, npc);
-        var settlementRegions = SettlementQueries.ActiveSettlements(State)
-            .Select(item => new SettlementMovementRule(
-                item.Id,
-                item.Center,
-                Config.Settlement.CoreRadius,
-                Config.Settlement.InfluenceRadius))
-            .ToArray();
         return new WorldDecisionRules(
             Config.World.Width,
             Config.World.Height,
@@ -656,15 +710,15 @@ public sealed class SimulationEngine
             State.Phase == WorldPhase.Order,
             npc.SettlementId,
             settlementRegions,
-            movementTarget.HasValue);
+            InvasionSystem.IsActiveParticipant(State, npc));
     }
 
     private DecisionContext CreateDecisionContext(
         NpcState npc,
+        PerceptionView perception,
         WorldDecisionRules rules,
         out long suppressedAttackCandidates)
     {
-        var perception = _perception.CreateView(npc, State.Tick);
         suppressedAttackCandidates = perception.Threats.LongCount(item =>
             rules.IsAttackSuppressed(item.EntityId));
         return new DecisionContext(
@@ -786,6 +840,12 @@ public sealed class SimulationEngine
             actorSettlementId,
             targetSettlementId);
         _events.Add(simulationEvent);
+        if (type == SimulationEventType.Rest && success)
+        {
+            _restActions++;
+            _selectedRestNeedTotal += DetailDouble(detail, "selectedRestNeed");
+            _selectedRestPressureTotal += DetailDouble(detail, "restPressure");
+        }
         if (type == SimulationEventType.ReproductionSuccess && actorId.HasValue && targetId.HasValue && position.HasValue)
         {
             State.ReproductionSuccesses.Add(new ReproductionSuccessRecord(
@@ -793,9 +853,31 @@ public sealed class SimulationEngine
                 State.Tick,
                 position.Value,
                 actorId.Value,
-                targetId.Value));
+                targetId.Value,
+                ActiveSettlementMembership(actorId.Value),
+                ActiveSettlementMembership(targetId.Value)));
             var minimumTick = State.Tick - Config.Settlement.HotspotWindowDays + 1;
             State.ReproductionSuccesses.RemoveAll(item => item.Tick < minimumTick);
         }
+
+        int? ActiveSettlementMembership(long npcId) =>
+            State.Npcs.TryGetValue(npcId, out var npc) &&
+            SettlementQueries.ActiveSettlement(State, npc.SettlementId) is not null
+                ? npc.SettlementId
+                : null;
+    }
+
+    private static double DetailDouble(string detail, string key)
+    {
+        foreach (var part in detail.Split(';', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var separator = part.IndexOf('=');
+            if (separator > 0 && string.Equals(part[..separator], key, StringComparison.Ordinal) &&
+                double.TryParse(part[(separator + 1)..], NumberStyles.Float, CultureInfo.InvariantCulture, out var value))
+            {
+                return value;
+            }
+        }
+        return 0;
     }
 }

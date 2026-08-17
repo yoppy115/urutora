@@ -321,6 +321,28 @@ public sealed record WorldStatisticsProjection(
     long HotspotRejections,
     long InvasionStartPrevented);
 
+public sealed record DailyObservationProjection(
+    int Tick,
+    int Population,
+    int MinimumPopulation,
+    double AverageAgeYears,
+    WorldPhase CurrentPhase,
+    int ActiveSettlementCount,
+    int AffiliatedPopulation,
+    double PopulationCv,
+    double DemographicImbalance,
+    int StabilityConsecutiveDays,
+    IReadOnlyList<ActionSelectionCount> ActionSelections,
+    PerceptionStatistics Perception,
+    double RestActionRate,
+    double AverageRestNeed,
+    double AverageSelectedRestNeed,
+    double AverageSelectedRestPressure,
+    double ActiveSettlementAverageSupport,
+    int TotalLowSupportDays,
+    int ArmedSettlementCount,
+    long InvasionStartPrevented);
+
 public sealed record SimulationSnapshot(
     int Tick,
     int DaysPerYear,

@@ -19,7 +19,7 @@ DraftやTBDをこの台帳だけで確定仕様に変えてはならない。
 | NPC行動履歴 | Implemented | `PLAYER_OBSERVATION.md` | NPCがactor / targetの既存EventからMove / MoveFailedだけを除外。新規Eventや因果を生成せず、表示上限500件をApp Config化 |
 | 世界統計graph / table | Implemented | `PLAYER_OBSERVATION.md`, `V0_15_ECOLOGY.md`, `STATISTICS.md` | 人口・所属率・平均年齢graph、選択Action、死因、現在年齢分布、World Phase、非消滅Settlement、Invasion、Aura、繁殖・Combat等をread-only表示。FrictionはSettlement詳細へ分離 |
 | 現在年齢分布の表示bin | Implementation detail | `simulation/configs/observation-app.json` | 生存NPCだけを0歳から隙間なく0.5年幅で集計。0件binも表示し、人数・構成比・相対barを表示 |
-| App観測設定 | Implemented | `simulation/configs/observation-app.json` | schema 5。完了World圧縮、旧release log削除、Worldログflush間隔、automatic advanceのwork slice / cooldownを管理 |
+| App観測設定 | Implemented | `simulation/configs/observation-app.json` | schema 6。完了World圧縮、旧release log削除、Worldログflush間隔、全履歴diagnostics間隔、automatic advanceのwork slice / cooldownを管理 |
 | World完了command | Implemented | `LOGGING.md`, `observation-app.json` | `世界完了`で現在runのstreamを閉じ、`completion.json`を最後に確定して検証済みZIPへ圧縮。通常のApp終了・強制終了は未完了のまま保持し、次回起動時に誤圧縮しない |
 | 指定年数反復実行 | Implemented | `observation-app.json` | Appで整数年数とWorld回数を指定。各Worldを`years * daysPerYear` tickで完了・圧縮し、release内の次番号・次seedで反復。最後のWorldは完了状態のread-only表示で停止。Core規則とtick順は変更しない |
 | 旧BIOS向け負荷抑制 | Conservative technical default | `v0-default.json`, `observation-app.json` | CPU並列度defaultを全24論理CPU自動から8へ制限し、自動進行を2日slice + 15ms cooldownで実行。Simulation結果は直列・並列同値を維持し、wall-clock負荷だけを抑える。firmware起因BSODの絶対保証ではない |
@@ -35,9 +35,9 @@ DraftやTBDをこの台帳だけで確定仕様に変えてはならない。
 | Git build provenance | Implemented | `ARCHITECTURE.md`, `ADR-0019` | commit/tree stateをassemblyとrun metadataへ埋め込み、clean treeだけをrelease publishの既定とする。成果物hashはrelease manifestへ保存 |
 | Repository hygiene | Implemented | `tools/` | 生成物の誤追跡、不要な`.gitkeep`、Markdown local linkをCIとbaseline確定前に検査。finalizerはbranch/commit/tag/clean確認を行いpushしない |
 | Git ACL用管理者finalizer | Implemented | `AGENTS.md`, `tools/` | 通常processが`.git`をOSに拒否された場合だけ使うWindows PowerShell 5.1対応wrapperとCMD入口。対象をurutoraのbranch/index/commit/tagへ限定し、OS設定変更やpushは行わない。同一version追補は`-NoTag`で既存tagを移動しない |
-| v0.2.4 Config schema | Implemented | `V0_2_4_SETTLEMENT_STABILIZATION.md`, `simulation/configs/v0-default.json` | schema 3 / `v0.2.4-default-1`。Action別疲労、Move Bias、Proto-Order、Support、Invasion guardrailを型付き設定へ分離 |
+| v0.2.4 Config schema | Implemented | `V0_2_4_SETTLEMENT_STABILIZATION.md`, `simulation/configs/v0-default.json` | schema 3 / `v0.2.4-default-2`。Action別疲労、Move Bias、Proto-Order、Support、Invasion guardrailと同版追補Advance defaultを型付き設定へ分離 |
 | Settlement domain分割 | Implemented | `MODULES.md`, `ADR-0016`–`ADR-0018` | `SettlementQueries`、Formation、Maintenance、Invasion、ConceptAuraをCore内の別責務にし、Appはprojectionだけを読む |
-| Advance / Defense / Cohesion weight | Configurable detail | `V0_2_SETTLEMENT_ORDER.md`, `v0-default.json` | 4.0 / 2.0 / 0.75。既存Move候補の重みだけを歪め、AdvanceがCohesionより常に強いvalidationを持つ |
+| Advance / Defense / Cohesion weight | Configurable detail | `V0_2_SETTLEMENT_ORDER.md`, `v0-default.json` | `ln(5)` / 2.0 / 0.75。Advanceは距離差に指数適用し、敵Coreへ1 Cell接近×5 / 不変×1 / 離脱×0.2。Active参加者のHome / Foreignを無効化し、AdvanceがCohesionより常に強いvalidationを持つ |
 | Aura更新境界 | Implementation detail | `ADR-0018`, `SIMULATION_TICK.md` | Tick開始・各Micro Round前後・Concept Exposure後に決定論的snapshotを再計算。一時MaxHP解除ClampはDamage portを通さない |
 | v0.2.4 log schema | Implementation detail | `LOGGING.md`, `STATISTICS.md` | `run.json` schema 5を維持し、Event wrapperを4、diagnosticsを5へ更新。Action別疲労、Bias、Support、re-armを追加し、release別World連番・圧縮・SHA-256を維持 |
 | v0.2.1 Hotspot補正根拠 | Configurable detail | `V0_2_SETTLEMENT_ORDER.md`, `v0-default.json` | clean v0.2 world-0001（seed 8147291、385日、Success 152）とworld-0002（seed 8147292、290日、Success 132）を分析。旧4×4評価日の最大集中数が両方3、Candidate / Rejection / Formationが0だった。現行defaultはthreshold 3、5×5。90日、15日評価、spacing 7は維持 |
@@ -56,6 +56,9 @@ DraftやTBDをこの台帳だけで確定仕様に変えてはならない。
 | v0.2.4 Move地域判定 | Conservative implementation detail | `V0_2_4_SETTLEMENT_STABILIZATION.md`, `Settlement Movement Policy` | 自領域Move疲労軽減は移動元と最終Cellがともに自Core / Influence内の場合に適用。Influence重複時のForeign weightは、回避側の最小倍率を退出側より優先し、複数Settlementによる倍率の無制限乗算を避ける |
 | v0.2.4 Support初期window | Conservative implementation detail | `V0_2_4_SETTLEMENT_STABILIZATION.md`, `Settlement Support` | 成立後90日未満は存在する日数だけでAverage / totalsを算出する。分母のFormation thresholdとMemberDaysは正史式を維持し、365日hysteresisを早送りしない |
 | v0.2.4観測projection | Implemented | `STATISTICS.md`, `LOGGING.md` | Settlement詳細へCore / Influence / 外部人数、Support P/R/S、LowSupportDays、Home / Foreign移動、armed / re-armを追加。世界統計へRest率、選択時Need / Pressure、Action別疲労、Invasion連続開始防止を追加 |
+| v0.2.4同版Hotspot追補 | Implemented | `V0_2_SETTLEMENT_ORDER.md` | Reproduction Success時点の両親のActive所属IDを固定し、一方でも所属なら場所にかかわらず新規Formation集計から除外。既存Settlement Support集計は変更しない |
+| v0.2.4長期実行最適化 | Conservative implementation detail | `ENGINEERING_REPRODUCIBILITY.md`, `LOGGING.md`, `observation-app.json` | Held InformationをFIFO・代表値・近傍・一様抽選索引化し、知覚view cache、移動occupancy、Threat対象だけの保護判定を採用。日次CSV / graphは軽量な正確集計、全履歴diagnosticsはdefault 30日間隔＋完了時。Core / Event順は直列・並列一致testで固定 |
+| v0.2.4長期実行性能確認 | Verification record | `Simulation.Core`, `Simulation.App` | seed 8147291のheadless実測で現行default-2は365日10.865秒、1460日80.611秒で完走。変更前default-1は365日22.066秒、1460日は90秒の計測枠内に完了しなかった。ConfigとCommunication抽選実装が変わるため同一世界軌跡の厳密比較ではなく、wall-clock回帰の参考値 |
 
 ## Open non-canon implementation items
 

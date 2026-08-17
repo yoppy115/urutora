@@ -20,6 +20,8 @@ v0.2.1ではv0.2の実測2 Worldを補正根拠とし、同じ90日・15日評�
 
 v0.2.3では既存Settlementの隣接エリアを当該SettlementのInfluenceと定義する。消滅していないSettlementのInfluence内で発生したReproduction Successは、新規Settlement用Hotspot集計から除外する。新規Center候補は、そのCenterを中心とするCore全Cellが既存SettlementのInfluenceと重ならないCellだけとする。同一evaluationで先に採用されたCenterにも同じ境界を適用する。消滅済みSettlementはHotspotとCenter候補を予約せず、その色と空間を後続Settlementが再利用できる。
 
+v0.2.4同版追補では、Reproduction Success発生時点で参加者の一方でもActive Settlement所属なら、場所にかかわらず新規Settlement用Hotspot集計から除外する。既存Influence内Successの除外とCore非重複境界は維持する。この除外は新規Settlement形成だけに適用し、既存SettlementのSupport用Reproduction Continuity集計は変更しない。
+
 同じevaluation日の全Candidateは、evaluation開始時の同一immutable snapshotから生成する。各CandidateはConfigで定めた領域（v0.2.1 defaultは5×5）、rolling window内Reproduction Success数、有効Center候補Cell、Founder候補を保持する。
 
 排他距離で競合するCandidateはReproduction Success数の多い順、同数だけnamed seed streamで決定論的に優先する。v0.2.3 defaultでは従来のCenter spacing 7に加え、Influence radius 7とCore radius 2の非重複条件があるため、Center間Chebyshev距離は9より大きくなければならない。勝利CandidateのCenter確定後、この有効排他距離へ違反する残りCandidateを当該evaluationでは棄却し、競合しないCandidateへ同じ処理を続ける。Map走査、配列、Dictionary、thread scheduling順へ依存させない。棄却は永久ではなく、後日のevaluationで再Candidate化できる。
@@ -177,7 +179,7 @@ TargetForceSize = round(SettlementPopulation * MobilizationRate)
 
 ## Invasion movement and combat
 
-参加者へ `InvasionParticipant = true` と対象SettlementへのAdvance Biasを与え、専用Actionを追加せず既存Moveの方向選択をTarget Centerへ近づくよう歪める。Utility AIとAttack、Flee、Communication、Rest、Reproduction等の候補は維持する。
+参加者へ `InvasionParticipant = true` と対象SettlementへのAdvance Biasを与え、専用Actionを追加せず既存Moveの方向選択をTarget Centerへ近づくよう歪める。Active Invasion参加者には攻撃・防衛ともHome BiasとForeign avoidanceを適用しない。攻撃参加者のTargetは敵Settlement CoreのCenterとし、v0.2.4 defaultでは1 Cell接近`×5.0`、距離不変`×1.0`、離脱`×0.20`とStrong Home Biasと同程度にする。防衛側のDefense Bias、Flee、通常Action候補は別規則として維持する。
 
 Advance Bias保持者が非死亡状態で自発的にEventから離脱する通常条件はRestだけである。Restを選ぶとAdvance BiasとInvasionParticipantを解除し、同一Invasionへ再参加させない。
 
@@ -252,7 +254,7 @@ Raw Logを人間が直接読み続けるより、ゲーム内Statistics UIでSim
 | --- | --- |
 | Hotspot | 90 days、5×5、Success 3、15-day evaluation。v0.2 originalは4×4 / Success 4 |
 | Settlement spacing | Config最小Center distance > 7に加え、Coreと既存Influenceの非重複によりdefault実効値はCenter distance > 9 |
-| Regions | Core radius 2（5×5）、Influence radius 7。既存Influence内のSuccessはHotspotから除外 |
+| Regions | Core radius 2（5×5）、Influence radius 7。既存Influence内、または参加者の一方がActive Settlement所属するSuccessはHotspotから除外 |
 | Initial Affinity | Founder +10、Core resident +7 |
 | Affiliation | threshold 10、switch margin +5 |
 | Core Affinity | Stay +0.05/day、Rest +1、Communication +0.5、Reproduction Success +2 |

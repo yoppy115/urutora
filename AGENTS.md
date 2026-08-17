@@ -45,6 +45,7 @@
 - v0.2.3の出生所属は、両親が同じActive Settlement所属なら位置を問わず通常の親近傍へ出生し同所属で開始する。片親だけが所属する場合は、受胎時の両親がそのActive SettlementのInfluence内にいる場合に限り、子を同Influence内へ出生させ同所属で開始する。両親の所属が異なる場合は、両者が同じ一意なActive Settlement Core内にいる従来条件とCore内出生を維持する。
 - v0.2.3はCoreを5×5とし、既存Settlement Influence内の繁殖成功を新規Hotspotから除外する。新Coreを既存Influenceへ重ねず、消滅済みSettlementの空間は予約しない。
 - v0.2.4は `docs/design/V0_2_4_SETTLEMENT_STABILIZATION.md` を正本とする。Rest v2、Home / Foreign Bias、Generation Proto-Order、SettlementSupport、Invasion暫定安定化を旧v0.2規則と混同しない。
+- v0.2.4同版追補では、Active Settlement所属者が一人でも参加した繁殖成功を新規Hotspotから除外し、Active Invasion参加者のHome / Foreign Biasを無効化して攻撃側を敵Core CenterへStrong Home相当で前進させる。
 - v0.2.4の自然消滅はWorld Population比ではなく局所SupportとHysteresisを使う。Center一人到達をVictoryにせず、征服所属変更はAlive NPCだけに行う。
 - Order中のCollision、Friction、Invasion、Auraは所属・WorldPhase・Event状態を明示的に解決し、v0.15の主観境界やTargeted Action順を弱体化しない。
 - v0.2 Settlement構造変更は固定順のTick末Maintenanceでcommitし、新規Settlement / WorldPhase / Invasion開始は原則翌Tickから反映する。

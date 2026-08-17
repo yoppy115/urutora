@@ -23,10 +23,10 @@ public sealed class CommunicationSystem
 
     public CommunicationResult Exchange(NpcState initiator, NpcState target, int tick, int microRound)
     {
-        var initiatorSource = initiator.HeldInformation.ToArray();
-        var targetSource = target.HeldInformation.ToArray();
-        var sentByInitiator = Transmit(initiator, target, initiatorSource, tick, microRound, "forward");
-        var sentByTarget = Transmit(target, initiator, targetSource, tick, microRound, "return");
+        var initiatorSelection = SelectForTransmission(initiator, tick, microRound, "forward");
+        var targetSelection = SelectForTransmission(target, tick, microRound, "return");
+        var sentByInitiator = Transmit(initiator, target, initiatorSelection, tick, microRound, "forward");
+        var sentByTarget = Transmit(target, initiator, targetSelection, tick, microRound, "return");
         return new CommunicationResult(sentByInitiator, sentByTarget);
     }
 
@@ -45,33 +45,20 @@ public sealed class CommunicationSystem
     private int Transmit(
         NpcState sender,
         NpcState receiver,
-        IReadOnlyList<InformationRecord> source,
+        IReadOnlyList<InformationRecord> selected,
         int tick,
         int microRound,
         string direction)
     {
-        if (source.Count == 0)
+        if (selected.Count == 0)
         {
             return 0;
         }
 
-        var senderCommunication = sender.EffectiveStats(_config).Communication;
-        var sendCount = 1 + (int)Math.Floor(senderCommunication / _config.Communication.SendCountAbilityDivisor);
-        sendCount = Math.Min(sendCount, source.Count);
-        var selected = source
-            .OrderBy(item => _random.StablePriority(
-                "communication", tick, sender.Id, "held-information-selection", $"{direction}:{microRound}:{item.InformationId}"))
-            .ThenBy(item => item.InformationId, StringComparer.Ordinal)
-            .Take(sendCount)
-            .ToArray();
         var receiverCommunication = receiver.EffectiveStats(_config).Communication;
         var errorMaximum = ErrorMaximum(receiverCommunication);
         var swapChance = SubjectSwapChance(receiverCommunication);
-        var knownSubjects = receiver.HeldInformation
-            .Select(item => item.SubjectId)
-            .Distinct()
-            .OrderBy(item => item)
-            .ToArray();
+        var knownSubjects = receiver.HeldInformation.OrderedSubjectIds();
 
         foreach (var information in selected)
         {
@@ -80,10 +67,16 @@ public sealed class CommunicationSystem
                 "communication", tick, sender.Id, "subject-swap", $"{direction}:{microRound}:{information.InformationId}:{receiver.Id}");
             if (knownSubjects.Length > 0 && swapStream.NextDouble() < swapChance)
             {
-                var replacements = knownSubjects.Where(id => id != subjectId).ToArray();
-                if (replacements.Length > 0)
+                var existingIndex = Array.BinarySearch(knownSubjects, subjectId);
+                var replacementCount = knownSubjects.Length - (existingIndex >= 0 ? 1 : 0);
+                if (replacementCount > 0)
                 {
-                    subjectId = replacements[swapStream.NextInt(replacements.Length)];
+                    var replacementIndex = swapStream.NextInt(replacementCount);
+                    if (existingIndex >= 0 && replacementIndex >= existingIndex)
+                    {
+                        replacementIndex++;
+                    }
+                    subjectId = knownSubjects[replacementIndex];
                 }
             }
 
@@ -112,7 +105,41 @@ public sealed class CommunicationSystem
                 $"{information.InformationId}:{microRound}:{direction}");
         }
 
-        return selected.Length;
+        return selected.Count;
+    }
+
+    private InformationRecord[] SelectForTransmission(
+        NpcState sender,
+        int tick,
+        int microRound,
+        string direction)
+    {
+        if (sender.HeldInformation.Count == 0)
+        {
+            return Array.Empty<InformationRecord>();
+        }
+
+        var senderCommunication = sender.EffectiveStats(_config).Communication;
+        var sendCount = 1 + (int)Math.Floor(senderCommunication / _config.Communication.SendCountAbilityDivisor);
+        sendCount = Math.Min(sendCount, sender.HeldInformation.Count);
+        var random = _random.Create(
+            "communication",
+            tick,
+            sender.Id,
+            "held-information-selection",
+            $"{direction}:{microRound}");
+        var selectedRanks = new HashSet<int>();
+        var selected = new List<InformationRecord>(sendCount);
+        while (selected.Count < sendCount)
+        {
+            var rank = random.NextInt(sender.HeldInformation.Count);
+            if (selectedRanks.Add(rank))
+            {
+                selected.Add(sender.HeldInformation.RecordAtSamplingIndex(rank));
+            }
+        }
+
+        return selected.ToArray();
     }
 }
 

@@ -17,6 +17,7 @@ public sealed class ObservationAppConfig
     public int NpcActionHistoryDisplayLimit { get; set; }
     public double AgeDistributionBinYears { get; set; }
     public int LogFlushIntervalDays { get; set; }
+    public int DiagnosticsIntervalDays { get; set; }
     public int AutomaticAdvanceWorkSliceDays { get; set; }
     public int AutomaticAdvanceCooldownMilliseconds { get; set; }
     public bool ArchiveCompletedWorldLogs { get; set; }
@@ -25,7 +26,7 @@ public sealed class ObservationAppConfig
     public void Validate()
     {
         var errors = new List<string>();
-        Require(SchemaVersion == 5, "schemaVersion must be 5.", errors);
+        Require(SchemaVersion == 6, "schemaVersion must be 6.", errors);
         Require(SeedIncrement != 0, "seedIncrement cannot be zero.", errors);
         Require(IsSafeRelativeDirectory(LogDirectory),
             "logDirectory must be a simple relative path inside the repository.", errors);
@@ -46,6 +47,8 @@ public sealed class ObservationAppConfig
             "ageDistributionBinYears must be finite and within (0, 10].", errors);
         Require(LogFlushIntervalDays is >= 1 and <= 365,
             "logFlushIntervalDays must be within 1..365.", errors);
+        Require(DiagnosticsIntervalDays is >= 1 and <= 365,
+            "diagnosticsIntervalDays must be within 1..365.", errors);
         Require(AutomaticAdvanceWorkSliceDays is >= 1 and <= 50,
             "automaticAdvanceWorkSliceDays must be within 1..50.", errors);
         Require(AutomaticAdvanceCooldownMilliseconds is >= 0 and <= 1000,

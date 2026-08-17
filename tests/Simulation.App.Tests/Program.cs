@@ -19,6 +19,7 @@ internal static class Program
         ("target-year batch run counts completed Worlds", TargetYearBatchRunCountsWorlds),
         ("target-year batch archives each numbered World", TargetYearBatchArchivesNumberedWorlds),
         ("world logging does not change Simulation events", LoggingDoesNotChangeSimulationEvents),
+        ("full diagnostics are sampled while daily statistics remain continuous", DiagnosticsAreSampled),
         ("statistics chart renders changing series", StatisticsChartRendersChangingSeries),
         ("ConceptMark renders as a concept-colored flag", ConceptMarkRendersAsColoredFlag),
         ("Settlement palette expands and recycles dissolved colors", SettlementPaletteExpandsAndRecycles),
@@ -52,11 +53,12 @@ internal static class Program
     private static void ObservationAppConfigurationIsStrict()
     {
         var config = ObservationAppConfigLoader.Load(AppConfigPath());
-        Equal(5, config.SchemaVersion);
+        Equal(6, config.SchemaVersion);
         Equal(1, config.SeedIncrement);
         Equal(500, config.NpcActionHistoryDisplayLimit);
         Equal(0.5, config.AgeDistributionBinYears);
         Equal(10, config.LogFlushIntervalDays);
+        Equal(30, config.DiagnosticsIntervalDays);
         Equal(2, config.AutomaticAdvanceWorkSliceDays);
         Equal(15, config.AutomaticAdvanceCooldownMilliseconds);
         True(config.ArchiveCompletedWorldLogs);
@@ -65,7 +67,7 @@ internal static class Program
         try
         {
             var json = File.ReadAllText(AppConfigPath())
-                .Replace("\"schemaVersion\": 5", "\"schemaVersion\": 5, \"unknown\": true", StringComparison.Ordinal);
+                .Replace("\"schemaVersion\": 6", "\"schemaVersion\": 6, \"unknown\": true", StringComparison.Ordinal);
             File.WriteAllText(invalidPath, json);
             Throws<ConfigurationException>(() => ObservationAppConfigLoader.Load(invalidPath));
         }
@@ -272,6 +274,43 @@ internal static class Program
             }
 
             SequenceEqual(baseline.EventFingerprints(), logged.Engine.EventFingerprints());
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    private static void DiagnosticsAreSampled()
+    {
+        var root = TemporaryDirectory();
+        try
+        {
+            var appConfig = ObservationAppConfigLoader.Load(AppConfigPath());
+            var simulationConfig = SimulationConfigLoader.Load(SimulationConfigPath());
+            var store = new WorldSessionStore(root, appConfig, AppConfigPath());
+            WorldSessionInfo info;
+            using (var session = store.CreateNextWorld(simulationConfig, SimulationConfigPath(), 8821))
+            {
+                for (var day = 0; day < appConfig.DiagnosticsIntervalDays + 1; day++)
+                {
+                    session.AdvanceOneDay();
+                }
+                info = session.Info;
+                session.Complete(WorldCompletionReason.Manual);
+            }
+
+            var archivePath = info.DirectoryPath + ".zip";
+            Equal(appConfig.DiagnosticsIntervalDays + 3,
+                ReadArchiveLines(archivePath, "daily-stats.csv").Length);
+            var diagnostics = ReadArchiveLines(archivePath, "diagnostics.jsonl");
+            Equal(3, diagnostics.Length);
+            var ticks = diagnostics.Select(line =>
+            {
+                using var document = JsonDocument.Parse(line);
+                return document.RootElement.GetProperty("statistics").GetProperty("tick").GetInt32();
+            }).ToArray();
+            SequenceEqual(new[] { 0, appConfig.DiagnosticsIntervalDays, appConfig.DiagnosticsIntervalDays + 1 }, ticks);
         }
         finally
         {

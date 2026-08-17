@@ -158,6 +158,7 @@ public sealed class ActionResolutionSystem
             var roundStartOccupancy = world.Npcs.Values
                 .Where(item => item.IsAlive)
                 .ToDictionary(item => item.Position, item => item.Id);
+            var currentOccupancy = new Dictionary<Position, long>(roundStartOccupancy);
             var claimedEmptyDestinations = new HashSet<Position>();
             foreach (var scheduled in OrderForPhase(world, pending.Values, MovementPhase, microRound))
             {
@@ -184,7 +185,7 @@ public sealed class ActionResolutionSystem
                 }
 
                 var collisionTarget = intent.Destination.HasValue
-                    ? FindAliveAt(world, intent.Destination.Value)
+                    ? FindAliveAt(world, currentOccupancy, intent.Destination.Value)
                     : null;
                 var collisionPolicy = collisionTarget is null
                     ? CollisionPolicy.Combat
@@ -192,7 +193,7 @@ public sealed class ActionResolutionSystem
                 var origin = actor.Position;
                 EmitMovementBias(actor, intent);
                 var attacked = ResolveMovement(
-                    world, actor, intent, microRound, intent.Kind == ActionKind.Flee, emit);
+                    world, currentOccupancy, actor, intent, microRound, intent.Kind == ActionKind.Flee, emit);
                 var collisionAttack = collisionTarget is not null && collisionPolicy == CollisionPolicy.Combat;
                 var fatigueMultiplier = intent.Kind == ActionKind.Move && !collisionAttack
                     ? SettlementMoveFatigueMultiplier(world, actor, origin, actor.Position)
@@ -419,6 +420,7 @@ public sealed class ActionResolutionSystem
 
     private IReadOnlySet<long> ResolveMovement(
         WorldState world,
+        IDictionary<Position, long> occupancy,
         NpcState actor,
         ActionIntent intent,
         int microRound,
@@ -435,13 +437,15 @@ public sealed class ActionResolutionSystem
 
         var original = actor.Position;
         var destination = intent.Destination.Value;
-        var occupant = FindAliveAt(world, destination);
+        var occupant = FindAliveAt(world, occupancy, destination);
         if (occupant is not null)
         {
             var policy = SettlementQueries.Collision(world, actor, occupant, _config);
             if (policy == CollisionPolicy.Combat)
             {
                 ResolveAttack(world, actor, occupant, microRound, SimulationEventType.CollisionAttack, true, 1, emit, attacked);
+                RemoveIfDead(occupancy, actor);
+                RemoveIfDead(occupancy, occupant);
             }
             else
             {
@@ -468,7 +472,9 @@ public sealed class ActionResolutionSystem
             return attacked;
         }
 
+        occupancy.Remove(original);
         actor.Position = destination;
+        occupancy[destination] = actor.Id;
         var eventType = fleeing ? SimulationEventType.Flee : SimulationEventType.Move;
         Emit(emit, microRound, eventType, actor.Id, intent.TargetId, destination, true, $"{original}->{destination}");
 
@@ -479,9 +485,11 @@ public sealed class ActionResolutionSystem
             var deltaX = Math.Sign(destination.X - original.X);
             var deltaY = Math.Sign(destination.Y - original.Y);
             var second = new Position(destination.X + deltaX, destination.Y + deltaY);
-            if (IsInside(second) && !IsLandmark(world, second) && FindAliveAt(world, second) is null)
+            if (IsInside(second) && !IsLandmark(world, second) && !occupancy.ContainsKey(second))
             {
+                occupancy.Remove(destination);
                 actor.Position = second;
+                occupancy[second] = actor.Id;
                 Emit(emit, microRound, eventType, actor.Id, intent.TargetId, second, true,
                     $"second-step {destination}->{second}");
             }
@@ -492,6 +500,14 @@ public sealed class ActionResolutionSystem
             foreach (var victimId in ResolvePursuit(world, actor, intent.TargetId.Value, microRound, emit))
             {
                 attacked.Add(victimId);
+            }
+            RemoveIfDead(occupancy, actor);
+            foreach (var victimId in attacked)
+            {
+                if (world.Npcs.TryGetValue(victimId, out var victim))
+                {
+                    RemoveIfDead(occupancy, victim);
+                }
             }
         }
 
@@ -834,13 +850,15 @@ public sealed class ActionResolutionSystem
 
     private DecisionContext CreateDecisionContext(WorldState world, NpcState npc)
     {
+        var perception = _perception.CreateView(npc, world.Tick);
         var activeCores = SettlementQueries.ActiveSettlements(world)
             .Select(item => new SettlementCoreRule(item.Id, item.Center, _config.Settlement.CoreRadius))
             .ToArray();
-        var suppressedTargets = world.Npcs.Values
-            .Where(item => item.IsAlive && item.Id != npc.Id &&
-                           SettlementQueries.ExplicitAttackProtection(world, npc, item, _config) is not null)
-            .Select(item => item.Id)
+        var suppressedTargets = perception.Threats
+            .Select(item => item.EntityId)
+            .Distinct()
+            .Where(id => world.Npcs.TryGetValue(id, out var target) && target.IsAlive && target.Id != npc.Id &&
+                         SettlementQueries.ExplicitAttackProtection(world, npc, target, _config) is not null)
             .ToHashSet();
         var movementTarget = _invasion.MovementTarget(world, npc);
         var settlementRegions = SettlementQueries.ActiveSettlements(world)
@@ -864,8 +882,7 @@ public sealed class ActionResolutionSystem
             world.Phase == WorldPhase.Order,
             npc.SettlementId,
             settlementRegions,
-            movementTarget.HasValue);
-        var perception = _perception.CreateView(npc, world.Tick);
+            InvasionSystem.IsActiveParticipant(world, npc));
         world.AttackCandidateSuppressionCount += perception.Threats.LongCount(item =>
             rules.IsAttackSuppressed(item.EntityId));
         return new DecisionContext(
@@ -887,8 +904,22 @@ public sealed class ActionResolutionSystem
     private static bool IsLandmark(WorldState world, Position position) =>
         world.Landmarks.Any(item => item.Position == position);
 
-    private static NpcState? FindAliveAt(WorldState world, Position position) =>
-        world.Npcs.Values.FirstOrDefault(item => item.IsAlive && item.Position == position);
+    private static NpcState? FindAliveAt(
+        WorldState world,
+        IDictionary<Position, long> occupancy,
+        Position position) =>
+        occupancy.TryGetValue(position, out var id) &&
+        world.Npcs.TryGetValue(id, out var npc) && npc.IsAlive
+            ? npc
+            : null;
+
+    private static void RemoveIfDead(IDictionary<Position, long> occupancy, NpcState npc)
+    {
+        if (!npc.IsAlive && occupancy.TryGetValue(npc.Position, out var occupantId) && occupantId == npc.Id)
+        {
+            occupancy.Remove(npc.Position);
+        }
+    }
 
     private void ApplyReactionFatigue(
         NpcState npc,

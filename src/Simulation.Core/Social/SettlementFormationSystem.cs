@@ -39,6 +39,7 @@ public sealed class SettlementFormationSystem
             .ToArray();
         var successes = world.ReproductionSuccesses
             .Where(item => item.Tick >= startTick && item.Tick <= world.Tick)
+            .Where(item => !item.HasSettlementMember)
             .Where(item => existingCenters.All(center =>
                 center.ChebyshevDistance(item.Position) > _config.Settlement.InfluenceRadius))
             .OrderBy(item => item.EventId, StringComparer.Ordinal)

@@ -164,8 +164,8 @@ public sealed class InvasionSystem
 
     public Position? MovementTarget(WorldState world, NpcState npc)
     {
-        if (!npc.InvasionId.HasValue || !world.Invasions.TryGetValue(npc.InvasionId.Value, out var invasion) ||
-            !invasion.IsActive(world.Tick))
+        if (!IsActiveParticipant(world, npc) ||
+            !world.Invasions.TryGetValue(npc.InvasionId!.Value, out var invasion))
         {
             return null;
         }
@@ -185,6 +185,11 @@ public sealed class InvasionSystem
 
         return null;
     }
+
+    public static bool IsActiveParticipant(WorldState world, NpcState npc) =>
+        npc.InvasionId.HasValue &&
+        world.Invasions.TryGetValue(npc.InvasionId.Value, out var invasion) &&
+        invasion.IsActive(world.Tick);
 
     public void WithdrawForRest(WorldState world, NpcState npc, DomainEventEmitter emit, int microRound)
     {

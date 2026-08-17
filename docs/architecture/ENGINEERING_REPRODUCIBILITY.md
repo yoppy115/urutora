@@ -20,7 +20,7 @@ Status: **Engineering / Reproducibility Canon**
 
 最低限、`Version`、`repositoryCommit`、Config識別子または内容hash、RunSeedを保存する。形式だけの同一Versionを比較単位にせず、commitの異なる結果を明示的に分ける。
 
-Observation cache、NPC近傍index、CPU並列化、ログflush間隔、UI描画頻度は非権威的な最適化である。これらの有無、thread scheduling、collection order、CPU core数によってSimulation Event列を変えてはならない。
+Observation cache、NPC近傍index、Held InformationのFIFO索引、CPU並列化、ログflush / diagnostics間隔、UI描画頻度は非権威的な最適化である。Communicationの抽選は取得順を権威的FIFO stateとしてnamed RNG streamで一様抽選し、Dictionary列挙順を使わない。これらの有無、thread scheduling、非権威的collection order、CPU core数によってSimulation Event列を変えてはならない。
 
 ## Log operations
 
