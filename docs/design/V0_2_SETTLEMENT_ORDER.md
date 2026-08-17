@@ -88,7 +88,7 @@ Tick末Maintenanceは次の固定順とする。
 1. 当日のWorld Event、Population、Birth、Death Statisticsを確定する。
 2. 既存SettlementへのAffinity獲得を反映する。
 3. Membershipと通常Affiliation変更を解決する。
-4. Friction decayを処理する。
+4. Frictionの日次decay / impulseを処理する。
 5. Population rolling windowとDemographic指標を更新する。
 6. Reproduction Hotspot Candidateを生成する。
 7. 同時Hotspot arbitrationを行い、新規Settlementをcommitする。
