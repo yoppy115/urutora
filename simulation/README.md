@@ -51,17 +51,33 @@ v0.15値は明示変更箇所以外を維持し、次をv0.2 Configへ追加す�
 
 | Area | Defaults |
 | --- | --- |
-| Settlement formation | 90-day Reproduction Success window、4×4、threshold 4、15-day evaluation、Center spacing 7 |
-| Region | Core radius 3、Influence radius 7、Rest Collision radius 5 |
+| Settlement formation | v0.2.1: 90-day Reproduction Success window、5×5、threshold 3、15-day evaluation |
+| Region | v0.2.3: Core radius 2、Influence radius 7、Rest Collision radius 5。既存Influence内Successを除外し、新Coreを既存Influenceと非重複化。default実効Center distance > 9 |
 | Affinity | Founder +10、initial resident +7、membership 10、switch margin +5、Stay +0.05/day、Rest +1、Communication +0.5、Reproduction Success +2 |
 | Generation → Order | 90-day window、PopulationCV 0.10、DemographicImbalance 0.20、30 consecutive days |
 | Order benefits | Rest ×1.5、positive Vitality ×2、negative Vitality ×0.5。同一Active Settlement Core内の2名だけReproduction Penalty免除、その他はU_reproduce / U_accept -2 |
 | Relations / crowding | Initial Hostility 30%、Friction Collision +1 / Threat +3 / 30日無Event後30日ごと-1、Crowding 0.5 Occupancy + 0.5 BlockedMovement、threshold 0.70 for 30 days |
 | Mobilization | `Clamp(0.20 + 0.30 * CrowdingPressure, 0.20, 0.50)` |
-| Dissolution | <=10% World Population for 365 consecutive days |
+| Dissolution | v0.2.4でWorld Population比を廃止し、90-day Support、25 / 35 Hysteresis、365 LowSupportDays |
 | Concept | Exposure radius 4 with 1/0.5/0.25/0.125、Aura radius 2、Rest -0.10/day、stat ×1.1 |
 
 Advance / Cohesionの具体WeightはConfig / implementation detailだがAdvanceを主とする。Hotspot arbitration、Friction、Aura同種抑制とtemporary MaxHP等は正史の確定境界をConfig defaultで上書きしない。
+
+## v0.2.4 adopted defaults
+
+| Area | Defaults |
+| --- | --- |
+| Rest | Daily +0.02、Pressure threshold 2、`10*ln(1+R-2)/ln(9)`、`U_rest = Pressure - 0.25*A` |
+| Action fatigue | Communication .15、Move .25、Reproduction .35、Attack / Collision .60、Flee .70、Counterattack .30、Pursuit .40 |
+| Own-region Move | Influence fatigue ×.75、Core ×.50 |
+| Home Bias | Weak toward / neutral / away = 1.5 / 1 / .75。Strong trigger Rest>=6 or HP ratio<=.60、Core = 5 / 1 / .20 |
+| Foreign avoidance | enter Influence ×.25、Core ×.05、inside exit ×3 / deeper ×.25 |
+| Generation Proto-Order | positive Vitality ×1.25、normal Affinity gain ×2 |
+| SettlementSupport | 90 days、`50P+30R+20S`、baseline min 8、social target member-days×.25、low 25 / recovery 35、365 LowSupportDays |
+| Invasion guardrail | Pressure <.70 for 30 days to re-arm、Center non-victory、Usable Core 50% victory |
+| Friction | Clamp 0..100 |
+
+これらはv0.2.4 Simulation Run後に調整可能なConfig値。出生所属predicate、主観境界、Proto-Order / Order分離、hysteresis、phase順、Alive-only conquest等のBaselineを数値調整で変更しない。
 
 ## Run metadata
 
@@ -74,8 +90,9 @@ Advance / Cohesionの具体WeightはConfig / implementation detailだがAdvance�
   "config": "configs/default.json",
   "preset": "presets/example.json",
   "ticks": 0,
-  "commit": "git-commit-hash"
+  "version": "v0.2.4",
+  "repositoryCommit": "git-commit-hash"
 }
 ```
 
-完全なconfig、初期状態、外部入力列を参照または同梱できるようにする。保存形式はDraftである。
+完全なconfig、初期状態、外部入力列を参照または同梱できるようにする。同じVersion名でも異なるrepositoryCommitのRunを混在させない。保存形式はDraftである。

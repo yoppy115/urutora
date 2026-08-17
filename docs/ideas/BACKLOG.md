@@ -9,6 +9,7 @@
 - Status: On hold after v0.2
 - Adopted in v0.2: Settlement生成、Affinity / 所属、Order Bonus、治安、Friction、Invasion、統合、Aura。
 - Still on hold: 国家、属国、占領統治、反乱・忠誠、内部階層、資源、疾病、Settlement間の恒常的外交。
+- v0.2.4後に保留: Invasion Trigger、SettlementPressure、Crowding式、Friction新生成/減衰、Mobilization、Rest後再参加、Center保持Victory、Concept / Held Information再調整。
 - Future pressure: Settlementの成功が疾病、内部対立、資源不足、階層等の新Difficultyを生む。
 - Related design: [`V0_2_SETTLEMENT_ORDER.md`](../design/V0_2_SETTLEMENT_ORDER.md)
 
@@ -46,6 +47,11 @@
 - Related design: [`PLAYER_OBSERVATION.md`](../design/PLAYER_OBSERVATION.md)
 
 ## Promoted to canon
+
+- v0.2.1～v0.2.3 minorとv0.2.4 Settlement Stabilizationを採用した。
+  - Hotspot 5×5 / Success 3、出生所属3経路、観測・決定論的性能改善を正史化。
+  - Rest v2、Home / Foreign Bias、Generation Proto-Order、局所SettlementSupport、Invasion暫定guardrailを追加。
+  - [`V0_2_4_SETTLEMENT_STABILIZATION.md`](../design/V0_2_4_SETTLEMENT_STABILIZATION.md)
 
 - v0.2の重要未決事項解消パッチを採用した。
   - Tick末Settlement Maintenance、Hotspot arbitration、Friction、Unaffiliated保護、同一Core繁殖判定を確定。

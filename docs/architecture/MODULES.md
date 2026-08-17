@@ -23,6 +23,8 @@
 | Settlement Affiliation | Affinity、Active Affiliation、移籍、Invasion lock、消滅時Unaffiliated化を扱う | NPC PerceptionやUtilityを直接書き換える |
 | World Phase | 人口系列、PopulationCV、DemographicImbalance、Generation→Orderを扱う | Settlement個別Bonusを実装する |
 | Settlement Policy | WorldPhaseと地域・所属からRest、Vitality、Reproduction、Collision policyを提供する | Spatial、Utility、Lifecycleの権威的計算を奪う |
+| Settlement Movement Policy | Home / Foreign Biasと自Settlement内Move fatigue modifierを投影する | Flee、Invasion Advance / Defense、Reality validationを上書きする |
+| Settlement Support | 90日P/R/S、Support、Hysteresis、自然消滅を扱う | World Population比で局所生活を代用する |
 | Settlement Relations | Friction、方向性Hostility、Founder cohortからの初期関係を扱う | 個人に存在しないThreatを捏造する |
 | Crowding / Invasion | Crowding、eligibility、target、cohort、Bias、勝敗、統合を扱う | 専用Utility AIや国家制度を追加する |
 | Concept / Difficulty | 概念・困難データと世界進化を扱う | 表示名を安定IDとして使う |
@@ -68,6 +70,11 @@
 - Hotspot arbitratorはimmutable Candidate snapshot、Reproduction Success数、named seedを使い、scan / collection / thread順へ依存しない。
 - Frictionは対称Pair state、Hostilityは方向性stateとして別型にし、CounterattackによるEvent二重計上を防ぐ。
 - Aura由来MaxHP解除はDamage portを経由せずstate normalizationとしてClampする。
+- Rest fatigue policyはAction / Reaction種別からRest deltaを返し、Collision AttackへMoveとAttackを二重加算しない。
+- Generation Proto-OrderとOrder Benefitを別policyとして表現し、倍率を重ねない。
+- Settlement Supportは日末のread-only 90日集計からP/R/Sを算出し、Membership変更と自然消滅をMaintenance順でcommitする。
+- Observation cache、近傍index、CPU並列read phaseは最適化portの内側に閉じ、権威的順序・random stream・Event IDを変えない。
+- Run envelopeはVersion、repositoryCommit、Config、Seedを一組として記録する。
 
 ## Open architecture work
 

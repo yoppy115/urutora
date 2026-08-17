@@ -96,3 +96,17 @@ NPC向けActionOutcomeへ非公開Reality値を露出しないという境界は
 - 集計値からSimulation Coreへcommandや補正を返さない。
 
 保存形式、schema version、長期集計の圧縮、UIレイアウトはDraftである。
+
+## v0.2.4 Settlement Stabilization
+
+最低限、次をゲーム内Statisticsとheadless projectionから確認可能にする。
+
+- Rest: Action率、選択時Rest Need / Pressure、Action別疲労寄与、平均Rest Need、所属別、Invasion参加者Restと離脱率。
+- Home / residence: Settlementごとの総所属、Core / Influence / 外部人数と比率、Weak / Strong発動、Home方向Move、Core帰還、HP / RestNeed別Strong理由。
+- Longevity: Formation、Natural Dissolution、Conquest Integration、Active数、平均 / 最大存続日数、LowSupport dissolution、Current Support、P/R/S、LowSupportDays。
+- Ecology: 所属 / 無所属およびGeneration / Order別の人口、年齢、死亡年齢、HP、Birth、Reproduction、Combat / Vitality Death、Collision / Explicit Attack Damage。
+- Foreign: Influence / Core進入、退出、Settlement間Collision、Friction Event、Current Friction。
+- Proto-Order: 形成前後のCombat Death、同所属Collision抑制、HP、Positive Vitality Benefit、Affinity、Membership、Settlement survival。
+- Invasion: 開始、armed、re-arm、防止された連続開始、Rest / Death離脱、最大Core占有率、Center Occupied、勝敗。
+
+SettlementSupportの診断は90日windowの分子・分母も保持し、形成閾値の変更がReproduction Continuityへ反映されたことを確認できるようにする。

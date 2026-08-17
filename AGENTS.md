@@ -40,6 +40,10 @@
 - Vitality Control Point値は確定Phase形状を守る保守的なv0.15 Config初期値として調整できる。
 - Held InformationはSubject + Propertyごとに3件、FIFO evictionとし、直接消滅確認時だけSubject全体をpurgeする。
 - v0.2 Settlement / Order仕様は `docs/design/V0_2_SETTLEMENT_ORDER.md` を正本とし、Generation中の形成・AffinityとOrderから有効な社会Ruleを混同しない。
+- v0.2.1はHotspotを90日、5×5、成功3件、15日評価とする。v0.2.3は既存Influence内SuccessをHotspotから除外し、新Core全Cellを既存Active Influenceと非重複にする。
+- v0.2.3出生所属は、同じActive Settlement所属の両親なら場所非依存、片親所属なら受胎時に両親とも所属先Influence内、異所属なら両親が同じ一意なActive Core内という境界を守る。
+- v0.2.4は `docs/design/V0_2_4_SETTLEMENT_STABILIZATION.md` を正本とする。Rest v2、Home / Foreign Bias、Generation Proto-Order、SettlementSupport、Invasion暫定安定化を旧v0.2規則と混同しない。
+- v0.2.4の自然消滅はWorld Population比ではなく局所SupportとHysteresisを使う。Center一人到達をVictoryにせず、征服所属変更はAlive NPCだけに行う。
 - Order中のCollision、Friction、Invasion、Auraは所属・WorldPhase・Event状態を明示的に解決し、v0.15の主観境界やTargeted Action順を弱体化しない。
 - v0.2 Settlement構造変更は固定順のTick末Maintenanceでcommitし、新規Settlement / WorldPhase / Invasion開始は原則翌Tickから反映する。
 - Hotspot arbitration、Friction、Unaffiliated保護、同一Core繁殖、Aura / temporary MaxHP、Core占有率、Invasion離脱は `V0_2_SETTLEMENT_ORDER.md` の確定境界を守る。
@@ -62,6 +66,7 @@
 - ADRは `docs/decisions/ADR-NNNN-short-title.md` 形式で連番にする。
 - コミット接頭辞は内容に応じて `feat:`, `sim:`, `balance:`, `design:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:` を使う。
 - Gitログは開発変更の履歴、`logs/` は世界内イベントの実行ログとして混同しない。
+- Run比較では `Version`、`repositoryCommit`、Config、Seedを一組とし、同じVersion名でも異なるcommit世代を混在させない。
 
 ## Completion checklist
 

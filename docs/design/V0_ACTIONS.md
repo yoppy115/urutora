@@ -26,13 +26,13 @@ MoveはMap内のLandmarkではない隣接Cellを候補とし、NPC占有Cellを
 
 Collision Attackでは移動をキャンセルする。対象が死亡しても同じAction内ではそのCellへ進入せず、後続Micro Round等で新しいMoveが必要となる。通常Attack Resolutionを使うため、条件を満たす被攻撃者はCounterattackできる。攻撃側はOutcomeから相手EntityId、Position、戦闘結果を知り、被攻撃側は攻撃者をPerceivedThreatへ登録する。これはv0で最初の暴力を生じさせる主要機構である。採用理由は [`ADR-0008`](../decisions/ADR-0008-move-collision-combat.md) を参照する。
 
-v0.2のGeneration中はこの規則を維持する。Order中は同Settlement所属者、Settlement Influence内のUnaffiliated、平時の異Settlement、Invasion中の敵対Settlementで変換結果が異なる。異Settlementの平時Collisionは対称Frictionへ変換し、v0.2 defaultで+1する。Invasion中の敵同士だけCombatへ戻り、戦闘一件ごとのFriction加算はしない。詳細は [`V0_2_SETTLEMENT_ORDER.md`](V0_2_SETTLEMENT_ORDER.md) を正本とする。
+v0.2.4以降、Generation中でも同じActive Settlement所属者間のCollision Attackは抑制する。それ以外の治安RuleはOrder境界を維持する。異Settlementの平時Collisionは対称Frictionへ変換し、v0.2 defaultで+1する。Invasion中の敵同士だけCombatへ戻る。
 
 Order中、Settlement所属NPCはInfluence内UnaffiliatedがActive PerceivedThreatでなければExplicit Attack Candidateを生成しない。生成済みIntentもReality ResolutionでUnaffiliated / Influence / Active Threatを再Validationする。UnaffiliatedのThreat行為でThreat Memoryへ登録された後は、期限中のExplicit Attack Candidateを許可する。平時の他Settlement所属者へのExplicit Threat EventはFriction +3 defaultとし、Counterattackで同一事件を二重加算しない。
 
 ## Rest
 
-Restは主観上、休息欲求を満たす行動である。v0 defaultではRest -4、Activity +1。HPを直接回復せず、自然回復はVitalityが担当する。位置等のRealityは変えない。
+Restは主観上、休息欲求を満たす行動である。Rest -4、Activity +1を維持し、HPを直接回復させない。v0.2.4では`RestNeed <= 2`のPressureを0とし、それを超えると対数式で増えるRestPressureをUtilityへ使う。
 
 初回Runで長く見えたため、v0.2 Order中はSettlement CoreのRest Need減少だけを1.5倍し、Activity側の既存効果は変えない。Generation中はBonusなし。Centerからradius 5以内のRest Collisionで未実行Rest Intentを解除し、同一Micro Round最大1回だけ元Action枠を再評価できる。
 
@@ -109,7 +109,9 @@ Pursue選択後に成立判定し、成功時だけ通常Attack Resolutionを1�
 
 ## Active action costs
 
-Move、Communication、Attack、Collision Attack、Flee、Reproduction Attemptは、成功・失敗に関係なく1 Micro Roundを消費した時点でActivity -2.0、Rest +0.5を受ける。Restは専用効果だけを使う。Counterattack、Pursuit Attack、Accept / Rejectには通常Action用Need変化を適用しない。
+Move、Communication、Attack、Collision Attack、Flee、Reproduction Attemptは、成功・失敗に関係なく1 Micro Roundを消費した時点でActivity -2.0を受ける。v0.2.4のRest疲労はCommunication`+0.15`、Move`+0.25`、Reproduction Attempt`+0.35`、Attack / Collision Attack`+0.60`、Flee`+0.70`。Collision AttackはMove疲労と二重加算しない。
+
+CounterattackとPursuitは通常Action用Activityを変えないが、身体疲労としてRest`+0.30`と`+0.40`を適用する。Accept / Rejectには通常Action用Need変化を適用しない。自Settlement内Move疲労の軽減はv0.2.4 Settlement仕様に従う。
 
 ## Required events and tests
 

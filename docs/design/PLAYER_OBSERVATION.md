@@ -57,6 +57,12 @@ v0はheadless Coreに加え、観測用Desktop Applicationを実装対象とす�
 
 v0.2ではMap上でSettlement Centerと、必要に応じてCore / Influenceを識別可能にする。Current World Phase、Settlement数、主要Statistics、Invasion中Settlementも確認可能にする。Generation→Orderの条件、Settlement / Affiliation、暴力、Reproduction、Invasion、Concept / Auraの最低限統計は [`STATISTICS.md`](../architecture/STATISTICS.md) に従う。
 
+v0.2.2以降、ConceptMark HolderをMap/UIで識別可能にし、Pause、1x、2x、3x、5x、10x、50xの速度段階を提供する。Mark旗、ボタン、色はPresentation detailであり、速度や描画頻度でSimulation結果を変えない。
+
+v0.2.3以降、Settlementは不変IDで識別し、表示色は最大約60色の再利用可能paletteとして扱う。消滅済みSettlementは通常Mapから隠してよいがHistory / Statisticsから削除しない。Settlement詳細、Friction、NPCの行動履歴とKill countを観測可能にする。
+
+v0.2.4ではCurrent Support、P/R/S、LowSupportDays、所属者のCore / Influence / 外部分布、Home Bias、Rest、Foreign movement、Invasion診断をSettlement詳細とStatisticsへ追加可能にする。
+
 具体倍率、配置、UI framework、デザインは実装時の裁量とする。
 
 Simulation TickとUI Render Updateを分離する。高速進行では複数Tick後の最新Stateだけを描画してよく、render頻度、frame rate、UI操作がSimulation Event列を変えてはならない。自動テストはGUIなしで実行可能にする。

@@ -9,11 +9,13 @@ v0.15の長期安定は、秩序のない個体群が大量出生、空間競合
 
 ## Decision
 
-世界開始時をGeneration（世界生成期 / 萌芽）とし、Generation中から直近のReproduction Success HotspotにSettlementを自然発生させる。Founder、Affinity、所属はGeneration中から存在できるが、Rest、Vitality、Aging、Reproduction、治安等の社会秩序RuleはOrderまで有効化しない。
+世界開始時をGeneration（世界生成期 / 萌芽）とし、Generation中から直近のReproduction Success HotspotにSettlementを自然発生させる。Founder、Affinity、所属はGeneration中から存在する。後続のADR-0021は、Settlementを根付かせる限定Proto-OrderだけをGenerationから有効化し、Order専用Benefitとの分離を維持する。
 
 GenerationからOrderへの移行は絶対人口や固定日数でなく、rolling PopulationCVとBirth / DeathのDemographicImbalanceがConfig条件を連続して満たすことで判定する。
 
 Settlement構造変更は固定順のTick末Maintenanceでcommitし、新規Settlement、WorldPhase、Invasion開始は原則翌Tickから有効にする。同日Hotspot Candidateは一つのimmutable snapshotから生成し、Reproduction Success数を優先、同数だけnamed seedでtie-breakする。Center選択後に既存Settlement排他へ違反したCandidateは別Centerへrerollせず不成立とする。
+
+v0.2.1の採用defaultは90日・5×5・Success 3・15日評価。v0.2.3は既存Influence内Successを除外し、新Core全Cellを既存Active Influenceと非重複にする。同所属の両親は場所非依存、片親所属は受胎時に両親とも所属先Influence内、異所属は同じ一意なActive Core内という出生所属境界を採用する。
 
 ## Reasons
 

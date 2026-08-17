@@ -49,7 +49,7 @@ Order中は、参加者2名が同一Active Settlement Core内にいる場合だ�
 
 行動側の `U_reproduce = P + 0.50*A - 0.40*S - 0.20*R` は [`UTILITY_AI.md`](UTILITY_AI.md) に定義する。複数の有効対象がある場合はseed付きランダムで選び、相手が受諾しそうかをRealityから先読みしない。
 
-Reproduction Need -6とCooldown開始はSuccess時だけ。Reject時にはReproduction NeedとCooldownを変えない。ただしAttemptは通常能動Actionなので、Rejectを含む失敗でも行動側にActivity -2、Rest +0.5を適用する。Accept / Reject Reactionには適用しない。
+Reproduction Need -6とCooldown開始はSuccess時だけ。Reject時にはReproduction NeedとCooldownを変えない。Attemptは通常能動Actionなので、Rejectを含む失敗でも行動側にActivity -2を適用する。Rest疲労はv0.2.4でAction別となり、Reproduction Attemptは成功・失敗を問わず`Rest +0.35`。Accept / Reject Reactionには通常Action用Activity / Rest変化を適用しない。
 
 Rejectでは対象の既存未実行Intentを維持する。Acceptでは対象のIntentを破棄し、最新の自己State / PerceptionでUtility AIを同一Micro Round最大1回再評価して同じAction枠を置き換える。追加Actionは得ない。
 
@@ -64,6 +64,16 @@ Tick末に全Requestをまとめて解決する。各Requestは受胎時の両�
 Tick中に死亡して空いたCellは利用できるが、LandmarkとAlive NPC占有Cellは利用できない。出生失敗でもSuccess時に発生済みのNeed減少とCooldownは戻さない。子は次Tickから行動する。
 
 ParentAId / ParentBIdを系譜解析用に保存してよいが、親子の特別認識、保護、好意、専用Utility、子育てはv0に含めない。NPC本人が系譜を知る必要もない。
+
+### v0.2.3 Settlement birth affiliation
+
+出生所属は受胎時に判定し、BirthRequestへ対象Settlementと配置範囲を固定する。
+
+- 両親が同じActive Settlement所属なら、現在位置に関係なく通常の親近傍へ出生し、そのSettlementのMembershipThreshold相当AffinityとActive Affiliationを持って開始する。
+- 片親だけが所属する場合、受胎時に両親ともそのActive SettlementのInfluence内にいる場合だけ、受胎時親近傍かつInfluence内のCellへ出生し同所属で開始する。
+- 両親の所属が異なる場合、両者の所属IDのうち、受胎時の両親がともにCore内にいるActive Settlementが一意に1件ある場合だけ、そのCore内へ出生し同所属で開始する。
+
+Birth解決時に対象Settlementが非Activeなら通常の無所属・親近傍出生へfallbackする。親のAffinity値そのものは複製しない。位置候補が尽きた場合は通常のBirth Failureであり、境界外へfallbackして所属出生を成立させない。
 
 ## Heritable allowlist
 

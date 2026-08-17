@@ -82,6 +82,10 @@ v0.15 Runでは少なくとも次を集計可能にする。
 - Friction EventはPair、加算理由、加算値、LastFrictionEventTick、decayを追跡し、Counterattack二重計上を識別できる。
 - 一時MaxHP解除ClampはDamage Eventと分離したstate normalizationとして記録可能にする。
 - Invasionは利用可能Core Cell分母、攻撃側占有Cell、Rest / Death離脱、Flee中Participantを追跡する。
+- v0.2.1～v0.2.3はHotspot 5×5 / Success 3、出生所属の判定経路、ConceptMark表示、Settlement詳細、Friction、NPC履歴をVersion / commit付きで追跡可能にする。
+- v0.2.4はAction別Rest fatigue、RestPressure、Home Bias、Foreign movement、Generation Proto-Order benefit、SettlementSupport P/R/S、LowSupportDays、自然消滅、Crowding re-arm、Center Occupied、Core占拠Victory、Friction clampを機械可読にする。
+- 征服時のAffiliationChangedはAlive NPCだけに発行し、Dead NPCのHistoryを変更しない。
+- ログflush間隔はOperations設定でありEvent意味論を変えない。Run identityと保存運用は[`ENGINEERING_REPRODUCIBILITY.md`](ENGINEERING_REPRODUCIBILITY.md)に従う。
 
 必須集計項目は [`STATISTICS.md`](STATISTICS.md) を正本とする。
 
