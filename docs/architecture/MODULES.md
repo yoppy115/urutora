@@ -19,8 +19,15 @@
 | Communication | Held Information交換と受信時変形を扱う | 未知Reality情報を生成する |
 | Lifecycle / Aging | 年齢、Vitality、即時Dead遷移、tick末cleanupを扱う | 繁殖やUtility式を所有する |
 | Reproduction | Attempt/Reaction、遺伝、BirthRequest、batch出生競合、系譜を扱う | 老化方式やqueue順で結果を決める |
+| Settlement Formation | Reproduction Successのrolling spatial集計、Candidate、Center、Founderを扱う | Order Bonus、Combat、所属変更を所有する |
+| Settlement Affiliation | Affinity、Active Affiliation、移籍、Invasion lock、消滅時Unaffiliated化を扱う | NPC PerceptionやUtilityを直接書き換える |
+| World Phase | 人口系列、PopulationCV、DemographicImbalance、Generation→Orderを扱う | Settlement個別Bonusを実装する |
+| Settlement Policy | WorldPhaseと地域・所属からRest、Vitality、Reproduction、Collision policyを提供する | Spatial、Utility、Lifecycleの権威的計算を奪う |
+| Settlement Relations | Friction、方向性Hostility、Founder cohortからの初期関係を扱う | 個人に存在しないThreatを捏造する |
+| Crowding / Invasion | Crowding、eligibility、target、cohort、Bias、勝敗、統合を扱う | 専用Utility AIや国家制度を追加する |
 | Concept / Difficulty | 概念・困難データと世界進化を扱う | 表示名を安定IDとして使う |
 | Concept Exposure | Landmark距離、Exposure、Mark取得とEffective補正を扱う | Base遺伝値を書き換える |
+| Concept Aura | 所属・距離・Invasion Eventから一時AuraとCohesionを投影する | Markを付与・遺伝・無限stackする |
 | World Lifecycle | 萌芽から次世界までの状態と遷移を扱う | 単純な全能崩壊ゲージだけで遷移させる |
 | Higher Entity | 上位存在、影響圏、加護を扱う | 通常NPCとして世界を直接支配する |
 | Revelation Intake | プレイヤーの啓示を世界の認識入力へ変換する | NPCへ直接命令する |
@@ -30,6 +37,7 @@
 | Narrative Adapter | LLMまたはfallbackで人間可読文を生成する | 世界状態の権威を持つ |
 | Configuration | schema検証済み設定とゲームデータを供給する | 実行中に暗黙のglobal状態になる |
 | Event Log | 機械可読な世界内イベントを記録する | ドメインの結果を変える |
+| Statistics Projection | World / Settlement / Invasion / Concept集計を構築する | 集計値からSimulationへcommandを返す |
 | Research Exporter | 注目実験の再現情報と要約を保存する | 巨大な生ログを正史へ混ぜる |
 | Player Observation | 現在中心のviewと文章表現を作る | Simulation Coreから参照される |
 | Presentation Adapter | ゲームエンジン・UIへ接続する | Simulation Coreから参照される |
@@ -52,6 +60,10 @@
 - Held Information capacityはSubject + Propertyごとに3件とし、4件目で最古をFIFO削除する。Confidence代表値選択と容量管理を分ける。
 - Reproduction Candidateには対象PerceptionのAlive / Position / LifeStageだけを渡し、対象RealityのHP / CooldownはResolution portの内側に閉じる。
 - Subject消滅の直接確認はPerception StoreへSubject全Property削除commandを発行する。TargetAbsentや死亡伝聞では発行しない。
+- Reproduction Success EventはSettlement FormationとAffinityへ安定ID付きで渡し、過去のRealityを遡及変更しない。
+- Settlement PolicyはGeneration / Order、地域、Affiliation、Invasion関係を明示的なvalueとして各Resolverへ渡す。
+- InvasionのAdvance / Defense / Cohesion Biasは既存Move direction policyへ合成し、新Actionや別Utility pipelineを作らない。
+- Statistics ProjectionはDomain Eventとread-only queryだけを受け、Simulation用random streamを消費しない。
 
 ## Open architecture work
 
@@ -60,3 +72,4 @@
 - domain eventの配送順と失敗処理。
 - LLMを使わない場合の文章生成fallback。
 - module間の許可依存表とarchitecture test。
+- Settlement Hotspotの同時arbitration、Frictionの具体schema、Aura合成とtemporary MaxHPのcontract。

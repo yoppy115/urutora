@@ -18,3 +18,5 @@ NPC占有CellをMove候補から除外せず、Resolution時にMove IntentをCol
 ## Consequences
 
 空間競合→最初の暴力→Threat Memory→継続的敵対という説明可能な因果が生まれる。MoveとCombatは直接結合せず、Spatial Resolutionがtyped intentをCombat Resolutionへ渡す。
+
+v0.2のGeneration中は本判断を維持する。Orderでは同Settlement、Influence内Unaffiliated、異Settlement平時Collisionを社会秩序Ruleが抑制またはFrictionへ変換し、Invasion中の敵同士はCombatへ戻る。この後続条件は [`ADR-0017`](ADR-0017-settlement-conflict-and-invasion.md) に記録する。

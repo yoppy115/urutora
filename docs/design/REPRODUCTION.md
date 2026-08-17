@@ -43,6 +43,8 @@ U_accept = Need_reproduction
 U_reject = 0
 ```
 
+Order中のSettlement Core外では、v0.2 defaultとして行動側 `U_reproduce -= 2.0`、受諾側 `U_accept -= 2.0` を適用する。Generation中とSettlement Core内ではPenaltyなし。Reality成功率へ別のrandom penaltyを追加せず、Candidateの主観境界とReality Validation条件は変更しない。
+
 成功時は両者のReproduction Needを6減らし、両者にCooldownを開始し、即時生成せずBirthQueueへ追加する。Cooldownのv0.15 defaultは90日。数値はConfig化する。
 
 行動側の `U_reproduce = P + 0.50*A - 0.40*S - 0.20*R` は [`UTILITY_AI.md`](UTILITY_AI.md) に定義する。複数の有効対象がある場合はseed付きランダムで選び、相手が受諾しそうかをRealityから先読みしない。
@@ -89,6 +91,8 @@ RandomBlend in [0, 1]
 v0 defaultは `mutationChance = 0.10`、`mutationStdDev = 0.25`。0〜10能力はClamp(0,10)、RiskPreferenceはClamp(0,1)。MaxHPは別scaleのため能力と同程度の相対的変異になるよう扱う。すべてseedで再現可能にする。
 
 ConceptMarkによるEffective補正はBase遺伝値を書き換えず、子へ継承しない。
+
+Settlement Affinity、Active Affiliation、Founder状態、Invasion参加、Auraも遺伝対象ではない。Settlement Core内のReproduction Successは、当事者へv0.2 ConfigのSettlement Affinityを加え、Hotspot生成判定の機械可読Eventとなる。
 
 ## Tests
 

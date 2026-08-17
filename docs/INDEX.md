@@ -5,7 +5,7 @@
 ## Status labels
 
 - **Baseline**: 現時点で採用済みの設計原則または仕様。
-- **v0 default / configurable**: 最初の実験を成立させる採用済み初期値。Configで変更でき、普遍的な世界法則ではない。
+- **v0.x default / configurable**: 各Simulation版の実験を成立させる採用済み初期値。Configで変更でき、普遍的な世界法則ではない。
 - **Baseline constraints / Draft mechanics**: 境界と目的は確定しているが、数式、閾値、データ構造、アルゴリズムが未決。
 - **Draft**: 実装に必要な判断が残り、現時点では仕様として固定しない内容。
 - **Proposed**: 合意前の提案。ADRでは採用候補を示す。
@@ -24,6 +24,7 @@
 | [`WORLD_LIFECYCLE.md`](design/WORLD_LIFECYCLE.md) | Baseline constraints / Draft mechanics | 世界フェーズ、困難、再編、継承 |
 | [`V0_SIMULATION.md`](design/V0_SIMULATION.md) | Baseline / v0 configurable | v0の目的、範囲、初期世界、実装基盤 |
 | [`V0_15_ECOLOGY.md`](design/V0_15_ECOLOGY.md) | Baseline / v0.15 configurable | 初回Runに基づく生態系変更と解消済み実装規則 |
+| [`V0_2_SETTLEMENT_ORDER.md`](design/V0_2_SETTLEMENT_ORDER.md) | Baseline / v0.2 configurable / unresolved details | Settlement自然発生、Order、社会Bonus、Invasion、Aura |
 | [`SIMULATION_TICK.md`](design/SIMULATION_TICK.md) | Baseline / v0 configurable | 日、Micro Round、即時Death、Birth競合、乱数 |
 | [`V0_ACTIONS.md`](design/V0_ACTIONS.md) | Baseline / v0 configurable | Action/Reaction、Move、Communication、Combat、Flee、Pursuit |
 | [`CONCEPTS.md`](design/CONCEPTS.md) | Baseline constraints / Draft mechanics | 概念と困難、初期3概念 |
@@ -38,6 +39,7 @@
 - [`MODULES.md`](architecture/MODULES.md)（Draft）: 想定モジュールと責務。
 - [`LOGGING.md`](architecture/LOGGING.md)（Baseline constraints / Draft mechanics）: 機械可読ログと研究保存。
 - [`TESTING.md`](architecture/TESTING.md)（Baseline test obligations / Draft implementation）: v0のheadless不変条件。
+- [`STATISTICS.md`](architecture/STATISTICS.md)（Baseline observation obligations / Draft storage）: v0.2のWorld、Settlement、Invasion、Aura診断。
 
 ## Decisions
 

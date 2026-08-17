@@ -4,7 +4,7 @@
 
 ## Directories
 
-- `configs/`: v0.15 default。人口、Need、Utility、行動、戦闘、繁殖、突然変異、Vitality Curve、Concept等。
+- `configs/`: v0.2 default。人口、Need、Utility、行動、戦闘、繁殖、Vitality、Settlement、Order、Invasion、Aura等。
 - `presets/`: 初期状態や実験条件の名前付き組み合わせ。
 - `concepts/`: 概念と困難のデータ定義。
 
@@ -44,6 +44,24 @@
 Need増減、Utility Effect、Threat Risk、Observation誤差・Confidence、Communication Confidence、Communication変形、Combat、Pursuit、初期分布等の全defaultは各設計文書を正本とする。これらの数値はv0.15 configurableであり、主観境界、Base/Effective分離、即時Dead、TargetAbsent invalidation、順序非依存競合等のBaselineと混同しない。まだコード実装を行わないため、この変更では `default.json` を作らない。
 
 Vitality Control Point値は確定Phase形状と連続性等の制約を満たす保守的なv0.15 Config初期値として設定し、Simulation Run後に再調整する。
+
+## v0.2 adopted defaults
+
+v0.15値は明示変更箇所以外を維持し、次をv0.2 Configへ追加する。
+
+| Area | Defaults |
+| --- | --- |
+| Settlement formation | 90-day Reproduction Success window、4×4、threshold 4、15-day evaluation、Center spacing 7 |
+| Region | Core radius 3、Influence radius 7、Rest Collision radius 5 |
+| Affinity | Founder +10、initial resident +7、membership 10、switch margin +5、Stay +0.05/day、Rest +1、Communication +0.5、Reproduction Success +2 |
+| Generation → Order | 90-day window、PopulationCV 0.10、DemographicImbalance 0.20、30 consecutive days |
+| Order benefits | Rest ×1.5、positive Vitality ×2、negative Vitality ×0.5、outside U_reproduce / U_accept -2 |
+| Relations / crowding | Initial Hostility 30%、Crowding 0.5 Occupancy + 0.5 BlockedMovement、threshold 0.70 for 30 days |
+| Mobilization | `Clamp(0.20 + 0.30 * CrowdingPressure, 0.20, 0.50)` |
+| Dissolution | <=10% World Population for 365 consecutive days |
+| Concept | Exposure radius 4 with 1/0.5/0.25/0.125、Aura radius 2、Rest -0.10/day、stat ×1.1 |
+
+Advance / Cohesionの具体WeightはConfig / implementation detailだがAdvanceを主とする。Hotspot arbitration、Friction具体値、Aura同種合成等の未決事項をConfig defaultの名目で独自確定しない。
 
 ## Run metadata
 

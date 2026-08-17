@@ -28,6 +28,12 @@ v0では少なくとも次の型を区別できる構造化Simulation Eventを�
 - Flee、Pursuit
 - ReproductionAttempt、ReproductionSuccess、ReproductionFailure
 - ConceptMarkAcquired
+- SettlementFormed、SettlementDissolved、SettlementIntegrated
+- AffinityChanged、AffiliationChanged
+- WorldPhaseChanged
+- CollisionSuppressed、SettlementFrictionChanged、InitialHostilityEstablished
+- InvasionStarted、InvasionParticipantJoined / Withdrew、InvasionEnded
+- AuraApplied / AuraExpired
 
 Decision DebugとWorld Eventは概念的に分離する。Desktop AppのEvent Logは同じWorld Event streamのread-only projectionを使う。
 
@@ -62,6 +68,17 @@ v0.15 Runでは少なくとも次を集計可能にする。
 - Concept: Exposure、ConceptMark取得数。
 
 目的は人口維持値の調整だけでなく、Population、Combat、Reproductionを生む因果を比較可能にすることである。
+
+## v0.2 logging additions
+
+- Settlement Candidate評価はwindow、対象Reproduction Success Event ID、選択Center、排他結果、Founder IDを追跡できる。
+- Generation→Order判定はPopulationCV、DemographicImbalance、rolling window、連続成立日数を記録できる。
+- Collisionは通常Combat、同Settlement抑制、Unaffiliated保護、異Settlement Friction、Invasion Combatを理由付きで区別する。
+- Reproduction FailureはTargetAbsent、Maturity、HP、Cooldown、Distance、Reject、Other Reality Failureへ可能な範囲で分離する。ただしNPC Outcomeへ内部値を漏らさない。
+- Invasionはtarget選択理由、Crowding、cohort、Bias離脱、勝敗条件、統合をstable Event IDで追跡する。
+- AuraはConcept、Holder、対象、所属、Invasion Event、適用 / 失効を追跡できる。
+
+必須集計項目は [`STATISTICS.md`](STATISTICS.md) を正本とする。
 
 ## Draft mechanics
 

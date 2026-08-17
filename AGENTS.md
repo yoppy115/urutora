@@ -39,7 +39,9 @@
 - v0.15のTargeted ActionはAttack → Reproduction → Communication順で、終了済みphaseへ再抽選Intentを巻き戻さない。
 - Vitality Control Point値は確定Phase形状を守る保守的なv0.15 Config初期値として調整できる。
 - Held InformationはSubject + Propertyごとに3件、FIFO evictionとし、直接消滅確認時だけSubject全体をpurgeする。
-- Settlementはv0.15対象外で、将来方向性から具体Bonusや所属規則を発明しない。
+- v0.2 Settlement / Order仕様は `docs/design/V0_2_SETTLEMENT_ORDER.md` を正本とし、Generation中の形成・AffinityとOrderから有効な社会Ruleを混同しない。
+- Order中のCollision、Friction、Invasion、Auraは所属・WorldPhase・Event状態を明示的に解決し、v0.15の主観境界やTargeted Action順を弱体化しない。
+- v0.2で明記されないFriction値、Hotspot arbitration、Aura合成等の重要挙動を独自に確定しない。
 
 ## Change contract
 

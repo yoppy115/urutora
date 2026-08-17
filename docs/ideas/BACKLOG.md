@@ -4,14 +4,13 @@
 
 ## On hold
 
-### Settlement / 集落システム
+### Settlement以後の社会制度
 
-- Status: On hold until after v0.15 Run
-- Preserved direction: 個体→集落→社会→国家の基盤とし、強い生存・繁殖・社会利益によって所属が結果的に圧倒的に適応的になる構造を目指す。
-- Not specified: 生成、Affinity、所属、各種Bonus、安全圏、帰巣、敵対、Raid、State / Nation。
-- Why it is not in v0.15: Targeted Action、繁殖、短寿命、情報容量、HP/Damageの生態系修正を先に再評価するため。
-- Future pressure: 高密度が疾病、内部対立、資源、階層、Settlement間競争を生む可能性。
-- Related design: [`V0_15_ECOLOGY.md`](../design/V0_15_ECOLOGY.md)
+- Status: On hold after v0.2
+- Adopted in v0.2: Settlement生成、Affinity / 所属、Order Bonus、治安、Friction、Invasion、統合、Aura。
+- Still on hold: 国家、属国、占領統治、反乱・忠誠、内部階層、資源、疾病、Settlement間の恒常的外交。
+- Future pressure: Settlementの成功が疾病、内部対立、資源不足、階層等の新Difficultyを生む。
+- Related design: [`V0_2_SETTLEMENT_ORDER.md`](../design/V0_2_SETTLEMENT_ORDER.md)
 
 ### NPCの思考ラグを能力と接続する
 
@@ -47,6 +46,11 @@
 - Related design: [`PLAYER_OBSERVATION.md`](../design/PLAYER_OBSERVATION.md)
 
 ## Promoted to canon
+
+- v0.2 Settlement / Order Updateを採用した。
+  - Generation中の繁殖HotspotからSettlementが発生し、人口安定後のOrderで社会Ruleを解禁する。
+  - 同SettlementのCollision抑制、異SettlementのFriction、Crowding由来Invasion、Concept Auraを追加する。
+  - [`V0_2_SETTLEMENT_ORDER.md`](../design/V0_2_SETTLEMENT_ORDER.md)
 
 - v0.15の旧未決3項目を解消した。
   - Vitality具体値はPhase制約付きConfig調整。

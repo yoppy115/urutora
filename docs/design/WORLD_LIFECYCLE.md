@@ -1,6 +1,6 @@
 # World Lifecycle
 
-**Status:** Baseline constraints / Draft mechanics
+**Status:** Baseline lifecycle / v0.2 Generation-Order defaults / Draft later phases
 
 ## Baseline lifecycle
 
@@ -8,7 +8,7 @@
 萌芽 -> 秩序 -> 争覇 -> 滅亡 / 再編 -> 詩篇 -> 次世界
 ```
 
-フェーズは内部状態として扱い、通常UIへ名前やゲージを明示する必要はない。
+フェーズは内部状態として扱う。通常UIへ名前や単純ゲージを常に明示する必要はないが、v0.2の観測・診断UIではGeneration / Orderと遷移条件を表示する。
 
 ## 萌芽
 
@@ -16,9 +16,15 @@
 
 影響圏は信者だけを意味しない。嫌悪、恐怖、対立を通じて社会が上位存在を中心に形成されている場合も影響下とみなす。
 
+### v0.2 Generation
+
+v0.2は萌芽の最小実装を `WorldPhase = Generation` と呼ぶ。秩序を持たない個体群の繁殖、移動、Collision、Threat、Combatを世界生成過程として扱い、Generation中からReproduction Success HotspotにSettlementが形成される。Founder、Affinity、所属は存在できるが、社会Bonusと秩序Ruleはまだ有効化しない。
+
 ## 萌芽から秩序
 
 上位存在の周辺に持続可能な秩序が成立することで移行する。国家成立だけを条件にせず、単独集団や特殊な共同体も許容する。
+
+v0.2では、90日rolling windowのPopulationCVとBirth / DeathのDemographicImbalanceがConfig閾値を30日連続で満たすことを、GenerationからOrderへの最小判定とする。絶対人口や固定経過日数だけでは決めない。Order移行後、既存および新規SettlementがRest、Vitality、Aging、Reproduction、Collision等へ局所的な社会Ruleを適用する。詳細は [`V0_2_SETTLEMENT_ORDER.md`](V0_2_SETTLEMENT_ORDER.md) を参照する。
 
 ## 秩序から争覇
 
@@ -55,11 +61,10 @@
 
 ## Draft mechanics
 
-- フェーズ遷移の正確な閾値と検出方法。
+- Order以降のフェーズ遷移の正確な閾値と検出方法。Generation→Orderのv0.2 defaultは確定済み。
 - 一世界の実時間と各フェーズの長さ。
 - 滅亡時にどのシステムをどう変調・停止するか。
 - 安定世界を再編するタイミング。
 - 複数の遷移条件が同時成立した場合の優先順位。
 
 採用理由は [`ADR-0003`](../decisions/ADR-0003-causal-world-lifecycle.md) を参照する。
-

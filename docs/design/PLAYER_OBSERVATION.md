@@ -44,7 +44,7 @@ visible: 危険を恐れず、困難へ積極的に踏み込む。
 - ピンは原因を断定せず、観測された重要な変化を示す。
 - ピンや説明文の生成がSimulation Coreの結果を変更してはならない。
 
-## v0 Desktop Application
+## v0.2 Desktop Application
 
 v0はheadless Coreに加え、観測用Desktop Applicationを実装対象とする。AppはCoreを呼び出すだけでSimulation LogicやRealityの権威を持たない。
 
@@ -54,6 +54,8 @@ v0はheadless Coreに加え、観測用Desktop Applicationを実装対象とす�
 2. 現在のYear / Day。
 3. Pause、通常速度、複数の高速化段階。可能ならMax Speed。
 4. 最近のBirth、Death、Attack、CollisionAttack、Communication、Reproduction、ConceptMark Eventのスクロールログ。
+
+v0.2ではMap上でSettlement Centerと、必要に応じてCore / Influenceを識別可能にする。Current World Phase、Settlement数、主要Statistics、Invasion中Settlementも確認可能にする。Generation→Orderの条件、Settlement / Affiliation、暴力、Reproduction、Invasion、Concept / Auraの最低限統計は [`STATISTICS.md`](../architecture/STATISTICS.md) に従う。
 
 具体倍率、配置、UI framework、デザインは実装時の裁量とする。
 

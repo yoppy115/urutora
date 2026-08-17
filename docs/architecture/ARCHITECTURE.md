@@ -63,6 +63,9 @@ flowchart LR
 13. **Targeted actions have a fixed phase order.** Attack → Reproduction → CommunicationをMove、Flee、Restより先に解決する。
 14. **Outcomes invalidate stale premises.** TargetAbsent等の直接Outcomeを同日中にPerceptionへ戻し、成立しない古いPositionの反復を止める。
 15. **Interrupts replace, not add.** AttackとReproduction Acceptによる再評価は既存Action枠を置換し、追加Actionや無制限再評価を与えない。
+16. **Settlement formation and order are separate.** Generation中からSettlement関係stateを形成し、社会RuleはOrderから明示的に有効化する。
+17. **Social conflict is typed state.** Affiliation、Friction、Hostility、Invasionを個人ThreatやSpatial Resolutionへ暗黙に埋め込まない。
+18. **Statistics are read-only projections.** 集計、UI、logging量はSimulation state、乱数、phase順を変えない。
 
 ## State layers
 
@@ -110,6 +113,21 @@ Plan intents from Perception
 
 Targeted Action PhaseはAttack → Reproduction → Communicationの明示的なphase contractとする。各後続phaseは先行phase後のRealityを再Validationする。Interruptで得たIntentは終了済みphaseへ戻さず、未処理phaseで実行できない場合は失効する。
 
+## v0.2 social dependency
+
+```text
+ReproductionSuccess events -> Settlement Formation -> Affinity / Affiliation
+Daily population series    -> World Phase
+Affiliation + Phase         -> Order Policies -> Spatial / Utility / Vitality modifiers
+Crowding + Relations        -> Invasion -> Move Bias / Combat / Integration
+ConceptMark + Affiliation   -> Aura projection -> temporary Effective modifiers
+Domain events / snapshots   -> Statistics projection -> App
+```
+
+Settlement Formation、Affiliation、World Phase、Order Policy、Friction / Hostility、Invasion、Auraを一つの万能SettlementManagerへ集約しない。Order Policyは既存Spatial、Utility、Lifecycleへ明示的なpolicy inputを渡し、各domainの権威的計算を奪わない。
+
+Statisticsはdomain eventとread-only snapshotを購読するterminal observerであり、Settlement / Invasion判定の入力stateを所有しない。
+
 ## v0 project boundary
 
 ```text
@@ -127,3 +145,5 @@ AppはSnapshotまたはread-only projectionと構造化Event streamを受け取�
 - 永続化形式とschema versioning。
 - event busを使用するか、明示的な呼び出しと戻り値を使うか。
 - 大規模個体数に対する性能目標。
+- v0.2 Settlement処理を日次transactionへ挿入する正確なcommit順。
+- Hotspot Candidateの同時arbitration、Friction schema、Aura同種合成等、[`V0_2_SETTLEMENT_ORDER.md`](../design/V0_2_SETTLEMENT_ORDER.md) に明記した未決事項。

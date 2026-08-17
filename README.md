@@ -6,12 +6,12 @@
 
 ## Current status
 
-- フェーズ: 初回Runを反映したv0.15 Ecology Update仕様確定
-- 実装: 初回v0 Run実施済み。v0.15は文書更新段階で、今回はコード未変更
+- フェーズ: v0.2 Settlement / Order Update仕様確定
+- 実装: v0.15 Runを踏まえ、v0.2は文書更新段階。今回はコード未変更
 - 実装基盤: C# / .NET。`Simulation.Core`、`Simulation.App`、`Simulation.Core.Tests` を分離する
 - 外部依存: なし
 
-次段階では、確定したv0.15を同一seedで再現可能なheadless Coreと観測用Desktop Applicationへ反映します。UI frameworkは未決ですが、GUIはRealityの権威を持ちません。
+次段階では、v0.15の個体生態系を維持したまま、確定したv0.2のGeneration、Settlement、Order、Invasion、Aura、Statisticsを同一seedで再現可能なheadless Coreと観測用Desktop Applicationへ反映します。UI frameworkは未決ですが、GUIはRealityの権威を持ちません。
 
 ## Source of truth
 
@@ -49,7 +49,7 @@
 
 ## Next decisions
 
-1. v0.15文書をC#型、interface、Config schemaへ反映する。
-2. 保守的なVitality Control Point初期値をConfigへ設定する。
-3. 追加headless testsと必須Run metricsを実装する。
-4. InitialPopulation 200から再実行し、生態系の因果を比較する。
+1. v0.2文書をC#型、interface、Config schemaへ反映する。
+2. Settlement / Affiliation / World Phase / Invasion / Auraを独立責務として実装する。
+3. v0.2 headless testsとStatistics projectionを実装する。
+4. Generation→Order前後をInitialPopulation 200から再実行し、社会化が生態系をどう変えたか比較する。

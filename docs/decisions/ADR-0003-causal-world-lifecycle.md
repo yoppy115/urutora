@@ -21,6 +21,8 @@
 
 フェーズ名や内部閾値を通常UIへ明示する必要はない。
 
+v0.2では萌芽をGenerationとして最小実装し、Generation中にSettlementを形成する。90日人口系列のPopulationCVとDemographicImbalanceがConfig条件を30日連続で満たすことをOrder移行の実験用判定とする。これは上位Lifecycle全体の普遍的遷移式ではない。詳細判断は [`ADR-0016`](ADR-0016-generation-settlement-and-order.md) に記録する。
+
 ## Reasons
 
 - 世界内部の因果から歴史と終末を生む。
@@ -29,7 +31,7 @@
 
 ## Consequences
 
-- 定量的な遷移条件は別途Draftとして設計する必要がある。
+- Order以降の定量的遷移条件は別途Draftとして設計する必要がある。
 - 滅亡時にシミュレーションの一部が変調・停止する表現が必要になる。
 - 終わらない安定世界を検出し、再編へ導く規則が必要になる。
 - フェーズの内部状態とプレイヤー表示を分ける。
@@ -43,4 +45,3 @@
 ### A single world stability meter as the primary cause
 
 複数システムの相互作用を一つの数値へ潰してしまう。
-

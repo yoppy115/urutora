@@ -1,6 +1,6 @@
 # Utility AI
 
-**Status:** Baseline boundaries / v0 default and configurable mechanics
+**Status:** Baseline boundaries / v0.2 default and configurable mechanics
 
 ## Decision pipeline
 
@@ -66,7 +66,11 @@ U_communication = 0.75 * C + 0.50 * A - 0.125 * R
 U_reproduce     = 1.00 * P + 0.50 * A - 0.40 * S - 0.20 * R
 ```
 
+Order中のSettlement Core外ではv0.2 defaultとして `U_reproduce -= 2.0`、受諾側の `U_accept -= 2.0` を適用する。Generation中とSettlement Core内では適用しない。成功率へ別のrandom penaltyを加えず、野外Reproductionを禁止しない。
+
 Move自体にRiskCostを置かず、方向はPerceptionに占有NPCが見えていてもseed付きランダムのままとする。Reality占有状態でMove Utilityや方向を変えず、Collision AttackはResolutionで発生させる。
+
+Invasion ParticipantのMoveはv0.2でTarget Settlement CenterへのAdvance Biasを受ける。近傍のConceptMark HolderによるCohesion Biasは副とし、Advanceを上書きしない。これはMove方向のConfig / implementation detailであり、新Actionや別Utility式を追加しない。通常時のMove方向は従来通りseed付きランダムである。
 
 CommunicationとReproductionに複数の有効対象がある場合、v0は対象をseed付きランダムで選ぶ。情報価値や相手の受諾見込みをUtilityへ入れず、Realityから先読みしない。
 
