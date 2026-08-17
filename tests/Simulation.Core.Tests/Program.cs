@@ -107,7 +107,7 @@ internal static class Program
     private static void V023DefaultsAndInitialAges()
     {
         var config = LoadConfig();
-        Equal("v0.2.3-default-1", config.Id);
+        Equal("v0.2.3-default-2", config.Id);
         Equal(5, config.Settlement.HotspotWindowSize);
         Equal(3, config.Settlement.HotspotSuccessThreshold);
         Equal(0.125, config.Concept.ExposureByDistance[4], 0);
@@ -121,7 +121,7 @@ internal static class Program
         Equal(0.9, config.Combat.DamageAttackerFactor, 0);
         Equal(0.4, config.Combat.DamageDefenderFactor, 0);
         Equal(2, config.Settlement.CoreRadius);
-        Equal(0, config.Performance.MaximumDegreeOfParallelism);
+        Equal(8, config.Performance.MaximumDegreeOfParallelism);
         Equal(128, config.Performance.MinimumPopulationForParallelism);
 
         var world = Simulation.Core.World.WorldFactory.Create(config, new RandomStreamFactory(915));

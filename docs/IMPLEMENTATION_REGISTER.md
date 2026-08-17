@@ -19,7 +19,10 @@ DraftやTBDをこの台帳だけで確定仕様に変えてはならない。
 | NPC行動履歴 | Implemented | `PLAYER_OBSERVATION.md` | NPCがactor / targetの既存EventからMove / MoveFailedだけを除外。新規Eventや因果を生成せず、表示上限500件をApp Config化 |
 | 世界統計graph / table | Implemented | `PLAYER_OBSERVATION.md`, `V0_15_ECOLOGY.md`, `STATISTICS.md` | 人口・所属率・平均年齢graph、選択Action、死因、現在年齢分布、World Phase、非消滅Settlement、Invasion、Aura、繁殖・Combat等をread-only表示。FrictionはSettlement詳細へ分離 |
 | 現在年齢分布の表示bin | Implementation detail | `simulation/configs/observation-app.json` | 生存NPCだけを0歳から隙間なく0.5年幅で集計。0件binも表示し、人数・構成比・相対barを表示 |
-| App観測設定 | Implemented | `simulation/configs/observation-app.json` | schema 4。完了World圧縮、旧release log削除、Worldログflush間隔を管理 |
+| App観測設定 | Implemented | `simulation/configs/observation-app.json` | schema 5。完了World圧縮、旧release log削除、Worldログflush間隔、automatic advanceのwork slice / cooldownを管理 |
+| World完了command | Implemented | `LOGGING.md`, `observation-app.json` | `世界完了`で現在runのstreamを閉じ、`completion.json`を最後に確定して検証済みZIPへ圧縮。通常のApp終了・強制終了は未完了のまま保持し、次回起動時に誤圧縮しない |
+| 指定年数反復実行 | Implemented | `observation-app.json` | Appで整数年数とWorld回数を指定。各Worldを`years * daysPerYear` tickで完了・圧縮し、release内の次番号・次seedで反復。最後のWorldは完了状態のread-only表示で停止。Core規則とtick順は変更しない |
+| 旧BIOS向け負荷抑制 | Conservative technical default | `v0-default.json`, `observation-app.json` | CPU並列度defaultを全24論理CPU自動から8へ制限し、自動進行を2日slice + 15ms cooldownで実行。Simulation結果は直列・並列同値を維持し、wall-clock負荷だけを抑える。firmware起因BSODの絶対保証ではない |
 | Windows Formsの具体layout・色・描画 | Implementation detail | `ARCHITECTURE.md` | Simulation規則ではなく交換可能なPresentation詳細 |
 | Update情報の取得順 | Workflow | `AGENTS.md` | Git commit / diff / tag / branchと正史を一次情報にし、過去chatを更新根拠にしない |
 | 管理者権限が必要な導入 | Workflow | `AGENTS.md` | 回避試行を重ねず、対象とrollbackを限定した管理者用installerを別成果物として作る。自動実行しない |
@@ -32,7 +35,7 @@ DraftやTBDをこの台帳だけで確定仕様に変えてはならない。
 | Git build provenance | Implemented | `ARCHITECTURE.md`, `ADR-0019` | commit/tree stateをassemblyとrun metadataへ埋め込み、clean treeだけをrelease publishの既定とする。成果物hashはrelease manifestへ保存 |
 | Repository hygiene | Implemented | `tools/` | 生成物の誤追跡、不要な`.gitkeep`、Markdown local linkをCIとbaseline確定前に検査。finalizerはbranch/commit/tag/clean確認を行いpushしない |
 | Git ACL用管理者finalizer | Implemented | `AGENTS.md`, `tools/` | 通常processが`.git`をOSに拒否された場合だけ使うWindows PowerShell 5.1対応wrapperとCMD入口。対象をurutoraのbranch/index/commit/tagへ限定し、OS設定変更やpushは行わない。同一version追補は`-NoTag`で既存tagを移動しない |
-| v0.2.3 Config schema | Implemented | `V0_2_SETTLEMENT_ORDER.md`, `simulation/configs/v0-default.json` | schema 2 / `v0.2.3-default-1`。v0.2.2までの値を維持し、Core radiusと実行性能設定だけを明示変更 |
+| v0.2.3 Config schema | Implemented | `V0_2_SETTLEMENT_ORDER.md`, `simulation/configs/v0-default.json` | schema 2 / `v0.2.3-default-2`。ゲーム値は維持し、Core radiusと実行性能設定だけを明示変更 |
 | Settlement domain分割 | Implemented | `MODULES.md`, `ADR-0016`–`ADR-0018` | `SettlementQueries`、Formation、Maintenance、Invasion、ConceptAuraをCore内の別責務にし、Appはprojectionだけを読む |
 | Advance / Defense / Cohesion weight | Configurable detail | `V0_2_SETTLEMENT_ORDER.md`, `v0-default.json` | 4.0 / 2.0 / 0.75。既存Move候補の重みだけを歪め、AdvanceがCohesionより常に強いvalidationを持つ |
 | Aura更新境界 | Implementation detail | `ADR-0018`, `SIMULATION_TICK.md` | Tick開始・各Micro Round前後・Concept Exposure後に決定論的snapshotを再計算。一時MaxHP解除ClampはDamage portを通さない |
@@ -46,7 +49,7 @@ DraftやTBDをこの台帳だけで確定仕様に変えてはならない。
 | v0.2.2速度段階 | Implementation detail | `PLAYER_OBSERVATION.md` | 100ms描画timerごとのSimulation batchを1 / 2 / 3 / 5 / 10 / 50日に固定。authoritative tickはUI thread外の単一順序workerで実行し、renderはbatch後だけ更新 |
 | v0.2.2観測性能補正 | Implementation detail | `ARCHITECTURE.md`, `observation-app.json` | v0.2.2時点ではConcept AuraをSettlement / Concept / Position索引、Statistics Eventをtype索引、同一Tickの統計をcache化し、Coreは直列のままとした。ログはdefault 10日ごとにflushし、終了時は必ずflush |
 | v0.2.2性能比較 | Verification record | `Simulation.App`, v0.2.1 release artifact | seed 8147292、120日、Worldログ有効の同一PC比較でv0.2.1 15.828秒、v0.2.2 14.493秒。比較用一時harnessはGit管理外 |
-| v0.2.3決定論的CPU並列化 | Implementation detail | `ARCHITECTURE.md`, `ADR-0020`, `v0-default.json` | ObservationをObserver単位、初回Intent planをNPC単位で分離し、NPC ID順にmerge。Action Resolution / Event / Maintenanceは直列。並列度0は論理CPU自動、1は直列、default開始人口128 |
+| v0.2.3決定論的CPU並列化 | Implementation detail | `ARCHITECTURE.md`, `ADR-0020`, `v0-default.json` | ObservationをObserver単位、初回Intent planをNPC単位で分離し、NPC ID順にmerge。Action Resolution / Event / Maintenanceは直列。並列度0は論理CPU自動、1は直列、現行安全defaultは8、default開始人口128 |
 | v0.2.3知覚空間索引 | Implementation detail | `ARCHITECTURE.md`, `ADR-0020` | 各Observerの全Alive走査をやめ、Position索引からradius 3内だけをSubject ID順に取得。乱数key、Held Information順、Eventを維持 |
 | Settlement詳細Tab | Implementation detail | `PLAYER_OBSERVATION.md`, `STATISTICS.md` | Active Center clickをNPC clickより優先し、形成・人口・Core / Crowdingと当該Settlement PairのFrictionをread-only表示。World社会表から消滅済みSettlementとFrictionを非表示化 |
 | v0.2.3人口300性能比較 | Verification record | `Simulation.Core`, `v0-default.json` | seed 8147291、初期人口300、120日、Worldログ有効、24 logical CPUの同一PCでv0.2.2 default 27.985秒、v0.2.3直列27.379秒、v0.2.3自動並列15.057秒。Event/stateは直列・並列一致test済み。一時harnessはGit管理外 |

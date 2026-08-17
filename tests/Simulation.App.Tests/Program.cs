@@ -15,6 +15,9 @@ internal static class Program
     {
         ("Observation App configuration schema is strict", ObservationAppConfigurationIsStrict),
         ("world sessions are numbered and logged", WorldSessionsAreNumberedAndLogged),
+        ("unfinished Worlds are preserved without completed archives", UnfinishedWorldsArePreserved),
+        ("target-year batch run counts completed Worlds", TargetYearBatchRunCountsWorlds),
+        ("target-year batch archives each numbered World", TargetYearBatchArchivesNumberedWorlds),
         ("world logging does not change Simulation events", LoggingDoesNotChangeSimulationEvents),
         ("statistics chart renders changing series", StatisticsChartRendersChangingSeries),
         ("ConceptMark renders as a concept-colored flag", ConceptMarkRendersAsColoredFlag),
@@ -49,18 +52,20 @@ internal static class Program
     private static void ObservationAppConfigurationIsStrict()
     {
         var config = ObservationAppConfigLoader.Load(AppConfigPath());
-        Equal(4, config.SchemaVersion);
+        Equal(5, config.SchemaVersion);
         Equal(1, config.SeedIncrement);
         Equal(500, config.NpcActionHistoryDisplayLimit);
         Equal(0.5, config.AgeDistributionBinYears);
         Equal(10, config.LogFlushIntervalDays);
+        Equal(2, config.AutomaticAdvanceWorkSliceDays);
+        Equal(15, config.AutomaticAdvanceCooldownMilliseconds);
         True(config.ArchiveCompletedWorldLogs);
         True(config.DeleteOtherReleaseVersionLogs);
         var invalidPath = Path.Combine(Path.GetTempPath(), $"world-sim-app-invalid-{Guid.NewGuid():N}.json");
         try
         {
             var json = File.ReadAllText(AppConfigPath())
-                .Replace("\"schemaVersion\": 4", "\"schemaVersion\": 4, \"unknown\": true", StringComparison.Ordinal);
+                .Replace("\"schemaVersion\": 5", "\"schemaVersion\": 5, \"unknown\": true", StringComparison.Ordinal);
             File.WriteAllText(invalidPath, json);
             Throws<ConfigurationException>(() => ObservationAppConfigLoader.Load(invalidPath));
         }
@@ -94,6 +99,8 @@ internal static class Program
                 Equal(9000L, first.Info.Seed);
                 tick = first.AdvanceOneDay();
                 firstInfo = first.Info;
+                first.Complete(WorldCompletionReason.Manual);
+                True(first.IsCompleted);
             }
 
             True(!Directory.Exists(firstInfo.DirectoryPath));
@@ -136,10 +143,109 @@ internal static class Program
             }
             True(ArchiveContains(archivePath, "simulation-config.json"));
             True(ArchiveContains(archivePath, "observation-app-config.json"));
+            using (var completion = JsonDocument.Parse(ReadArchiveText(archivePath, "completion.json")))
+            {
+                Equal(1, completion.RootElement.GetProperty("schemaVersion").GetInt32());
+                Equal(1, completion.RootElement.GetProperty("finalTick").GetInt32());
+                Equal(nameof(WorldCompletionReason.Manual),
+                    completion.RootElement.GetProperty("reason").GetString());
+            }
 
             using var second = store.CreateNextWorld(simulationConfig, SimulationConfigPath(), 9000);
             Equal(2, second.Info.WorldNumber);
             Equal(9001L, second.Info.Seed);
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    private static void UnfinishedWorldsArePreserved()
+    {
+        var root = TemporaryDirectory();
+        try
+        {
+            var appConfig = ObservationAppConfigLoader.Load(AppConfigPath());
+            var simulationConfig = SimulationConfigLoader.Load(SimulationConfigPath());
+            WorldSessionInfo unfinishedInfo;
+            var firstStore = new WorldSessionStore(root, appConfig, AppConfigPath());
+            using (var unfinished = firstStore.CreateNextWorld(simulationConfig, SimulationConfigPath(), 9100))
+            {
+                unfinished.AdvanceOneDay();
+                unfinishedInfo = unfinished.Info;
+            }
+
+            True(Directory.Exists(unfinishedInfo.DirectoryPath));
+            True(!File.Exists(unfinishedInfo.DirectoryPath + ".zip"));
+            True(!File.Exists(Path.Combine(unfinishedInfo.DirectoryPath, "completion.json")));
+
+            var restartedStore = new WorldSessionStore(root, appConfig, AppConfigPath());
+            Equal(0, restartedStore.MaintenanceReport.ArchivedWorlds.Count);
+            True(Directory.Exists(unfinishedInfo.DirectoryPath));
+            using var next = restartedStore.CreateNextWorld(simulationConfig, SimulationConfigPath(), 9100);
+            Equal(2, next.Info.WorldNumber);
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    private static void TargetYearBatchRunCountsWorlds()
+    {
+        var batch = new WorldBatchRun();
+        batch.Start(5, 3, 365);
+        Equal(1825, batch.TargetTick);
+        Equal(3, batch.RemainingWorlds);
+        True(!batch.HasReachedTarget(1824));
+        True(batch.HasReachedTarget(1825));
+        True(batch.RecordWorldCompleted());
+        Equal(1, batch.CompletedWorlds);
+        Equal(2, batch.RemainingWorlds);
+        True(batch.RecordWorldCompleted());
+        True(!batch.RecordWorldCompleted());
+        True(!batch.IsActive);
+        Equal(0, batch.RemainingWorlds);
+    }
+
+    private static void TargetYearBatchArchivesNumberedWorlds()
+    {
+        var root = TemporaryDirectory();
+        try
+        {
+            var appConfig = ObservationAppConfigLoader.Load(AppConfigPath());
+            var simulationConfig = SimulationConfigLoader.Load(SimulationConfigPath());
+            var store = new WorldSessionStore(root, appConfig, AppConfigPath());
+            var batch = new WorldBatchRun();
+            batch.Start(1, 2, 1);
+            var world = store.CreateNextWorld(simulationConfig, SimulationConfigPath(), 9200);
+            while (batch.IsActive)
+            {
+                while (!batch.HasReachedTarget(world.CurrentTick))
+                {
+                    world.AdvanceOneDay();
+                }
+
+                world.Complete(WorldCompletionReason.TargetYearReached);
+                var continueBatch = batch.RecordWorldCompleted();
+                world.Dispose();
+                if (continueBatch)
+                {
+                    world = store.CreateNextWorld(simulationConfig, SimulationConfigPath(), 9200);
+                }
+            }
+
+            Equal(2, Directory.EnumerateFiles(store.LogRoot, "world-*.zip").Count());
+            Equal(0, Directory.EnumerateDirectories(store.LogRoot, "world-*").Count());
+            using var firstCompletion = JsonDocument.Parse(
+                ReadArchiveText(Path.Combine(store.LogRoot, "world-0001.zip"), "completion.json"));
+            using var secondCompletion = JsonDocument.Parse(
+                ReadArchiveText(Path.Combine(store.LogRoot, "world-0002.zip"), "completion.json"));
+            Equal(1, firstCompletion.RootElement.GetProperty("finalTick").GetInt32());
+            Equal(1, secondCompletion.RootElement.GetProperty("finalTick").GetInt32());
+            Equal(nameof(WorldCompletionReason.TargetYearReached),
+                secondCompletion.RootElement.GetProperty("reason").GetString());
         }
         finally
         {

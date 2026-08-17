@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "id": "v0.2.3-default-1",
+  "id": "v0.2.3-default-2",
   "world": {
     "width": 64,
     "height": 64,
@@ -51,7 +51,7 @@
     "heldInformationCapacityPerSubjectProperty": 3
   },
   "performance": {
-    "maximumDegreeOfParallelism": 0,
+    "maximumDegreeOfParallelism": 8,
     "minimumPopulationForParallelism": 128
   },
   "utility": {

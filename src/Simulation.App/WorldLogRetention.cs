@@ -12,6 +12,8 @@ public sealed record WorldLogMaintenanceReport(
 
 internal sealed partial class WorldLogRetention
 {
+    internal const string CompletionFileName = "completion.json";
+
     private readonly string _baseLogRoot;
     private readonly string _releaseLogRoot;
     private readonly ObservationAppConfig _config;
@@ -36,7 +38,7 @@ internal sealed partial class WorldLogRetention
         var archivedWorlds = new List<string>();
         if (_config.ArchiveCompletedWorldLogs)
         {
-            foreach (var directory in EnumerateWorldDirectories())
+            foreach (var directory in EnumerateWorldDirectories().Where(IsCompletedWorldDirectory))
             {
                 ArchiveWorld(directory);
                 archivedWorlds.Add(Path.GetFileName(directory));
@@ -74,6 +76,12 @@ internal sealed partial class WorldLogRetention
             return;
         }
 
+        if (!IsCompletedWorldDirectory(directoryPath))
+        {
+            throw new InvalidOperationException(
+                $"World cannot be archived before {CompletionFileName} is committed: {directoryPath}");
+        }
+
         ArchiveWorld(directoryPath);
     }
 
@@ -108,6 +116,9 @@ internal sealed partial class WorldLogRetention
             .Where(path => ParseWorldNumber(Path.GetFileName(path)) > 0)
             .OrderBy(path => path, StringComparer.Ordinal)
             .ToArray();
+
+    private static bool IsCompletedWorldDirectory(string directoryPath) =>
+        File.Exists(Path.Combine(directoryPath, CompletionFileName));
 
     private int ParseWorldNumber(string name)
     {

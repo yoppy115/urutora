@@ -19,9 +19,16 @@ public sealed class MainForm : Form
     private readonly Label _populationLabel = new() { AutoSize = true };
     private readonly Label _seedLabel = new() { AutoSize = true };
     private readonly Button _newWorldButton = new() { Text = "世界生成", AutoSize = true };
+    private readonly Button _completeWorldButton = new() { Text = "世界完了", AutoSize = true };
     private readonly Button _runButton = new() { Text = "再生", AutoSize = true };
     private readonly Button _stepButton = new() { Text = "1日進める", AutoSize = true };
     private readonly ComboBox _speed = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 110 };
+    private readonly NumericUpDown _targetYears = new()
+        { Minimum = 1, Maximum = 1000, Value = 5, Width = 58, TextAlign = HorizontalAlignment.Right };
+    private readonly NumericUpDown _targetRunCount = new()
+        { Minimum = 1, Maximum = 1000, Value = 1, Width = 58, TextAlign = HorizontalAlignment.Right };
+    private readonly Button _targetRunButton = new() { Text = "指定実行", AutoSize = true };
+    private readonly Label _batchStatusLabel = new() { AutoSize = true };
     private readonly SplitContainer _mainSplit = new()
     {
         Dock = DockStyle.Fill,
@@ -47,9 +54,13 @@ public sealed class MainForm : Form
     private WorldSession _world;
     private long? _selectedNpcId;
     private int? _selectedSettlementId;
+    private readonly WorldBatchRun _batchRun = new();
     private volatile bool _running;
     private volatile bool _advancing;
     private bool _worldCreationRequested;
+    private bool _worldCompletionRequested;
+    private bool _closeRequested;
+    private bool _allowClose;
 
     internal Exception? SmokeFailure;
 
@@ -94,16 +105,18 @@ public sealed class MainForm : Form
         Controls.Add(_mainSplit);
         Controls.Add(toolbar);
 
-        _newWorldButton.Click += (_, _) => RequestWorldCreation();
+        _newWorldButton.Click += async (_, _) => await RequestWorldCreationAsync();
+        _completeWorldButton.Click += async (_, _) => await RequestWorldCompletionAsync();
         _runButton.Click += (_, _) => ToggleRunning();
         _stepButton.Click += async (_, _) => await AdvanceOneDayAsync();
+        _targetRunButton.Click += async (_, _) => await ToggleTargetRunAsync();
         _map.NpcSelected += (_, eventArgs) => SelectNpc(eventArgs.NpcId);
         _map.SettlementSelected += (_, eventArgs) => SelectSettlement(eventArgs.SettlementId);
         KeyDown += (_, eventArgs) =>
         {
             if (eventArgs.Control && eventArgs.KeyCode == Keys.N)
             {
-                RequestWorldCreation();
+                _ = RequestWorldCreationAsync();
                 eventArgs.SuppressKeyPress = true;
             }
         };
@@ -119,19 +132,7 @@ public sealed class MainForm : Form
         _timer = new System.Windows.Forms.Timer { Interval = 100 };
         _timer.Tick += async (_, _) => await AdvanceForRenderFrameAsync();
         _timer.Start();
-        FormClosing += (_, _) =>
-        {
-            _running = false;
-            _worldCreationRequested = false;
-            _timer.Stop();
-        };
-        FormClosed += (_, _) =>
-        {
-            if (!_advancing)
-            {
-                _world.Dispose();
-            }
-        };
+        FormClosing += HandleFormClosing;
         RefreshProjection();
         UpdateCommandState();
     }
@@ -140,6 +141,7 @@ public sealed class MainForm : Form
     {
         if (_tabs.TabPages.Count != 4 || _diagnosticStatistics.Columns.Count != 3 ||
             _settlementFrictionStatistics.Columns.Count != 6 || !_newWorldButton.Enabled ||
+            !_completeWorldButton.Enabled || !_targetRunButton.Enabled ||
             _speed.Items.Cast<SpeedOption>().Select(item => item.TicksPerFrame)
                 .SequenceEqual(new[] { 1, 2, 3, 5, 10, 50 }) is false)
         {
@@ -168,6 +170,11 @@ public sealed class MainForm : Form
         }
 
         _newWorldButton.PerformClick();
+        while (_advancing)
+        {
+            await Task.Delay(10);
+        }
+
         if (_world.Info.WorldNumber != firstWorldNumber + 1)
         {
             throw new InvalidOperationException("The World generation command did not create the next numbered World.");
@@ -202,21 +209,29 @@ public sealed class MainForm : Form
         var panel = new FlowLayoutPanel
         {
             Dock = DockStyle.Top,
-            Height = 58,
+            Height = 88,
             Padding = new Padding(10, 11, 10, 7),
             FlowDirection = FlowDirection.LeftToRight,
-            WrapContents = false,
+            WrapContents = true,
             BackColor = Color.White
         };
         panel.Controls.Add(_newWorldButton);
+        panel.Controls.Add(_completeWorldButton);
         panel.Controls.Add(_runButton);
         panel.Controls.Add(_stepButton);
         panel.Controls.Add(new Label { Text = "速度", AutoSize = true, Margin = new Padding(16, 7, 4, 0) });
         panel.Controls.Add(_speed);
+        panel.Controls.Add(new Label { Text = "到達年数", AutoSize = true, Margin = new Padding(16, 7, 4, 0) });
+        panel.Controls.Add(_targetYears);
+        panel.Controls.Add(new Label { Text = "回数", AutoSize = true, Margin = new Padding(8, 7, 4, 0) });
+        panel.Controls.Add(_targetRunCount);
+        panel.Controls.Add(_targetRunButton);
+        panel.SetFlowBreak(_targetRunButton, true);
         panel.Controls.Add(_worldLabel);
         panel.Controls.Add(_timeLabel);
         panel.Controls.Add(_populationLabel);
         panel.Controls.Add(_seedLabel);
+        panel.Controls.Add(_batchStatusLabel);
         return panel;
     }
 
@@ -379,7 +394,7 @@ public sealed class MainForm : Form
         return panel;
     }
 
-    private void RequestWorldCreation()
+    private async Task RequestWorldCreationAsync()
     {
         if (_worldCreationRequested)
         {
@@ -387,32 +402,44 @@ public sealed class MainForm : Form
         }
 
         _worldCreationRequested = true;
+        _worldCompletionRequested = false;
+        _batchRun.Cancel();
         _running = false;
         UpdateCommandState();
         if (!_advancing)
         {
-            CompleteWorldCreationRequest();
+            await CompleteWorldCreationRequestAsync();
         }
     }
 
-    private void CompleteWorldCreationRequest()
+    private async Task CompleteWorldCreationRequestAsync()
     {
-        if (!_worldCreationRequested || IsDisposed || Disposing)
+        if (!_worldCreationRequested || IsDisposed || Disposing || _closeRequested)
         {
             return;
         }
 
         _worldCreationRequested = false;
+        _advancing = true;
+        UpdateCommandState();
         try
         {
-            var next = _worldStore.CreateNextWorld(_simulationConfig, _simulationConfigPath, _baseSeed);
             var previous = _world;
+            if (!previous.IsCompleted)
+            {
+                await Task.Run(() => previous.Complete(WorldCompletionReason.Superseded));
+            }
+
+            if (_closeRequested)
+            {
+                return;
+            }
+
+            var next = await Task.Run(
+                () => _worldStore.CreateNextWorld(_simulationConfig, _simulationConfigPath, _baseSeed));
             _world = next;
             previous.Dispose();
-            _selectedNpcId = null;
-            _selectedSettlementId = null;
-            _map.SelectedNpcId = null;
-            _map.SelectedSettlementId = null;
+            ClearSelection();
             RefreshProjection();
         }
         catch (Exception exception)
@@ -421,19 +448,106 @@ public sealed class MainForm : Form
         }
         finally
         {
+            _advancing = false;
             UpdateCommandState();
+        }
+    }
+
+    private async Task RequestWorldCompletionAsync()
+    {
+        if (_world.IsCompleted || _worldCompletionRequested)
+        {
+            return;
+        }
+
+        _worldCompletionRequested = true;
+        _worldCreationRequested = false;
+        _batchRun.Cancel();
+        _running = false;
+        UpdateCommandState();
+        if (!_advancing)
+        {
+            await CompleteWorldRequestAsync(WorldCompletionReason.Manual);
+        }
+    }
+
+    private async Task CompleteWorldRequestAsync(WorldCompletionReason reason)
+    {
+        if (!_worldCompletionRequested || _world.IsCompleted || IsDisposed || Disposing || _closeRequested)
+        {
+            return;
+        }
+
+        _worldCompletionRequested = false;
+        _advancing = true;
+        UpdateCommandState();
+        try
+        {
+            await Task.Run(() => _world.Complete(reason));
+            RefreshProjection();
+        }
+        catch (Exception exception)
+        {
+            ShowOperationError("世界の完了処理またはログ圧縮に失敗しました。", exception);
+        }
+        finally
+        {
+            _advancing = false;
+            UpdateCommandState();
+        }
+    }
+
+    private async Task ToggleTargetRunAsync()
+    {
+        if (_batchRun.IsActive)
+        {
+            _batchRun.Cancel();
+            _running = false;
+            UpdateCommandState();
+            return;
+        }
+
+        if (_advancing || _worldCreationRequested || _worldCompletionRequested)
+        {
+            return;
+        }
+
+        if (_world.IsCompleted)
+        {
+            _worldCreationRequested = true;
+            await CompleteWorldCreationRequestAsync();
+            if (_world.IsCompleted)
+            {
+                return;
+            }
+        }
+
+        _batchRun.Start(
+            decimal.ToInt32(_targetYears.Value),
+            decimal.ToInt32(_targetRunCount.Value),
+            _simulationConfig.World.DaysPerYear);
+        _running = true;
+        UpdateCommandState();
+        if (_batchRun.HasReachedTarget(_world.CurrentTick))
+        {
+            await CompleteBatchWorldAsync();
         }
     }
 
     private void ToggleRunning()
     {
+        if (_world.IsCompleted)
+        {
+            return;
+        }
+
         _running = !_running;
         UpdateCommandState();
     }
 
     private async Task AdvanceOneDayAsync()
     {
-        if (_running || _advancing)
+        if (_running || _advancing || _world.IsCompleted)
         {
             return;
         }
@@ -444,6 +558,10 @@ public sealed class MainForm : Form
         {
             await Task.Run(_world.AdvanceOneDay);
             RefreshProjection();
+            if (_batchRun.HasReachedTarget(_world.CurrentTick))
+            {
+                await CompleteBatchWorldAsync();
+            }
         }
         catch (Exception exception)
         {
@@ -452,20 +570,13 @@ public sealed class MainForm : Form
         finally
         {
             _advancing = false;
-            if (_worldCreationRequested)
-            {
-                CompleteWorldCreationRequest();
-            }
-            else
-            {
-                UpdateCommandState();
-            }
+            await ProcessPendingWorldRequestAsync();
         }
     }
 
     private async Task AdvanceForRenderFrameAsync()
     {
-        if (!_running || _advancing)
+        if (!_running || _advancing || _world.IsCompleted)
         {
             return;
         }
@@ -475,16 +586,47 @@ public sealed class MainForm : Form
         var option = (SpeedOption)_speed.SelectedItem!;
         try
         {
-            await Task.Run(() =>
+            var remainingDays = option.TicksPerFrame;
+            while (remainingDays > 0 && _running && !_worldCreationRequested && !_worldCompletionRequested)
             {
-                for (var index = 0; index < option.TicksPerFrame && _running; index++)
+                if (_batchRun.HasReachedTarget(_world.CurrentTick))
                 {
-                    _world.AdvanceOneDay();
+                    break;
                 }
-            });
+
+                var daysThisSlice = Math.Min(remainingDays, _appConfig.AutomaticAdvanceWorkSliceDays);
+                if (_batchRun.IsActive)
+                {
+                    daysThisSlice = Math.Min(daysThisSlice, _batchRun.TargetTick - _world.CurrentTick);
+                }
+
+                if (daysThisSlice <= 0)
+                {
+                    break;
+                }
+
+                await Task.Run(() =>
+                {
+                    for (var index = 0; index < daysThisSlice && _running; index++)
+                    {
+                        _world.AdvanceOneDay();
+                    }
+                });
+                remainingDays -= daysThisSlice;
+                if (remainingDays > 0 && _running && _appConfig.AutomaticAdvanceCooldownMilliseconds > 0)
+                {
+                    await Task.Delay(_appConfig.AutomaticAdvanceCooldownMilliseconds);
+                }
+            }
+
             if (!IsDisposed)
             {
                 RefreshProjection();
+            }
+
+            if (_batchRun.HasReachedTarget(_world.CurrentTick))
+            {
+                await CompleteBatchWorldAsync();
             }
         }
         catch (Exception exception)
@@ -495,14 +637,82 @@ public sealed class MainForm : Form
         finally
         {
             _advancing = false;
-            if (_worldCreationRequested)
+            await ProcessPendingWorldRequestAsync();
+        }
+    }
+
+    private async Task CompleteBatchWorldAsync()
+    {
+        if (!_batchRun.HasReachedTarget(_world.CurrentTick) || _closeRequested)
+        {
+            return;
+        }
+
+        var ownsAdvanceState = !_advancing;
+        if (ownsAdvanceState)
+        {
+            _advancing = true;
+            UpdateCommandState();
+        }
+
+        try
+        {
+            var completed = _world;
+            await Task.Run(() => completed.Complete(WorldCompletionReason.TargetYearReached));
+            var continueBatch = _batchRun.RecordWorldCompleted();
+            if (!continueBatch || _closeRequested)
             {
-                CompleteWorldCreationRequest();
+                _batchRun.Cancel();
+                _running = false;
+                if (!_closeRequested)
+                {
+                    RefreshProjection();
+                }
+                return;
             }
-            else
+
+            var next = await Task.Run(
+                () => _worldStore.CreateNextWorld(_simulationConfig, _simulationConfigPath, _baseSeed));
+            _world = next;
+            completed.Dispose();
+            ClearSelection();
+            _running = true;
+            RefreshProjection();
+        }
+        catch (Exception exception)
+        {
+            _batchRun.Cancel();
+            _running = false;
+            ShowOperationError("指定実行の完了処理または次の世界生成に失敗しました。", exception);
+        }
+        finally
+        {
+            if (ownsAdvanceState)
             {
+                _advancing = false;
                 UpdateCommandState();
             }
+        }
+    }
+
+    private async Task ProcessPendingWorldRequestAsync()
+    {
+        if (_closeRequested || IsDisposed || Disposing)
+        {
+            return;
+        }
+
+        if (_worldCreationRequested)
+        {
+            await CompleteWorldCreationRequestAsync();
+        }
+        else if (_worldCompletionRequested)
+        {
+            await CompleteWorldRequestAsync(WorldCompletionReason.Manual);
+        }
+        else
+        {
+            UpdateCommandState();
         }
     }
 
@@ -514,11 +724,15 @@ public sealed class MainForm : Form
         var worldNumber = _world.Info.WorldNumber.ToString(
             $"D{_appConfig.WorldNumberPadding}", CultureInfo.InvariantCulture);
         _map.Snapshot = snapshot;
-        _worldLabel.Text = $"  {_world.Info.ReleaseVersion} 世界 #{worldNumber}";
+        _worldLabel.Text =
+            $"  {_world.Info.ReleaseVersion} 世界 #{worldNumber}{(_world.IsCompleted ? "（完了）" : string.Empty)}";
         _timeLabel.Text = $"  第{snapshot.Year}年 {snapshot.Day}日";
         _populationLabel.Text =
             $"  {snapshot.Phase} / 人口 {snapshot.Npcs.Count} / Settlement {snapshot.Settlements.Count(item => item.IsActive)}";
         _seedLabel.Text = $"  Seed {_world.Info.Seed}";
+        _batchStatusLabel.Text = _batchRun.IsActive
+            ? $"  指定実行 {_batchRun.CompletedWorlds + 1}/{_batchRun.TotalWorlds}（{_batchRun.TargetTick / _simulationConfig.World.DaysPerYear}年）"
+            : string.Empty;
         Text = $"{ReleaseIdentity.DisplayName} — 世界 #{worldNumber}";
 
         _events.BeginUpdate();
@@ -551,6 +765,14 @@ public sealed class MainForm : Form
         _map.SelectedNpcId = null;
         _tabs.SelectedIndex = 3;
         RefreshSettlementDetails(_world.Engine.GetWorldStatistics());
+    }
+
+    private void ClearSelection()
+    {
+        _selectedNpcId = null;
+        _selectedSettlementId = null;
+        _map.SelectedNpcId = null;
+        _map.SelectedSettlementId = null;
     }
 
     private void RefreshNpcDetails()
@@ -844,9 +1066,20 @@ public sealed class MainForm : Form
     private void UpdateCommandState()
     {
         _runButton.Text = _running ? "一時停止" : "再生";
-        _stepButton.Enabled = !_running && !_advancing;
-        _newWorldButton.Enabled = !_worldCreationRequested;
+        _runButton.Enabled = !_world.IsCompleted && !_worldCreationRequested && !_worldCompletionRequested;
+        _stepButton.Enabled = !_running && !_advancing && !_world.IsCompleted;
+        _newWorldButton.Enabled = !_advancing && !_worldCreationRequested && !_worldCompletionRequested;
+        _completeWorldButton.Enabled = !_advancing && !_world.IsCompleted &&
+                                       !_worldCreationRequested && !_worldCompletionRequested;
         _speed.Enabled = !_advancing;
+        _targetYears.Enabled = !_batchRun.IsActive && !_advancing;
+        _targetRunCount.Enabled = !_batchRun.IsActive && !_advancing;
+        _targetRunButton.Text = _batchRun.IsActive ? "指定実行停止" : "指定実行";
+        _targetRunButton.Enabled = _batchRun.IsActive ||
+                                   (!_advancing && !_worldCreationRequested && !_worldCompletionRequested);
+        _batchStatusLabel.Text = _batchRun.IsActive
+            ? $"  指定実行 {_batchRun.CompletedWorlds + 1}/{_batchRun.TotalWorlds}（{_batchRun.TargetTick / _simulationConfig.World.DaysPerYear}年）"
+            : string.Empty;
     }
 
     private void AddNpcRow(string name, string value) => _npcProperties.Rows.Add(name, value);
@@ -867,6 +1100,37 @@ public sealed class MainForm : Form
     {
         MessageBox.Show(this, $"{message}{Environment.NewLine}{exception.Message}",
             ReleaseIdentity.DisplayName, MessageBoxButtons.OK, MessageBoxIcon.Error);
+    }
+
+    private async void HandleFormClosing(object? sender, FormClosingEventArgs eventArgs)
+    {
+        if (_allowClose)
+        {
+            return;
+        }
+
+        eventArgs.Cancel = true;
+        if (_closeRequested)
+        {
+            return;
+        }
+
+        _closeRequested = true;
+        _running = false;
+        _batchRun.Cancel();
+        _worldCreationRequested = false;
+        _worldCompletionRequested = false;
+        _timer.Stop();
+        UpdateCommandState();
+
+        while (_advancing)
+        {
+            await Task.Delay(25);
+        }
+
+        await Task.Run(_world.Dispose);
+        _allowClose = true;
+        Close();
     }
 
     private static DataGridView CreateReadOnlyGrid() => new()

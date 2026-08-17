@@ -53,7 +53,7 @@ v0.15値、v0.2の社会境界、v0.2.1のHotspot補正、v0.2.2の出生所属�
 | --- | --- |
 | Settlement formation | 90-day Reproduction Success window、5×5、threshold 3、15-day evaluation。既存Influence内Successを除外し、新Coreと既存Influenceを非重複化。Config spacing 7、default実効Center distance > 9 |
 | Region | Core radius 2（5×5）、Influence radius 7、Rest Collision radius 5 |
-| Performance | CPU並列度0（論理CPU数を自動利用）、人口128以上でObserver / NPC単位の分離可能phaseを並列化。1で直列 |
+| Performance | CPU並列度8、人口128以上でObserver / NPC単位の分離可能phaseを並列化。1で直列、0は明示指定時だけ論理CPU数を自動利用 |
 | Affinity | Founder +10、initial resident +7、membership 10、switch margin +5、Stay +0.05/day、Rest +1、Communication +0.5、Reproduction Success +2 |
 | Settlement birth | 両親が同じActive Settlement所属なら場所非依存で通常の親近傍へ出生しMembership 10から開始。片親所属は両親が所属先Influence内にいる場合だけ同Influence出生・所属。異所属は一意なActive Core内だけ同Core出生・所属 |
 | Generation → Order | 90-day window、PopulationCV 0.10、DemographicImbalance 0.20、30 consecutive days |
@@ -67,13 +67,13 @@ Advance / Cohesionの具体WeightはConfig / implementation detailだがAdvance�
 
 ## Implemented configuration and run metadata
 
-`configs/v0-default.json` はschema version 2、ID `v0.2.3-default-1`。観測App Configはschema version 4で、Worldログのflush間隔をdefault 10日として設定できる。観測Appは各Worldへ完全Config snapshotと次の再現情報を保存する。
+`configs/v0-default.json` はschema version 2、ID `v0.2.3-default-2`。観測App Configはschema version 5で、Worldログのflush間隔、automatic advanceのwork sliceとcooldownを設定できる。defaultは2日ごとに15ms休止し、CPU並列度8と組み合わせて旧BIOS環境での持続的な全論理CPU負荷を避ける。観測Appは各Worldへ完全Config snapshotと次の再現情報を保存する。
 
 ```json
 {
   "schemaVersion": 5,
   "seed": 8147291,
-  "configId": "v0.2.3-default-1",
+  "configId": "v0.2.3-default-2",
   "releaseVersion": "v0.2.3",
   "repositoryCommit": "git-commit-hash",
   "repositoryTreeState": "clean",
@@ -81,4 +81,4 @@ Advance / Cohesionの具体WeightはConfig / implementation detailだがAdvance�
 }
 ```
 
-`events.jsonl`、`daily-stats.csv`、`diagnostics.jsonl`はWorld別に保存し、完了後ZIPへ圧縮する。Simulation snapshotの保存・再開とschema migrationは引き続きDraftである。
+`events.jsonl`、`daily-stats.csv`、`diagnostics.jsonl`はWorld別に保存する。明示完了時に`completion.json`を最後に確定し、同markerがあるWorldだけをZIPへ圧縮する。強制終了や通常終了で未完了のdirectoryを完了済みと誤認しない。Simulation snapshotの保存・再開とschema migrationは引き続きDraftである。

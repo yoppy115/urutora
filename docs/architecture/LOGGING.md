@@ -84,7 +84,7 @@ v0.15 Runでは少なくとも次を集計可能にする。
 - Invasionは利用可能Core Cell分母、攻撃側占有Cell、Rest / Death離脱、Flee中Participantを追跡する。
 - BirthRequestとBirth Eventは、条件付き出生所属に使ったSettlement ID、配置範囲（親近傍 / Core / Influence）、実際に子へ付与されたSettlement IDを追跡できる。
 
-観測AppのWorld Event、日次CSV、日次diagnosticsは論理的には毎日記録する。物理streamのflushはSimulation Eventではなく、v0.2.2 defaultではApp Configの10日間隔と終了時に行う。flush間隔を変えてもEvent列、日次行、乱数、Statistics値を変えない。
+観測AppのWorld Event、日次CSV、日次diagnosticsは論理的には毎日記録する。物理streamのflushはSimulation Eventではなく、v0.2.2 defaultではApp Configの10日間隔と終了時に行う。flush間隔を変えてもEvent列、日次行、乱数、Statistics値を変えない。App側の明示完了時は全streamを閉じた後に`completion.json`を原子的に確定し、このmarkerがあるWorldだけを完了済みarchive対象にする。未完了Worldの保存や圧縮判定はSimulation結果を変更しない。
 
 必須集計項目は [`STATISTICS.md`](STATISTICS.md) を正本とする。
 

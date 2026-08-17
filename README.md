@@ -73,7 +73,7 @@ dotnet run --project src\Simulation.Runner\Simulation.Runner.csproj -c Release -
 dotnet run --project src\Simulation.Runner\Simulation.Runner.csproj -c Release --no-build -- verify --replay work\replays\v0.2.3-seed-8147291.json
 ```
 
-Appは世界生成、1/2/3/5/10/50倍の速度制御、Settlement / Core / Influence / Invasion Map、ConceptMark旗、NPC詳細・キル数、移動以外の行動履歴、Settlement詳細・Friction、人口・所属率・平均年齢graph、社会・戦闘・繁殖・死因・年齢分布診断を提供する。
+Appは世界生成、明示的な世界完了、指定年数×World回数の自動実行、1/2/3/5/10/50倍の速度制御、Settlement / Core / Influence / Invasion Map、ConceptMark旗、NPC詳細・キル数、移動以外の行動履歴、Settlement詳細・Friction、人口・所属率・平均年齢graph、社会・戦闘・繁殖・死因・年齢分布診断を提供する。
 
 ## Next validation
 

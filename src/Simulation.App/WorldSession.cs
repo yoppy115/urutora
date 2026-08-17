@@ -26,6 +26,13 @@ public sealed record WorldMetricPoint(
     double AffiliationRate,
     IReadOnlyList<ActionSelectionCount> ActionSelections);
 
+public enum WorldCompletionReason
+{
+    Manual,
+    TargetYearReached,
+    Superseded
+}
+
 public sealed class WorldSessionStore
 {
     private static readonly JsonSerializerOptions MetadataJsonOptions = new()
@@ -102,11 +109,14 @@ public sealed class WorldSessionStore
 
 public sealed class WorldSession : IDisposable
 {
+    private readonly object _lifecycleGate = new();
     private readonly WorldLogWriter _logger;
     private readonly int _chartMaximumPoints;
     private readonly Action _onCompleted;
     private readonly List<WorldMetricPoint> _metrics = new();
     private bool _disposed;
+    private bool _completionCommitted;
+    private bool _archiveCompleted;
 
     internal WorldSession(
         WorldSessionInfo info,
@@ -127,27 +137,55 @@ public sealed class WorldSession : IDisposable
     public WorldSessionInfo Info { get; }
     public SimulationEngine Engine { get; }
     public IReadOnlyList<WorldMetricPoint> Metrics => _metrics.ToArray();
+    public int CurrentTick { get; private set; }
+    public bool IsCompleted => _completionCommitted;
 
     public TickResult AdvanceOneDay()
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-        var result = Engine.AdvanceOneDay();
-        var statistics = Engine.GetWorldStatistics();
-        AddMetric(statistics);
-        _logger.Append(result, statistics);
-        return result;
+        lock (_lifecycleGate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            var result = Engine.AdvanceOneDay();
+            var statistics = Engine.GetWorldStatistics();
+            AddMetric(statistics);
+            _logger.Append(result, statistics);
+            CurrentTick = checked(result.CompletedTick + 1);
+            return result;
+        }
+    }
+
+    public void Complete(WorldCompletionReason reason)
+    {
+        lock (_lifecycleGate)
+        {
+            if (!_completionCommitted)
+            {
+                ObjectDisposedException.ThrowIf(_disposed, this);
+                _logger.Complete(CurrentTick, reason);
+                _completionCommitted = true;
+                _disposed = true;
+            }
+
+            if (!_archiveCompleted)
+            {
+                _onCompleted();
+                _archiveCompleted = true;
+            }
+        }
     }
 
     public void Dispose()
     {
-        if (_disposed)
+        lock (_lifecycleGate)
         {
-            return;
-        }
+            if (_disposed)
+            {
+                return;
+            }
 
-        _disposed = true;
-        _logger.Dispose();
-        _onCompleted();
+            _disposed = true;
+            _logger.Dispose();
+        }
     }
 
     private void AddMetric(WorldStatisticsProjection statistics)
@@ -181,8 +219,10 @@ internal sealed class WorldLogWriter : IDisposable
     private readonly StreamWriter _statisticsWriter;
     private readonly StreamWriter _diagnosticsWriter;
     private readonly int _flushIntervalDays;
+    private readonly JsonSerializerOptions _metadataJsonOptions;
     private int _daysSinceFlush;
     private bool _disposed;
+    private bool _completionWritten;
 
     public WorldLogWriter(
         WorldSessionInfo info,
@@ -195,6 +235,7 @@ internal sealed class WorldLogWriter : IDisposable
         _info = info;
         _daysPerYear = simulationConfig.World.DaysPerYear;
         _flushIntervalDays = appConfig.LogFlushIntervalDays;
+        _metadataJsonOptions = metadataJsonOptions;
         var simulationConfigSnapshotPath = Path.Combine(info.DirectoryPath, "simulation-config.json");
         var appConfigSnapshotPath = Path.Combine(info.DirectoryPath, "observation-app-config.json");
         CopyOrSerialize(
@@ -279,6 +320,36 @@ internal sealed class WorldLogWriter : IDisposable
         _eventWriter.Dispose();
         _statisticsWriter.Dispose();
         _diagnosticsWriter.Dispose();
+    }
+
+    public void Complete(int finalTick, WorldCompletionReason reason)
+    {
+        if (_completionWritten)
+        {
+            return;
+        }
+
+        if (!_disposed)
+        {
+            Dispose();
+        }
+
+        var record = new WorldCompletionRecord(
+            1,
+            _info.ReleaseVersion,
+            _info.WorldNumber,
+            _info.WorldId,
+            finalTick,
+            reason.ToString(),
+            DateTimeOffset.UtcNow);
+        var completionPath = Path.Combine(_info.DirectoryPath, WorldLogRetention.CompletionFileName);
+        var temporaryPath = completionPath + ".tmp";
+        File.WriteAllText(
+            temporaryPath,
+            JsonSerializer.Serialize(record, _metadataJsonOptions),
+            new UTF8Encoding(false));
+        File.Move(temporaryPath, completionPath, true);
+        _completionWritten = true;
     }
 
     private void WriteStatistics(WorldStatisticsProjection statistics)
@@ -389,4 +460,13 @@ internal sealed class WorldLogWriter : IDisposable
         string WorldId,
         long Seed,
         WorldStatisticsProjection Statistics);
+
+    private sealed record WorldCompletionRecord(
+        int SchemaVersion,
+        string ReleaseVersion,
+        int WorldNumber,
+        string WorldId,
+        int FinalTick,
+        string Reason,
+        DateTimeOffset CompletedAtUtc);
 }
