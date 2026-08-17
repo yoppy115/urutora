@@ -21,9 +21,9 @@ ADRは、重要で後戻りしづらい判断について「なぜそうした�
 | [`ADR-0013`](ADR-0013-targeted-actions-and-interrupts.md) | Accepted | Attack→Reproduction→Communication、上限付きInterrupt、phase非巻戻し |
 | [`ADR-0014`](ADR-0014-short-life-vitality-and-combat-scale.md) | Accepted | 約3年のcubic Vitality、Config初期値制約、HP/Damage同時再scale |
 | [`ADR-0015`](ADR-0015-bounded-held-information.md) | Accepted | Held Informationを3件へ制限し、FIFO evictionと直接消滅確認purgeを採用 |
-| [`ADR-0016`](ADR-0016-generation-settlement-and-order.md) | Accepted | Generation中にSettlementを形成し、人口安定からOrderへ移行する |
-| [`ADR-0017`](ADR-0017-settlement-conflict-and-invasion.md) | Accepted | Orderで個人Collisionを社会間FrictionとCrowding由来Invasionへ持ち上げる |
-| [`ADR-0018`](ADR-0018-concept-aura-social-transmission.md) | Accepted | ConceptMarkを同Settlementへの一時Auraとして社会へ伝播させる |
+| [`ADR-0016`](ADR-0016-generation-settlement-and-order.md) | Accepted | Generation中形成、日末Maintenance、決定論的Hotspot arbitration、人口安定Order |
+| [`ADR-0017`](ADR-0017-settlement-conflict-and-invasion.md) | Accepted | Friction、Unaffiliated保護、同一Core繁殖、Crowding由来Invasionと占領・離脱 |
+| [`ADR-0018`](ADR-0018-concept-aura-social-transmission.md) | Accepted | Concept Auraの社会伝播、同種抑制、一時MaxHP normalization |
 
 ## Future decisions
 
@@ -32,13 +32,6 @@ ADRは、重要で後戻りしづらい判断について「なぜそうした�
 - 永続化形式とschema migration。
 - Desktop UI framework。
 - domain event配送方式とstate sliceの具体API。
-- Settlement処理の日次commit順とHotspotの同時arbitration。
-- Friction量・減衰・schema。
-- Unaffiliated保護のCandidate / Resolution境界、Threat後のExplicit Attack、Affiliation認知。
-- Outside Reproduction PenaltyのCore解釈。
-- ConceptMark本人と同種Auraの合成、および一時MaxHPの境界処理。
-- Invasion勝利判定で利用不能Core Cellを占有率分母へ含めるか。
-- Rest以外のInvasion離脱条件。
 
 ## Workflow
 

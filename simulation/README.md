@@ -55,13 +55,13 @@ v0.15値は明示変更箇所以外を維持し、次をv0.2 Configへ追加す�
 | Region | Core radius 3、Influence radius 7、Rest Collision radius 5 |
 | Affinity | Founder +10、initial resident +7、membership 10、switch margin +5、Stay +0.05/day、Rest +1、Communication +0.5、Reproduction Success +2 |
 | Generation → Order | 90-day window、PopulationCV 0.10、DemographicImbalance 0.20、30 consecutive days |
-| Order benefits | Rest ×1.5、positive Vitality ×2、negative Vitality ×0.5、outside U_reproduce / U_accept -2 |
-| Relations / crowding | Initial Hostility 30%、Crowding 0.5 Occupancy + 0.5 BlockedMovement、threshold 0.70 for 30 days |
+| Order benefits | Rest ×1.5、positive Vitality ×2、negative Vitality ×0.5。同一Active Settlement Core内の2名だけReproduction Penalty免除、その他はU_reproduce / U_accept -2 |
+| Relations / crowding | Initial Hostility 30%、Friction Collision +1 / Threat +3 / 30日無Event後30日ごと-1、Crowding 0.5 Occupancy + 0.5 BlockedMovement、threshold 0.70 for 30 days |
 | Mobilization | `Clamp(0.20 + 0.30 * CrowdingPressure, 0.20, 0.50)` |
 | Dissolution | <=10% World Population for 365 consecutive days |
 | Concept | Exposure radius 4 with 1/0.5/0.25/0.125、Aura radius 2、Rest -0.10/day、stat ×1.1 |
 
-Advance / Cohesionの具体WeightはConfig / implementation detailだがAdvanceを主とする。Hotspot arbitration、Friction具体値、Aura同種合成等の未決事項をConfig defaultの名目で独自確定しない。
+Advance / Cohesionの具体WeightはConfig / implementation detailだがAdvanceを主とする。Hotspot arbitration、Friction、Aura同種抑制とtemporary MaxHP等は正史の確定境界をConfig defaultで上書きしない。
 
 ## Run metadata
 

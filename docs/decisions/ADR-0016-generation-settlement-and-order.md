@@ -13,6 +13,8 @@ v0.15の長期安定は、秩序のない個体群が大量出生、空間競合
 
 GenerationからOrderへの移行は絶対人口や固定日数でなく、rolling PopulationCVとBirth / DeathのDemographicImbalanceがConfig条件を連続して満たすことで判定する。
 
+Settlement構造変更は固定順のTick末Maintenanceでcommitし、新規Settlement、WorldPhase、Invasion開始は原則翌Tickから有効にする。同日Hotspot Candidateは一つのimmutable snapshotから生成し、Reproduction Success数を優先、同数だけnamed seedでtie-breakする。Center選択後に既存Settlement排他へ違反したCandidateは別Centerへrerollせず不成立とする。
+
 ## Reasons
 
 - 繁殖→滞在→集落形成→所属という因果を保つ。
@@ -24,4 +26,4 @@ GenerationからOrderへの移行は絶対人口や固定日数でなく、rolli
 - Settlement形成、Affinity、World Phase判定を独立した責務として実装する必要がある。
 - Order前後で同じSettlementのRule setが変化する。
 - PhaseとSettlement統計をUI / headless diagnosticsへ公開する。
-- Candidate arbitrationとtick内commit順は別途確定が必要である。
+- 日中Eventと日末構造commitを分離し、scan / collection / thread順へ依存しないarbitrationと翌Tick反映を実装する必要がある。

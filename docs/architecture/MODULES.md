@@ -64,6 +64,10 @@
 - Settlement PolicyはGeneration / Order、地域、Affiliation、Invasion関係を明示的なvalueとして各Resolverへ渡す。
 - InvasionのAdvance / Defense / Cohesion Biasは既存Move direction policyへ合成し、新Actionや別Utility pipelineを作らない。
 - Statistics ProjectionはDomain Eventとread-only queryだけを受け、Simulation用random streamを消費しない。
+- Settlement Maintenance Coordinatorは確定した12段階の日末順だけを調整し、各domain ruleを所有しない。日中Eventと翌Tick stateを分離する。
+- Hotspot arbitratorはimmutable Candidate snapshot、Reproduction Success数、named seedを使い、scan / collection / thread順へ依存しない。
+- Frictionは対称Pair state、Hostilityは方向性stateとして別型にし、CounterattackによるEvent二重計上を防ぐ。
+- Aura由来MaxHP解除はDamage portを経由せずstate normalizationとしてClampする。
 
 ## Open architecture work
 
@@ -72,4 +76,3 @@
 - domain eventの配送順と失敗処理。
 - LLMを使わない場合の文章生成fallback。
 - module間の許可依存表とarchitecture test。
-- Settlement Hotspotの同時arbitration、Frictionの具体schema、Aura合成とtemporary MaxHPのcontract。

@@ -41,7 +41,8 @@
 - Held InformationはSubject + Propertyごとに3件、FIFO evictionとし、直接消滅確認時だけSubject全体をpurgeする。
 - v0.2 Settlement / Order仕様は `docs/design/V0_2_SETTLEMENT_ORDER.md` を正本とし、Generation中の形成・AffinityとOrderから有効な社会Ruleを混同しない。
 - Order中のCollision、Friction、Invasion、Auraは所属・WorldPhase・Event状態を明示的に解決し、v0.15の主観境界やTargeted Action順を弱体化しない。
-- v0.2で明記されないFriction値、Hotspot arbitration、Aura合成等の重要挙動を独自に確定しない。
+- v0.2 Settlement構造変更は固定順のTick末Maintenanceでcommitし、新規Settlement / WorldPhase / Invasion開始は原則翌Tickから反映する。
+- Hotspot arbitration、Friction、Unaffiliated保護、同一Core繁殖、Aura / temporary MaxHP、Core占有率、Invasion離脱は `V0_2_SETTLEMENT_ORDER.md` の確定境界を守る。
 
 ## Change contract
 

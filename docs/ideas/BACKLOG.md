@@ -47,6 +47,11 @@
 
 ## Promoted to canon
 
+- v0.2の重要未決事項解消パッチを採用した。
+  - Tick末Settlement Maintenance、Hotspot arbitration、Friction、Unaffiliated保護、同一Core繁殖判定を確定。
+  - Aura / temporary MaxHP、利用可能Core占有率、Rest / FleeのInvasion離脱境界を確定。
+  - [`V0_2_SETTLEMENT_ORDER.md`](../design/V0_2_SETTLEMENT_ORDER.md)
+
 - v0.2 Settlement / Order Updateを採用した。
   - Generation中の繁殖HotspotからSettlementが発生し、人口安定後のOrderで社会Ruleを解禁する。
   - 同SettlementのCollision抑制、異SettlementのFriction、Crowding由来Invasion、Concept Auraを追加する。

@@ -86,9 +86,13 @@ Mark Holderはradius 2以内の同一Settlement所属者へ一時Auraを与え�
 - 生存: EffectiveMaxHP ×1.1。
 - 交流: EffectiveCommunication ×1.1。
 
+ConceptMark Holder本人は同じConcept種類のAura 1.1を追加取得せず、本人Mark 1.2を優先する。複数種類の本人Markは各対応能力へ同時に有効で、同種Markと同種Auraはstackしない。異種Auraは通常通り併存できる。
+
+生存Aura等で一時EffectiveMaxHPが増えてもCurrentHPは増加させない。Aura解除時にCurrentHPが新上限を超える場合だけ新EffectiveMaxHPへClampする。このClampはDamage Eventではなくstate normalizationで、ThreatやCombat Reactionを発生させない。SurvivalNeedとHPRatioは次の通常State更新で新EffectiveMaxHPから再計算する。
+
 Invasion中は現在radius 2以内の同一Event参加者へHolder方向のCohesion Biasを与えるが、Enemy SettlementへのAdvance Biasを上書きしない。複数Holderは最短距離、同距離はseed付き乱数で選ぶ。
 
-Settlement BonusはMarkを直接付与しない。定住・長寿等でExposure蓄積が変わる間接経路だけを許容する。Auraは非遺伝で、Base値を書き換えない。本人Markと同種他者Auraの正確な合成、および一時MaxHP変化時のCurrentHP上限処理は未決である。
+Settlement BonusはMarkを直接付与しない。定住・長寿等でExposure蓄積が変わる間接経路だけを許容する。Auraは非遺伝で、Base値を書き換えない。
 
 ## Draft: initial difficulties
 

@@ -66,7 +66,7 @@ U_communication = 0.75 * C + 0.50 * A - 0.125 * R
 U_reproduce     = 1.00 * P + 0.50 * A - 0.40 * S - 0.20 * R
 ```
 
-Order中のSettlement Core外ではv0.2 defaultとして `U_reproduce -= 2.0`、受諾側の `U_accept -= 2.0` を適用する。Generation中とSettlement Core内では適用しない。成功率へ別のrandom penaltyを加えず、野外Reproductionを禁止しない。
+Order中、Reproduction参加者2名が同一Active Settlement Core内にいる場合だけPenaltyを免除する。それ以外はv0.2 defaultとして `U_reproduce -= 2.0`、受諾側の `U_accept -= 2.0` を適用する。Generation中は適用しない。MembershipではなくAction位置を基準とし、成功率へ別のrandom penaltyを加えず、野外Reproductionを禁止しない。
 
 Move自体にRiskCostを置かず、方向はPerceptionに占有NPCが見えていてもseed付きランダムのままとする。Reality占有状態でMove Utilityや方向を変えず、Collision AttackはResolutionで発生させる。
 
@@ -139,6 +139,8 @@ Pursuit Reactionの `U_attack` は本節の対象別 `U_attack(t)` を参照す�
 有効Action Candidateが1件以上ある場合、Idleを通常候補へ加えない。
 
 Reproduction Candidateの対象条件は主観的Alive、距離1、Matureだけとし、対象RealityのHP、Cooldown、実距離をDecisionへ渡さない。成立条件はResolutionが検証する。
+
+Order中のSettlement所属NPCは、Perception上Settlement Influence内のUnaffiliatedでActive PerceivedThreatではない対象へExplicit Attack Candidateを生成しない。Active Threatなら既存 `U_attack(t)` Candidateを許可する。Reality Resolutionでも現在の保護条件を再検証するため、Decisionへ非公開Realityを渡さない。
 
 Attack InterruptまたはReproduction Acceptで再評価した場合も同じUtility規則を使うが、新Intentは同一Micro Roundの終了済みphaseへ巻き戻して実行しない。再評価はAction枠の置換であり、追加Actionではない。
 

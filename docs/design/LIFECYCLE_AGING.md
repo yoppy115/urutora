@@ -59,6 +59,8 @@ Order中にSettlement Core内にいるNPCは、基礎curveを変更せず、そ�
 
 Settlementは固定寿命や直接回復Actionを追加しない。RestがHP回復を所有しない境界も維持する。
 
+生存Aura等の一時EffectiveMaxHP Bonus取得時はCurrentHPを増加させない。解除時にCurrentHPが新EffectiveMaxHPを超える場合だけ上限へClampし、DamageやThreat / Combat Reactionとして扱わない。EffectiveMaxHP変更後のSurvivalNeedとHPRatioは次の通常State更新で再計算する。
+
 ## Death boundary and future tests
 
 CurrentHPが0以下になった時点で即座にDeadとなり、Cell占有と同Tickの行動資格を失う。Tick末Death phaseはDeath Eventとcollection cleanupを確定する。

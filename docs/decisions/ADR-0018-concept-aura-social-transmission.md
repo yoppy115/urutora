@@ -11,6 +11,8 @@ Concept Landmarkは個体Markを介して淘汰を歪めてきたが、社会へ
 
 Landmark Exposureをradius 4へ拡大し、ConceptMark Holderがradius 2以内の同一Settlement所属者へ非遺伝・一時的Auraを与える。Auraは敵とUnaffiliatedへ作用せず、同種はstackしない。異種は併存できる。
 
+Holder本人は同種Aura 1.1を追加取得せず本人Mark 1.2を優先する。複数種類の本人Markは各効果を併存できる。一時EffectiveMaxHP取得時はCurrentHPを増やさず、解除時に新上限を超える場合だけDamage Eventを伴わないstate normalizationとしてClampする。
+
 Invasion中のHolderは、現在radius 2以内にいる同一Event参加者へCohesion Biasを与える。Advance Biasを主、Cohesionを副とし、遠距離吸引や前進停止を起こさない。
 
 ## Reasons
@@ -23,4 +25,4 @@ Invasion中のHolderは、現在radius 2以内にいる同一Event参加者へCo
 
 - Effective statsはBase、本人Mark、一時Auraを区別して計算する必要がある。
 - Aura対象、範囲、stack、所属、Invasion Eventを決定論的に評価する。
-- 同種MarkとAuraの正確な合成、生存Aura出入り時のHP上限は別途確定が必要である。
+- EffectiveMaxHP変更後のSurvivalNeed / HPRatioを次の通常State更新で再計算し、ClampからThreatやCombat Reactionを発生させない。

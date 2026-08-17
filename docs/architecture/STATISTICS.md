@@ -26,6 +26,8 @@ World全体でSettlement数、Affiliated / Unaffiliated Population、所属率�
 - Core Occupancy、CrowdingPressure。
 - Initial Hostility、Friction。
 - 消滅日、消滅理由、征服 / 統合先。
+- Hotspot Candidate数、同時競合数、arbitration棄却数、Candidate別Reproduction Success数。
+- Settlement Pair別CurrentFriction、理由別加算件数、decay量、LastFrictionEvent。
 
 ## Affiliated versus unaffiliated
 
@@ -47,12 +49,15 @@ Settlement所属NPCとUnaffiliated NPCについて、最低限次を比較する
 - Other Settlement Collision数、Friction増加件数。
 - Explicit Attack、Counterattack、Pursuit Attack。
 - Collision Attack / Explicit Attack / Counterattack / PursuitのDamage。
+- Unaffiliated保護によるAttack Candidate抑制数、Resolution拒否数、Threat化後Explicit Attack数。
 
 死亡は最後の一撃だけでなく、Combat Damage Sourceの寄与を診断可能な構造にする。
 
 ## Reproduction
 
 Failureを少なくともTargetAbsent、Maturity、HP、Cooldown、Distance、Reject、Other Reality Failureへ可能な範囲で分離する。Settlement Core内 / 外でもAttempt、Success、Failureを比較可能にする。
+
+同一Active Settlement Core内のAttempt / Successと、Outside Penalty対象のAttempt / Successを分離する。
 
 NPC向けActionOutcomeへ非公開Reality値を露出しないという境界は維持する。診断projectionが見えることとNPCが知ることを混同しない。
 
@@ -76,6 +81,12 @@ NPC向けActionOutcomeへ非公開Reality値を露出しないという境界は
 - Settlement所属 / Unaffiliated別取得率。
 - SettlementごとのMark Holder数。
 - Aura対象延べNPC数、Invasion中Aura Holder数。
+- Self Markと同種Auraの重複抑制数、生存Aura取得 / 解除数。
+
+## Invasion occupation and withdrawal
+
+- TotalUsableCoreCells、AttackOccupiedUsableCoreCells、CoreOccupationRate。
+- Rest離脱、Death離脱、Flee中Participant数。
 
 ## Determinism boundary
 

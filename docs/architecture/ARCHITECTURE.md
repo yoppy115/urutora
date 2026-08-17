@@ -126,6 +126,8 @@ Domain events / snapshots   -> Statistics projection -> App
 
 Settlement Formation、Affiliation、World Phase、Order Policy、Friction / Hostility、Invasion、Auraを一つの万能SettlementManagerへ集約しない。Order Policyは既存Spatial、Utility、Lifecycleへ明示的なpolicy inputを渡し、各domainの権威的計算を奪わない。
 
+Settlement構造変更は固定順のTick末Maintenanceでcommitする。日中即時Eventと日末集約を分け、新規Settlement、WorldPhase、Invasion開始を原則翌Tickから有効化する。Hotspot Candidateは同一immutable snapshotから生成し、Reproduction Success数とnamed seed tie-breakで順序非依存に解決する。
+
 Statisticsはdomain eventとread-only snapshotを購読するterminal observerであり、Settlement / Invasion判定の入力stateを所有しない。
 
 ## v0 project boundary
@@ -145,5 +147,3 @@ AppはSnapshotまたはread-only projectionと構造化Event streamを受け取�
 - 永続化形式とschema versioning。
 - event busを使用するか、明示的な呼び出しと戻り値を使うか。
 - 大規模個体数に対する性能目標。
-- v0.2 Settlement処理を日次transactionへ挿入する正確なcommit順。
-- Hotspot Candidateの同時arbitration、Friction schema、Aura同種合成等、[`V0_2_SETTLEMENT_ORDER.md`](../design/V0_2_SETTLEMENT_ORDER.md) に明記した未決事項。

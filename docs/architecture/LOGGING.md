@@ -77,6 +77,11 @@ v0.15 Runでは少なくとも次を集計可能にする。
 - Reproduction FailureはTargetAbsent、Maturity、HP、Cooldown、Distance、Reject、Other Reality Failureへ可能な範囲で分離する。ただしNPC Outcomeへ内部値を漏らさない。
 - Invasionはtarget選択理由、Crowding、cohort、Bias離脱、勝敗条件、統合をstable Event IDで追跡する。
 - AuraはConcept、Holder、対象、所属、Invasion Event、適用 / 失効を追跡できる。
+- Settlement Maintenanceは12段階のphase ordinal、日中Event、翌Tick state commitを区別する。
+- Hotspot arbitrationはimmutable Candidate ID、Reproduction Success count、seed tie-break、棄却理由、選択Centerを追跡する。
+- Friction EventはPair、加算理由、加算値、LastFrictionEventTick、decayを追跡し、Counterattack二重計上を識別できる。
+- 一時MaxHP解除ClampはDamage Eventと分離したstate normalizationとして記録可能にする。
+- Invasionは利用可能Core Cell分母、攻撃側占有Cell、Rest / Death離脱、Flee中Participantを追跡する。
 
 必須集計項目は [`STATISTICS.md`](STATISTICS.md) を正本とする。
 

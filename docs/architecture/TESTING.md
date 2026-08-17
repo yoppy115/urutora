@@ -114,6 +114,30 @@
 - AE. Invasion中、radius 2以内の同一Event参加者へConceptMark Holder方向のCohesion Biasが発生する。
 - AF. Aura CohesionがEnemy SettlementへのAdvance Biasを完全に上書きしない。
 
-加えて、Settlement生成、cohort選択、target tie-break、Friction / Invasion Event、Aura対象がcollection列挙順やUI表示頻度に依存しないことを検証する。仕様未決のHotspot arbitration、Friction値、Aura合成等について期待値を独自に固定するtestは書かない。
+加えて、Settlement生成、cohort選択、target tie-break、Friction / Invasion Event、Aura対象がcollection列挙順やUI表示頻度に依存しないことを検証する。
+
+### v0.2 resolved-boundary patch
+
+- Patch A. 同日複数Hotspotの競合ではReproduction Success数が多いCandidateを優先する。
+- Patch B. 同数Candidateのseed tie-breakを決定論的に再現する。
+- Patch C. Map scan、collection、thread順を変えてもHotspot arbitration結果が変わらない。
+- Patch D. 異Settlement平時CollisionでFriction +1 defaultを適用する。
+- Patch E. 平時Explicit Threat EventでFriction +3 defaultを適用する。
+- Patch F. Counterattackで同一Threat EventのFrictionを二重加算しない。
+- Patch G. 30日Eventなしの後、30日ごとにFrictionを1減らし0未満にしない。
+- Patch H. Influence内Unaffiliated非ThreatへSettlement NPCがExplicit Attack Candidateを生成しない。
+- Patch I. UnaffiliatedがActive ThreatになるとExplicit Attack Candidateを生成でき、Resolutionでも最新保護条件を再検証する。
+- Patch J. Reproduction参加者2名が同一Active Settlement Core内でない場合、Outside Penaltyを適用する。
+- Patch K. ConceptMark Holder本人へ同種Aura 1.1を追加適用しない。
+- Patch L. 生存Aura取得時にCurrentHPを自動増加させない。
+- Patch M. 生存Aura解除時、CurrentHPが新EffectiveMaxHPを超える場合だけClampする。
+- Patch N. Aura解除ClampをCombat / Vitality Damage Eventとして扱わず、Reactionを発生させない。
+- Patch O. Core占有率分母からMap外とLandmark等の侵入不能Cellを除外する。
+- Patch P. 防衛NPC占有Cellを利用可能Core Cellとして分母へ含める。
+- Patch Q. FleeしてもInvasion ParticipantとAdvance Biasを維持する。
+- Patch R. RestでAdvance Bias / Invasion Participantを解除し、同一Eventへ再参加させない。
+- Patch S. Death、Event終了、Victory、統合時にParticipant状態を解除する。
+
+Settlement Maintenance順と翌Tick反映、Aura / Core占有計算もcollection order、scan order、thread schedulingに依存しないことを検証する。
 
 具体的なtest framework、fixture形式、統計的試験のsample数は実装時に決める。

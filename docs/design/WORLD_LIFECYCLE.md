@@ -24,7 +24,7 @@ v0.2は萌芽の最小実装を `WorldPhase = Generation` と呼ぶ。秩序を�
 
 上位存在の周辺に持続可能な秩序が成立することで移行する。国家成立だけを条件にせず、単独集団や特殊な共同体も許容する。
 
-v0.2では、90日rolling windowのPopulationCVとBirth / DeathのDemographicImbalanceがConfig閾値を30日連続で満たすことを、GenerationからOrderへの最小判定とする。絶対人口や固定経過日数だけでは決めない。Order移行後、既存および新規SettlementがRest、Vitality、Aging、Reproduction、Collision等へ局所的な社会Ruleを適用する。詳細は [`V0_2_SETTLEMENT_ORDER.md`](V0_2_SETTLEMENT_ORDER.md) を参照する。
+v0.2では、90日rolling windowのPopulationCVとBirth / DeathのDemographicImbalanceがConfig閾値を30日連続で満たすことを、GenerationからOrderへの最小判定とする。絶対人口や固定経過日数だけでは決めない。判定は固定順のTick末Settlement Maintenanceで行い、commitしたOrder stateは原則翌Tickから有効にする。Order移行後、既存および新規SettlementがRest、Vitality、Aging、Reproduction、Collision等へ局所的な社会Ruleを適用する。詳細は [`V0_2_SETTLEMENT_ORDER.md`](V0_2_SETTLEMENT_ORDER.md) を参照する。
 
 ## 秩序から争覇
 

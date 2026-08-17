@@ -43,7 +43,7 @@ U_accept = Need_reproduction
 U_reject = 0
 ```
 
-Order中のSettlement Core外では、v0.2 defaultとして行動側 `U_reproduce -= 2.0`、受諾側 `U_accept -= 2.0` を適用する。Generation中とSettlement Core内ではPenaltyなし。Reality成功率へ別のrandom penaltyを追加せず、Candidateの主観境界とReality Validation条件は変更しない。
+Order中は、参加者2名が同一Active Settlement Core内にいる場合だけPenaltyなしとする。両者とも外、片方だけCore内、異なるCore、Core境界をまたぐ場合は、v0.2 defaultとして行動側 `U_reproduce -= 2.0`、受諾側 `U_accept -= 2.0` を適用する。Generation中はPenaltyなし。MembershipではなくActionの社会空間を基準とし、Reality成功率へ別のrandom penaltyを追加しない。Candidateの主観境界とReality Validation条件は変更しない。
 
 成功時は両者のReproduction Needを6減らし、両者にCooldownを開始し、即時生成せずBirthQueueへ追加する。Cooldownのv0.15 defaultは90日。数値はConfig化する。
 
