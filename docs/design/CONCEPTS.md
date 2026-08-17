@@ -96,6 +96,8 @@ Invasion中は現在radius 2以内の同一Event参加者へHolder方向のCohes
 
 Settlement BonusはMarkを直接付与しない。定住・長寿等でExposure蓄積が変わる間接経路だけを許容する。Auraは非遺伝で、Base値を書き換えない。
 
+v0.2.4ではこのConcept系を意図的に変更しない。Exposure radius 4、`1 / 0.5 / 0.25 / 0.125`、threshold 100、本人Mark 1.2、Aura radius 2、Aura 1.1、同種非stack、Cohesion、Rest reductionを現行値として維持し、再調整はRun後のBacklogとする。
+
 ## Draft: initial difficulties
 
 現時点の有力候補は次の通りだが、最終名称ではない。
@@ -125,3 +127,4 @@ Settlement BonusはMarkを直接付与しない。定住・長寿等でExposure�
 - LLMを用いる場合の出力検証と安定ID付与。
 
 実データは将来 `simulation/concepts/` に置く。
+

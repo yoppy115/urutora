@@ -35,9 +35,9 @@
 
 Observationは原則として日初に一度だけ行い、Micro Roundごとに周囲を完全再観測しない。ただし攻撃を受けた、攻撃が失敗した、交流で情報を受信した、追撃された、対象が死亡した等、本人が直接経験したActionOutcomeは即時にPerceptionへ反映できる。高Action個体が同日中に古い周辺情報で複数行動することは、許容する逸脱要因である。
 
-v0.2はReproduction Success履歴、Core滞在・行動によるAffinity、人口統計、Settlement Candidate、Generation→Order、Crowding、Invasion、自然消滅、Auraを日次処理へ追加する。Settlementの大きな構造変更は日中Micro Roundへ割り込ませず、Tick末Settlement Maintenanceでcommitし、原則翌Tickから通常Ruleへ反映する。
+v0.2はReproduction Success履歴、Core滞在・行動によるAffinity、人口統計、Settlement Candidate、Generation→Order、SettlementPressure、Friction、Invasion、自然消滅、Auraを日次処理へ追加する。Settlementの大きな構造変更は日中Micro Roundへ割り込ませず、Tick末Settlement Maintenanceでcommitし、原則翌Tickから通常Ruleへ反映する。
 
-Settlement Maintenanceの固定順は、当日Statistics確定→Affinity反映→Membership / Affiliation変更→Friction decay→Population / Demographic rolling更新→Hotspot Candidate生成→同時arbitration / Settlement生成→自然消滅→Generation / Order判定→Crowding更新→Invasion Eligibility / 開始→翌Tick state確定とする。
+Settlement Maintenanceの固定順は、当日Event / Statistics確定→Affinity反映→Membership / Affiliation変更→Population / Demographic rolling更新→Frictionの日次decay / impulse→Hotspot Candidate生成→同時arbitration / Settlement生成→自然消滅→Generation / Order判定→SettlementPressure rolling更新→Invasion trigger / target / mobilization評価→翌Tick state確定とする。Invasion宣言時のFriction retentionは開始Eventと同じcommitで適用する。
 
 日中に即時解決するAffinity発生要因、Friction Event、Rest Collision、Active InvasionのMove / Combat、勝敗成立、Auraと区別する。征服統合はVictory Outcomeとして自然消滅phaseを待たず処理できる。
 
@@ -138,4 +138,5 @@ Birth解決時点で空いている死亡Cellは利用可能。LandmarkとAlive 
 - Rest Collision再評価は元Action枠の置換で、同一Micro Round最大1回とする。
 - Settlement構造変更は固定Maintenance順でcommitし、新規Settlement / WorldPhase / Invasion開始を翌Tickから反映する。
 - Hotspot Candidateは同一immutable snapshotから生成し、繁殖成功数とseed tie-breakで順序非依存にarbitrateする。
-- v0.2.4のSupport rolling window / hysteresis、Crowding re-arm、自然消滅は日末Maintenanceでcommitし、日中Micro Round途中でSettlementを消滅・再armしない。
+- v0.2.4のSupport、SettlementPressure、Friction、High / Low counter、Invasion作成、自然消滅は日末Maintenanceでcommitし、日中Micro Round途中でSettlementを消滅・再armしない。
+

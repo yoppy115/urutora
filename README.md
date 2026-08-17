@@ -6,12 +6,12 @@
 
 ## Current status
 
-- フェーズ: v0.2.4 Settlement Stabilization Update仕様確定
-- 実装: v0.2.1～v0.2.3の採用済み挙動を正史化し、v0.2.4は文書更新段階。今回はコード未変更
+- フェーズ: v0.2.4 Settlement Stabilization Update未決システム解消
+- 実装: v0.2.1～v0.2.3の採用済み挙動を正史化し、v0.2.4は正史文書確定・コード未変更
 - 実装基盤: C# / .NET。`Simulation.Core`、`Simulation.App`、`Simulation.Core.Tests` を分離する
 - 外部依存: なし
 
-次段階では、v0.15の個体生態系とv0.2.3までの確定境界を維持したまま、v0.2.4のRest v2、定住、局所Support、Invasion暫定修正を同一seedで再現可能なCoreと観測Appへ反映します。
+次段階では、v0.15の個体生態系とv0.2.3までの確定境界を維持したまま、v0.2.4のRest v2、定住、局所Support、SettlementPressure、正規化Friction、Invasionを同一seedで再現可能なCoreと観測Appへ反映します。
 
 ## Source of truth
 
@@ -51,6 +51,7 @@
 ## Next decisions
 
 1. v0.2.4文書をC#型、interface、Config schemaへ反映する。
-2. Rest、Move bias、SettlementSupport、Invasion guardrailを既存責務へ分離して実装する。
+2. Rest、Move bias、SettlementSupport、SettlementPressure、Friction、Invasionを既存責務へ分離して実装する。
 3. v0.2.4 headless testsとStatistics projectionを実装する。
 4. Generation→Order前後を再実行し、定住・維持・Rest・社会化の因果を比較する。
+

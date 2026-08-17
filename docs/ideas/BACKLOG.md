@@ -9,7 +9,8 @@
 - Status: On hold after v0.2
 - Adopted in v0.2: Settlement生成、Affinity / 所属、Order Bonus、治安、Friction、Invasion、統合、Aura。
 - Still on hold: 国家、属国、占領統治、反乱・忠誠、内部階層、資源、疾病、Settlement間の恒常的外交。
-- v0.2.4後に保留: Invasion Trigger、SettlementPressure、Crowding式、Friction新生成/減衰、Mobilization、Rest後再参加、Center保持Victory、Concept / Held Information再調整。
+- v0.2.4後に保留: Center保持Victory / 保持日数、軍事占領、Rest離脱者の同一Invasion再参加、軍事Leader、Combat / Actionによるrecruitment優先、Active Invasion CombatのFriction加算。
+- Concept数値の再調整と、Held Informationの全体上限・importance eviction・圧縮もRun後まで保留。現行Concept値とSubject + Property 3件FIFOは変更しない。
 - Future pressure: Settlementの成功が疾病、内部対立、資源不足、階層等の新Difficultyを生む。
 - Related design: [`V0_2_SETTLEMENT_ORDER.md`](../design/V0_2_SETTLEMENT_ORDER.md)
 
@@ -53,6 +54,12 @@
   - Rest v2、Home / Foreign Bias、Generation Proto-Order、局所SettlementSupport、Invasion暫定guardrailを追加。
   - [`V0_2_4_SETTLEMENT_STABILIZATION.md`](../design/V0_2_4_SETTLEMENT_STABILIZATION.md)
 
+- v0.2.4未決システム解消パッチを採用した。
+  - ResidentLoad / MovementCongestion / ReturnFailureによるSettlementPressure、0.65 / 0.45 hysteresis、Support / participant前提を確定。
+  - 人口scale付き日次Friction、宣言時25% retention、Pressure連動Mobilizationを確定。
+  - Rest同一Event再参加禁止、Center非勝利、Concept / Held Information非変更を確定。
+  - [`V0_2_4_SETTLEMENT_STABILIZATION.md`](../design/V0_2_4_SETTLEMENT_STABILIZATION.md)、[`ADR-0024`](../decisions/ADR-0024-settlement-pressure-and-invasion-closure.md)
+
 - v0.2の重要未決事項解消パッチを採用した。
   - Tick末Settlement Maintenance、Hotspot arbitration、Friction、Unaffiliated保護、同一Core繁殖判定を確定。
   - Aura / temporary MaxHP、利用可能Core占有率、Rest / FleeのInvasion離脱境界を確定。
@@ -60,7 +67,7 @@
 
 - v0.2 Settlement / Order Updateを採用した。
   - Generation中の繁殖HotspotからSettlementが発生し、人口安定後のOrderで社会Ruleを解禁する。
-  - 同SettlementのCollision抑制、異SettlementのFriction、Crowding由来Invasion、Concept Auraを追加する。
+  - 同SettlementのCollision抑制、異SettlementのFriction、過密由来Invasion、Concept Auraを追加した。旧Crowding式はv0.2.4 closureでSettlementPressureへ置換済み。
   - [`V0_2_SETTLEMENT_ORDER.md`](../design/V0_2_SETTLEMENT_ORDER.md)
 
 - v0.15の旧未決3項目を解消した。
@@ -88,3 +95,4 @@
 - Conditions for reconsideration:
 - Related design or ADR:
 ```
+

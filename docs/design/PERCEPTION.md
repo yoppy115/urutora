@@ -106,6 +106,8 @@ Settlement AffinityとActive AffiliationはNPC自身の社会状態として扱�
 
 SettlementのHostility、Friction、Invasion状態はReality上の社会状態である。Order中のUnaffiliated保護Candidateは、NPCがPerception上把握する対象Position / Affiliationと自身のActive PerceivedThreatだけを使う。ResolutionはReality上のUnaffiliated、Influence、Active Threatを再Validationする。NPCへ公開してよい専用入力を使い、Reality Store全体をPerception境界越しに渡さない。
 
+v0.2.4ではHeld Informationの既存境界を意図的に維持する。Subject + Propertyごとの3件FIFO、Confidence / recencyによる代表値選択、直接消滅確認purge、TargetAbsentのPosition invalidation、World Event Logとの分離が現行仕様である。全Subject横断global cap、importance eviction、圧縮はBacklogであり、現行実装へ追加しない。
+
 ## Player boundary
 
 プレイヤーも通常はReality全知ではない。現在の表層状態を中心に観測し、完全な因果や全履歴の調査を主目的にしない。開発用debug projectionとは分ける。
@@ -124,3 +126,4 @@ SettlementのHostility、Friction、Invasion状態はReality上の社会状態�
 - 隠れたReality差はActionOutcomeだけを変え得る。
 
 採用理由は [`ADR-0002`](../decisions/ADR-0002-subjective-decision-boundary.md) を参照する。
+

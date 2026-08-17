@@ -17,5 +17,5 @@
 | NPC neighborhood index | Optimization | query semanticsを変更しない |
 | Deterministic CPU parallelization | Engineering | read / planningだけを分離並列化し、stable順でmergeする |
 
-v0.2.4は未実装の正史更新であり、実装後にこの台帳へConfig schema、Event schema、最適化、保守的技術既定値を追記する。
+v0.2.4は未実装の正史更新であり、SettlementPressure、日次正規化Friction、Invasion hysteresis / Mobilizationを含む。実装後にこの台帳へConfig schema、Event schema、最適化、保守的技術既定値を追記する。
 

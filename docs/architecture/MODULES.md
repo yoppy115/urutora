@@ -25,8 +25,9 @@
 | Settlement Policy | WorldPhaseと地域・所属からRest、Vitality、Reproduction、Collision policyを提供する | Spatial、Utility、Lifecycleの権威的計算を奪う |
 | Settlement Movement Policy | Home / Foreign Biasと自Settlement内Move fatigue modifierを投影する | Flee、Invasion Advance / Defense、Reality validationを上書きする |
 | Settlement Support | 90日P/R/S、Support、Hysteresis、自然消滅を扱う | World Population比で局所生活を代用する |
-| Settlement Relations | Friction、方向性Hostility、Founder cohortからの初期関係を扱う | 個人に存在しないThreatを捏造する |
-| Crowding / Invasion | Crowding、eligibility、target、cohort、Bias、勝敗、統合を扱う | 専用Utility AIや国家制度を追加する |
+| Settlement Relations | 日次正規化Friction、方向性Hostility、Founder cohortからの初期関係、宣言時retentionを扱う | 個人に存在しないThreatを捏造する |
+| Settlement Pressure | 30日ResidentLoad / MovementCongestion / ReturnFailureとHigh / Low counterを扱う | CoreOccupancyをInvasion Triggerとして再利用する |
+| Invasion | eligibility、target、mobilization、cohort、Bias、勝敗、統合を扱う | 専用Utility AI、Center勝利、国家制度を追加する |
 | Concept / Difficulty | 概念・困難データと世界進化を扱う | 表示名を安定IDとして使う |
 | Concept Exposure | Landmark距離、Exposure、Mark取得とEffective補正を扱う | Base遺伝値を書き換える |
 | Concept Aura | 所属・距離・Invasion Eventから一時AuraとCohesionを投影する | Markを付与・遺伝・無限stackする |
@@ -68,11 +69,13 @@
 - Statistics ProjectionはDomain Eventとread-only queryだけを受け、Simulation用random streamを消費しない。
 - Settlement Maintenance Coordinatorは確定した12段階の日末順だけを調整し、各domain ruleを所有しない。日中Eventと翌Tick stateを分離する。
 - Hotspot arbitratorはimmutable Candidate snapshot、Reproduction Success数、named seedを使い、scan / collection / thread順へ依存しない。
-- Frictionは対称Pair state、Hostilityは方向性stateとして別型にし、CounterattackによるEvent二重計上を防ぐ。
+- Frictionは対称Pair state、Hostilityは方向性stateとして別型にし、日次root incidentを人口scaleして更新する。Counterattackによる二重計上とActive Invasion combat加算を防ぐ。
 - Aura由来MaxHP解除はDamage portを経由せずstate normalizationとしてClampする。
 - Rest fatigue policyはAction / Reaction種別からRest deltaを返し、Collision AttackへMoveとAttackを二重加算しない。
 - Generation Proto-OrderとOrder Benefitを別policyとして表現し、倍率を重ねない。
 - Settlement Supportは日末のread-only 90日集計からP/R/Sを算出し、Membership変更と自然消滅をMaintenance順でcommitする。
+- Settlement Pressureは日末のread-only 30日集計から3成分を算出し、High / Low counterとともに翌Tick stateへcommitする。InvasionはPressure値を所有せず、eligibility inputとして受け取る。
+- Mobilizationはeligible snapshot、SettlementPressure、Affinity、named seedだけを使い、Combat / Action値やcollection順でcohortを歪めない。
 - Observation cache、近傍index、CPU並列read phaseは最適化portの内側に閉じ、権威的順序・random stream・Event IDを変えない。
 - Run envelopeはVersion、repositoryCommit、Config、Seedを一組として記録する。
 
@@ -83,3 +86,4 @@
 - domain eventの配送順と失敗処理。
 - LLMを使わない場合の文章生成fallback。
 - module間の許可依存表とarchitecture test。
+

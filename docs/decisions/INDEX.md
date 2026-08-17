@@ -28,7 +28,8 @@ ADRは、重要で後戻りしづらい判断について「なぜそうした�
 | [`ADR-0020`](ADR-0020-deterministic-parallel-read-phases.md) | Accepted | 分離read / planning phaseを決定論的merge付きで並列化する |
 | [`ADR-0021`](ADR-0021-action-specific-fatigue-and-home-bias.md) | Accepted | Action別疲労、Home Bias、Generation Proto-Orderを採用する |
 | [`ADR-0022`](ADR-0022-local-settlement-support-and-hysteresis.md) | Accepted | 局所SettlementSupportとHysteresisで自然消滅を判定する |
-| [`ADR-0023`](ADR-0023-v024-invasion-stabilization-guardrails.md) | Accepted | Invasion再arm、Alive征服、Core勝利、Friction上限を暫定固定する |
+| [`ADR-0023`](ADR-0023-v024-invasion-stabilization-guardrails.md) | Superseded | v0.2.4の暫定Invasion guardrail。ADR-0024が置換 |
+| [`ADR-0024`](ADR-0024-settlement-pressure-and-invasion-closure.md) | Accepted | SettlementPressure、Invasion hysteresis、正規化Friction、Mobilization、Center非勝利を確定 |
 
 ## Future decisions
 
@@ -53,3 +54,4 @@ ADRは、重要で後戻りしづらい判断について「なぜそうした�
 - `Rejected`
 - `Superseded`
 - `Deprecated`
+

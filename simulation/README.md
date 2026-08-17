@@ -56,8 +56,8 @@ v0.15値は明示変更箇所以外を維持し、次をv0.2 Configへ追加す�
 | Affinity | Founder +10、initial resident +7、membership 10、switch margin +5、Stay +0.05/day、Rest +1、Communication +0.5、Reproduction Success +2 |
 | Generation → Order | 90-day window、PopulationCV 0.10、DemographicImbalance 0.20、30 consecutive days |
 | Order benefits | Rest ×1.5、positive Vitality ×2、negative Vitality ×0.5。同一Active Settlement Core内の2名だけReproduction Penalty免除、その他はU_reproduce / U_accept -2 |
-| Relations / crowding | Initial Hostility 30%、Friction Collision +1 / Threat +3 / 30日無Event後30日ごと-1、Crowding 0.5 Occupancy + 0.5 BlockedMovement、threshold 0.70 for 30 days |
-| Mobilization | `Clamp(0.20 + 0.30 * CrowdingPressure, 0.20, 0.50)` |
+| Relations / pressure | Initial Hostility 30%。v0.2.4で30日Resident / Congestion / Return Pressureと日次正規化Frictionへ置換 |
+| Mobilization | `Clamp(0.20 + 0.30 * SettlementPressure, 0.20, 0.50)`、deterministic half-up、minimum 3 |
 | Dissolution | v0.2.4でWorld Population比を廃止し、90-day Support、25 / 35 Hysteresis、365 LowSupportDays |
 | Concept | Exposure radius 4 with 1/0.5/0.25/0.125、Aura radius 2、Rest -0.10/day、stat ×1.1 |
 
@@ -74,10 +74,13 @@ Advance / Cohesionの具体WeightはConfig / implementation detailだがAdvance�
 | Foreign avoidance | enter Influence ×.25、Core ×.05、inside exit ×3 / deeper ×.25 |
 | Generation Proto-Order | positive Vitality ×1.25、normal Affinity gain ×2 |
 | SettlementSupport | 90 days、`50P+30R+20S`、baseline min 8、social target member-days×.25、low 25 / recovery 35、365 LowSupportDays |
-| Invasion guardrail | Pressure <.70 for 30 days to re-arm、Center non-victory、Usable Core 50% victory |
-| Friction | Clamp 0..100 |
+| SettlementPressure | usable capacity ratio .70、Resident / Congestion / Return weights .45 / .35 / .20、30-day window |
+| Invasion trigger | Order、Support >=35、Pressure >=.65 for 30 days、re-arm <=.45 for 30 days、minimum force 3 |
+| Mobilization | `.20 + .30 * Pressure`、Clamp .20–.50、Core cohort target .50 |
+| Friction | Collision / Threat weights 1 / 4、scale floor 10、daily impulse cap 5、half-life 180 days、declaration retention .25、Clamp 0..100 |
+| Victory | Center non-victory、Usable Core 50% occupation only |
 
-これらはv0.2.4 Simulation Run後に調整可能なConfig値。出生所属predicate、主観境界、Proto-Order / Order分離、hysteresis、phase順、Alive-only conquest等のBaselineを数値調整で変更しない。
+これらはv0.2.4 Simulation Run後に調整可能なConfig値。出生所属predicate、主観境界、Proto-Order / Order分離、hysteresis、phase順、Alive-only conquest、Center非勝利、Concept / Held Information非変更等のBaselineを数値調整で変更しない。
 
 ## Run metadata
 
@@ -96,3 +99,4 @@ Advance / Cohesionの具体WeightはConfig / implementation detailだがAdvance�
 ```
 
 完全なconfig、初期状態、外部入力列を参照または同梱できるようにする。同じVersion名でも異なるrepositoryCommitのRunを混在させない。保存形式はDraftである。
+

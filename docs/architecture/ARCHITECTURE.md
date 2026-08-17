@@ -119,7 +119,7 @@ Targeted Action PhaseはAttack → Reproduction → Communicationの明示的な
 ReproductionSuccess events -> Settlement Formation -> Affinity / Affiliation
 Daily population series    -> World Phase
 Affiliation + Phase         -> Order Policies -> Spatial / Utility / Vitality modifiers
-Crowding + Relations        -> Invasion -> Move Bias / Combat / Integration
+SettlementPressure + Relations -> Invasion -> Move Bias / Combat / Integration
 ConceptMark + Affiliation   -> Aura projection -> temporary Effective modifiers
 Domain events / snapshots   -> Statistics projection -> App
 ```
@@ -136,10 +136,11 @@ Statisticsはdomain eventとread-only snapshotを購読するterminal observer�
 Action kind + Region -> Rest fatigue policy
 Affiliation + Position + Needs/HP -> Home / Foreign Move weights
 Settlement-local 90-day events -> P/R/S -> Support -> Hysteresis -> Maintenance
-Crowding episode -> Armed state -> Invasion eligibility
+30-day local pressure -> High/Low counters -> Armed state -> Invasion eligibility
+Daily pair incidents -> normalized Friction -> target selection / declaration retention
 ```
 
-Move policyはFleeとActive Invasion biasを上書きしない。Supportはread-only集計から算出して日末にだけ構造変更をcommitする。ConquestはAlive NPCだけを変更し、Dead historyをimmutableに保つ。
+Move policyはFleeとActive Invasion biasを上書きしない。Support、SettlementPressure、Frictionはread-only集計から算出して日末にだけ翌Tick stateへcommitする。ConquestはAlive NPCだけを変更し、Dead historyをimmutableに保つ。
 
 Observation cache、NPC近傍index、決定論的並列read phaseは最適化層であり、権威的Event順、random purpose、stable IDを変えない。Run identityはVersion、repositoryCommit、Config、Seedを一組とする。
 
@@ -160,3 +161,4 @@ AppはSnapshotまたはread-only projectionと構造化Event streamを受け取�
 - 永続化形式とschema versioning。
 - event busを使用するか、明示的な呼び出しと戻り値を使うか。
 - 大規模個体数に対する性能目標。
+

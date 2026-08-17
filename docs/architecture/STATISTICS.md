@@ -23,11 +23,11 @@ World全体でSettlement数、Affiliated / Unaffiliated Population、所属率�
 - ID、Center、成立日、Founder数。
 - 所属人口、World Population比。
 - Affinity加入数、離脱数。
-- Core Occupancy、CrowdingPressure。
+- Core Occupancy、UsableInfluenceCells、NominalResidentialCapacity、SettlementPressure。
 - Initial Hostility、Friction。
 - 消滅日、消滅理由、征服 / 統合先。
 - Hotspot Candidate数、同時競合数、arbitration棄却数、Candidate別Reproduction Success数。
-- Settlement Pair別CurrentFriction、理由別加算件数、decay量、LastFrictionEvent。
+- Settlement Pair別CurrentFriction、Collision / root Threat raw件数、weighted件数、Living Population scale、daily impulse、decay前後、Invasion宣言時retention、Hostility。
 
 ## Affiliated versus unaffiliated
 
@@ -66,10 +66,10 @@ NPC向けActionOutcomeへ非公開Reality値を露出しないという境界は
 各Invasion Eventについて次を確認可能にする。
 
 - 開始日、終了日、Attack Settlement、Defense Settlement。
-- Trigger CrowdingPressure、Target選択理由。
-- Initial Force Size、Core Cohort人数、Frontier Cohort人数。
+- Trigger SettlementPressure、High / Low Pressure Days、Armed、前提別trigger rejection reason、Target選択理由。
+- MobilizationRate、Target / Actual Force Size、eligible人数、不適格理由、Core / Frontier target・actual・不足補充、最終participant ID。
 - Advance Bias離脱数、Combat Death、Rest離脱。
-- 最大Core占有率、Center占拠有無。
+- 最大Core占有率、Center占拠有無、Center hold days。
 - Attack / Defense Victory、戦争期間、統合後人口。
 
 ## Concept and aura
@@ -109,4 +109,16 @@ NPC向けActionOutcomeへ非公開Reality値を露出しないという境界は
 - Proto-Order: 形成前後のCombat Death、同所属Collision抑制、HP、Positive Vitality Benefit、Affinity、Membership、Settlement survival。
 - Invasion: 開始、armed、re-arm、防止された連続開始、Rest / Death離脱、最大Core占有率、Center Occupied、勝敗。
 
+追加で次を必須とする。
+
+- Pressure: Usable Influence Cells、Nominal Residential Capacity、30日Average Affiliated Population、ResidentLoad分子 / 分母 / 値。
+- Congestion: Settlement Move Attempts、Blocked Settlement Move Events、block理由別件数、MovementCongestion。
+- Return: Strong Home Move Attempts、Failed Strong Home Moves、failure理由、ReturnFailure。
+- Trigger: SettlementPressure、HighPressureDays、LowPressureDays、Armed、Support / Phase / Active / target / participant等のrejection reason。
+- Friction: 日次Pair raw Collision、root Explicit Threat、weighted events、Living Population A/B、scale、decay前後、impulse、retention前後、Hostility。
+- Mobilization: rate、Settlement Population、target / actual force、eligible / ineligible reason、Core / Frontier target / actual / fill、participant ID。
+- Center: occupied、occupation start / end、hold days、non-victory reason、UsableCoreOccupationRate。
+- Concept / Held Information: Exposure、Mark / Aura、同種抑制、Held Information総数、NPC平均 / 最大、FIFO eviction、直接purge、TargetAbsent Position invalidation。
+
 SettlementSupportの診断は90日windowの分子・分母も保持し、形成閾値の変更がReproduction Continuityへ反映されたことを確認できるようにする。
+

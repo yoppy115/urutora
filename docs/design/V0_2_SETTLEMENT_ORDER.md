@@ -94,7 +94,7 @@ Tick末Maintenanceは次の固定順とする。
 7. 同時Hotspot arbitrationを行い、新規Settlementをcommitする。
 8. Settlement自然消滅条件を評価する。
 9. Generation → Order条件を評価する。
-10. 各SettlementのCrowdingPressureを更新する。
+10. 各SettlementのSettlementPressureを更新する。
 11. Invasion Eligibilityと新規Invasion開始を評価する。
 12. 翌Tick用Settlement / World Phase Stateを確定する。
 
@@ -128,28 +128,17 @@ Settlement Centerからradius 5以内で、移動NPCが未実行Rest Intentを�
 
 SettlementFrictionはSettlement Pair単位の対称な非負値とし、`Friction(A,B) = Friction(B,A)` である。方向性を持ち得るHostilityとは別概念にする。recordは少なくともSettlementAId、SettlementBId、CurrentFriction、LastFrictionEventTick、LifetimeFrictionEventsを保持可能にする。
 
-v0.2 configurable defaultでは、平時の異Settlement Collisionで+1、平時の一方のSettlement所属NPCによる他Settlement所属NPCへのExplicit Attack等の直接Threat行為で+3する。Counterattackによって同じThreat Eventを二重加算しない。Active Invasion中の通常Combat一件ごとには加算せず、Invasion Eventを別のStatistics / Historyとして記録する。
-
-Pairへ新しいFriction Eventが30日間なければ、以後30日ごとにCurrentFrictionを1減らし、0未満にしない。新EventはLastFrictionEventTickを更新してdecay待機期間を再開始する。v0.2.4ではCurrentFrictionを`0..100`へClampする。
+v0.2.4では平時Collisionとroot Explicit Threat Incidentを日次集約し、日末Living Populationの幾何平均でscaleしたImpulseと半減期180日の指数decayを適用する。Counterattack等のReactionでroot incidentを二重計上せず、Active Invasion中の両陣営Combatも除外する。Invasion宣言時は対象PairのFrictionを25%残し、Hostilityは変更しない。具体式は[`V0_2_4_SETTLEMENT_STABILIZATION.md`](V0_2_4_SETTLEMENT_STABILIZATION.md)を正本とする。旧Collision `+1`、Threat `+3`、30日無Event後の段階decayはSupersededである。
 
 新Settlement成立時、Founder cohortと成立時に即所属した初期住民について、既存Settlement B所属NPCをActive PerceivedThreatとして持つ割合をSettlement Bごとに調べる。30%以上なら `A -> B Initial Hostile` とする。Hostilityは片方向でよく、ランダム外交として生成しない。
 
 これによりGenerationの個人Collision→Threat Memory→Settlement Formationが、社会関係へ変換される。
 
-## Crowding and invasion eligibility
+## Settlement pressure and invasion eligibility
 
-人口絶対値ではなく、実際の生活上の過密を測る。
+v0.2.4では旧CoreOccupancy / BlockedMovementの`CrowdingPressure`をInvasion Triggerから廃止する。`SettlementPressure`は直近30日のResidentLoad、MovementCongestion、ReturnFailureを`0.45 / 0.35 / 0.20`で統合し、Tick末Maintenanceで更新して翌Tickから使う。
 
-```text
-CrowdingPressure = Clamp(
-  0.5 * CoreOccupancy
-  + 0.5 * BlockedMovementRate,
-  0, 1)
-```
-
-CoreOccupancyはCore内NPC占有率。BlockedMovementRateは所属NPCのFriendly Collision、Occupied CellによるMove Failure等から求める移動詰まり率である。
-
-直近30日平均 `CrowdingPressure >= 0.70` が30日継続するとInvasion Eligibleになる。値はConfigである。
+Order、Active、Support 35以上、armed、Active Invasionなし、攻撃可能targetあり、eligible participant 3名以上を前提とし、Pressure 0.65以上が30日連続した場合だけ開始する。開始時にdisarmし、Event終了後にPressure 0.45以下が30日連続した場合だけre-armする。中間帯ではどちらのcounterも進めない。GenerationはInvasionを開始しない。詳細な分子・分母、counter境界、rejection reasonは[`V0_2_4_SETTLEMENT_STABILIZATION.md`](V0_2_4_SETTLEMENT_STABILIZATION.md)を正本とする。
 
 ## Invasion target and mobilization
 
@@ -163,13 +152,14 @@ CoreOccupancyはCore内NPC占有率。BlockedMovementRateは所属NPCのFriendly
 
 ```text
 MobilizationRate = Clamp(
-  0.20 + 0.30 * CrowdingPressure,
+  0.20 + 0.30 * SettlementPressure,
   0.20, 0.50)
 
-TargetForceSize = round(SettlementPopulation * MobilizationRate)
+TargetForceSize = floor(
+  SettlementPopulation * MobilizationRate + 0.5)
 ```
 
-候補はAlive、攻撃Settlement所属、現在Rest中でない、他Invasionへ参加していないNPC。概ね半数をCore内からAffinity上位優先・同値seed付き乱数で選び、残りをCore外の所属NPCからseed付き乱数で選ぶ。一方が不足すれば他方から補充し、50/50は目標比率とする。
+候補はAlive、攻撃SettlementへActive Affiliation、現在Rest中でない、他Invasionへ参加していないNPC。実数はTargetとeligibleの小さい方で、3名未満なら開始しない。`ceil(ActualForceSize / 2)`をCore目標とし、Core内はAffinity上位・同値seed tie、Core外はseed randomで選ぶ。不足は他側から補充し、50/50は目標比率とする。Combat / Action値で全知的に選抜しない。
 
 ## Invasion movement and combat
 
@@ -185,7 +175,7 @@ Invasion中は攻撃・防衛Settlement所属者を敵対対象としてCombat�
 
 ## Invasion victory and integration
 
-Advance Biasを保持するAlive攻撃NPCが0になればDefense Victoryとする。v0.2.4では対象Settlement Coreの利用可能Cellの50%以上を攻撃Settlement所属NPCが占拠した場合だけAttack Victoryとする。Center Cell単独占拠はEvent / Statisticsへ記録できるが、即時勝利にしない。
+Advance Biasを保持するAlive攻撃NPCが0になればDefense Victoryとする。v0.2.4では対象Settlement Coreの利用可能Cellの50%以上を攻撃Settlement所属NPCが占拠した場合だけAttack Victoryとする。Centerへの到達、一時占有、複数日保持はいずれも勝利条件ではなく、Event / Statisticsだけに記録できる。
 
 終了時にAdvance Bias、Defense Bias、Invasion Participant、所属変更Lockを解除する。
 
@@ -257,14 +247,14 @@ Raw Logを人間が直接読み続けるより、ゲーム内Statistics UIでSim
 | Outside Core reproduction | 同一Active Settlement Core内の2名だけ免除。それ以外はU_reproduce -2、U_accept -2 |
 | Rest Collision | radius 5 |
 | Initial Hostility | 30% |
-| Friction | Collision +1、Explicit Threat +3、30日無Event後は30日ごとに-1、minimum 0 |
-| Crowding | 0.5 Occupancy + 0.5 BlockedMovement、threshold 0.70、30-day average for 30 days |
-| Mobilization | 0.20 + 0.30 × Crowding、Clamp 0.20–0.50 |
+| Friction | Collision weight 1、Threat weight 4、pair scale floor 10、daily impulse cap 5、half-life 180日、Invasion declaration retention 0.25 |
+| SettlementPressure | capacity ratio .70、Resident / Congestion / Return = .45 / .35 / .20、30-day window、trigger .65 ×30日、re-arm .45 ×30日 |
+| Mobilization | 0.20 + 0.30 × SettlementPressure、Clamp 0.20–0.50、minimum 3、Core target 50% |
 | Natural dissolution | v0.2.4では90-day Support、25 / 35 Hysteresis、365 LowSupportDays |
 | Exposure | radius 4、1/0.5/0.25/0.125、threshold 100 |
 | Aura | radius 2、Rest -0.10/day、stat ×1.1 |
 
-Rest v2、Home / Foreign Bias、Proto-Order、Support、Crowding re-arm、Friction上限はv0.2.4 Configとして別文書に定める。Advance BiasとAura Cohesionの具体Weightはimplementation/configurable detailであり、Advanceを主、Cohesionを副とする制約を守る。
+Rest v2、Home / Foreign Bias、Proto-Order、Support、SettlementPressure、Invasion hysteresis、Friction、Mobilizationはv0.2.4 Configとして別文書に定める。Advance BiasとAura Cohesionの具体Weightはimplementation/configurable detailであり、Advanceを主、Cohesionを副とする制約を守る。
 
 ## Preserved v0.15 rules
 
@@ -274,12 +264,13 @@ C# / .NET、Core / App分離、1 Tick = 1日、64×64 Map、InitialPopulation 20
 
 Settlementへの所属を規則で強制しない。回復、休息、長寿、繁殖、治安の強い利益により、結果として所属系統が長期的に有利となり、ほぼ全NPCが何らかのSettlementへ所属し得る社会化を目指す。
 
-その成功が高密度、疾病、依存、階層、内部対立、資源不足、Settlement間戦争等の新Difficultyを生む方向性を維持する。v0.2はCrowdingからInvasionへ至る最初の接続だけを実装対象とし、他の将来制度を前倒ししない。
+その成功が高密度、疾病、依存、階層、内部対立、資源不足、Settlement間戦争等の新Difficultyを生む方向性を維持する。v0.2はSettlementPressureからInvasionへ至る最初の接続だけを実装対象とし、他の将来制度を前倒ししない。
 
 ## Resolved v0.2 implementation boundaries
 
-Settlement Maintenance順、同時Hotspot arbitration、Friction schema / 加算 / decay、Unaffiliated保護のCandidate / Resolution二重境界、Active Threat例外、同一Core Reproduction判定、本人Markと同種Aura、一時MaxHP normalization、Core占有率分母、Rest / FleeのInvasion離脱境界は確定済みである。
+Settlement Maintenance順、同時Hotspot arbitration、正規化Friction、SettlementPressureとInvasion hysteresis、Mobilization、Unaffiliated保護のCandidate / Resolution二重境界、Active Threat例外、同一Core Reproduction判定、本人Markと同種Aura、一時MaxHP normalization、Core占有率分母、Rest / FleeのInvasion離脱境界は確定済みである。
 
 Advance BiasとAura Cohesionの具体Weight等、本文が明示的にimplementation / configurable detailへ委ねた値はConfig設計時に設定できるが、確定した主従・非stack・決定論境界を変更しない。
 
-採用理由は [`ADR-0016`](../decisions/ADR-0016-generation-settlement-and-order.md)、[`ADR-0017`](../decisions/ADR-0017-settlement-conflict-and-invasion.md)、[`ADR-0018`](../decisions/ADR-0018-concept-aura-social-transmission.md) を参照する。
+採用理由は [`ADR-0016`](../decisions/ADR-0016-generation-settlement-and-order.md)、[`ADR-0017`](../decisions/ADR-0017-settlement-conflict-and-invasion.md)、[`ADR-0018`](../decisions/ADR-0018-concept-aura-social-transmission.md)、[`ADR-0024`](../decisions/ADR-0024-settlement-pressure-and-invasion-closure.md) を参照する。
+

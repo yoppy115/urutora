@@ -28,7 +28,7 @@
 | [`V0_SIMULATION.md`](design/V0_SIMULATION.md) | Baseline / v0 configurable | v0の目的、範囲、初期世界、実装基盤 |
 | [`V0_15_ECOLOGY.md`](design/V0_15_ECOLOGY.md) | Baseline / v0.15 configurable | 初回Runに基づく生態系変更と解消済み実装規則 |
 | [`V0_2_SETTLEMENT_ORDER.md`](design/V0_2_SETTLEMENT_ORDER.md) | Baseline / v0.2 configurable | Settlement自然発生、Maintenance、Order、Friction、Invasion、Aura |
-| [`V0_2_4_SETTLEMENT_STABILIZATION.md`](design/V0_2_4_SETTLEMENT_STABILIZATION.md) | Baseline / v0.2.4 configurable | Rest v2、Home Bias、Proto-Order、SettlementSupport、Invasion暫定安定化 |
+| [`V0_2_4_SETTLEMENT_STABILIZATION.md`](design/V0_2_4_SETTLEMENT_STABILIZATION.md) | Baseline / v0.2.4 configurable | Rest v2、Home Bias、Proto-Order、Support、SettlementPressure、Friction、Mobilization、Invasion |
 | [`SIMULATION_TICK.md`](design/SIMULATION_TICK.md) | Baseline / v0 configurable | 日、Micro Round、即時Death、Birth競合、乱数 |
 | [`V0_ACTIONS.md`](design/V0_ACTIONS.md) | Baseline / v0 configurable | Action/Reaction、Move、Communication、Combat、Flee、Pursuit |
 | [`CONCEPTS.md`](design/CONCEPTS.md) | Baseline constraints / Draft mechanics | 概念と困難、初期3概念 |
@@ -67,3 +67,4 @@ ChatGPTで議論
 ```
 
 設計文書は「今どう動くべきか」、ADRは「なぜその判断をしたか」を記録します。
+

@@ -95,10 +95,10 @@
 - L. Unaffiliated NPCがThreat行為を行った場合、Settlement側Counterattack / Threat Memoryが有効である。
 - M. Center radius 5内のRest CollisionでRest Intentを解除し、元Action枠の再評価を同一Micro Round最大1回に制限する。
 - N. 異Settlement平時CollisionをCombatではなくFrictionへ変換する。
-- O. CrowdingPressureをCoreOccupancyとBlockedMovementRateの0.5 / 0.5 defaultから算出する。
-- P. Crowding条件の30日平均と30日継続が成立するとInvasion Eligibleになる。
+- O. SettlementPressureをResidentLoad / MovementCongestion / ReturnFailureから算出し、CoreOccupancyを入力に使わない。
+- P. SettlementPressure 0.65以上の30日継続と全前提が成立するとInvasion Eligibleになる。
 - Q. Invasion対象がHostility、Friction、Distance、seed tie-breakの優先順位に従う。
-- R. MobilizationRateがCrowdingPressureに応じ20〜50%で変化する。
+- R. MobilizationRateがSettlementPressureに応じ20〜50%で変化する。
 - S. Core CohortをCore内のAffinity上位から選び、同値をseed付きで解決する。
 - T. Frontier CohortをCore外の所属NPCから選ぶ。
 - U. Rest中NPCをInvasion参加候補から除外する。
@@ -121,10 +121,10 @@
 - Patch A. 同日複数Hotspotの競合ではReproduction Success数が多いCandidateを優先する。
 - Patch B. 同数Candidateのseed tie-breakを決定論的に再現する。
 - Patch C. Map scan、collection、thread順を変えてもHotspot arbitration結果が変わらない。
-- Patch D. 異Settlement平時CollisionでFriction +1 defaultを適用する。
-- Patch E. 平時Explicit Threat EventでFriction +3 defaultを適用する。
+- Patch D. 異Settlement平時Collisionを日次Friction raw countへ追加する。
+- Patch E. 平時root Explicit Threat Incidentへweight 4を適用する。
 - Patch F. Counterattackで同一Threat EventのFrictionを二重加算しない。
-- Patch G. 30日Eventなしの後、30日ごとにFrictionを1減らし0未満にしない。
+- Patch G. Frictionへ半減期180日の連続日次decayを適用し0未満にしない。
 - Patch H. Influence内Unaffiliated非ThreatへSettlement NPCがExplicit Attack Candidateを生成しない。
 - Patch I. UnaffiliatedがActive ThreatになるとExplicit Attack Candidateを生成でき、Resolutionでも最新保護条件を再検証する。
 - Patch J. Reproduction参加者2名が同一Active Settlement Core内でない場合、Outside Penaltyを適用する。
@@ -183,11 +183,68 @@ Settlement Maintenance順と翌Tick反映、Aura / Core占有計算もcollection
 - AB. World Population比だけでSettlementが消滅しない。
 - AC. ConquestでDead NPCのAffiliationとHistoryを変更しない。
 - AD. Invasion開始時に`CrowdingInvasionArmed = false`となる。
-- AE. CrowdingPressure`< 0.70`が30日連続するまでre-armしない。
+- AE. Active Invasion終了後、SettlementPressure`<= 0.45`が30日連続するまでre-armしない。
 - AF. Center Cell占拠だけではAttack Victoryにならない。
 - AG. Usable Core 50%占拠でAttack Victoryになる。
 - AH. Frictionを0～100へClampする。
 - AI. Rest v2導入後もRestによるInvasion離脱Ruleを維持する。
 - AJ. Observation cache、spatial index、parallelization等の有無で決定論的結果が変化しない。
 
+### v0.2.4 unresolved-system closure
+
+SettlementPressure:
+
+1. `UsableInfluenceCells`からMap外、Landmark、侵入不能Cellを除外する。
+2. Empty、NPC occupied、Center、通常移動可能Cellを`UsableInfluenceCells`へ含める。
+3. `NominalResidentialCapacity = max(1, floor(UsableInfluenceCells * 0.70))`となる。
+4. `ResidentLoad`の30日平均人口へ、現在位置を問わずAliveかつActive Affiliationの全所属NPCを含める。
+5. `MovementCongestion`へ所属者占有・行先枯渇・Rest Collision・friendly suppressionを数え、Map境界とLandmarkだけのblockを除外する。
+6. `ReturnFailure`へCore距離非減少・占有・行先枯渇を数え、Flee / Advance / Defenseを除外する。
+7. `0.45 / 0.35 / 0.20`のPressureを30日rollingで日末更新し、翌Tickからだけ有効にする。
+
+Invasion trigger:
+
+8. GenerationではPressureにかかわらずInvasionを開始しない。
+9. Order、Active、Support 35以上をすべて要求する。
+10. Active Invasion参加中のSettlementから新規Invasionを開始しない。
+11. `CrowdingInvasionArmed = true`を要求する。
+12. 攻撃可能な別Active Settlementとeligible participant 3名以上を要求する。
+13. Pressure `>= 0.65`だけHighPressureDaysを進め、下回ればresetし、30日連続を要求する。
+14. 開始時にarmedをfalse、High / Low counterを0とし、新Eventを翌Tickから有効にする。
+15. Event終了後かつActive InvasionなしでPressure `<= 0.45`が30日連続するとre-armし、上回ればLow counterをresetし、中間帯では両counterを進めない。
+16. targetがHostility、Hostile内Friction、全体Friction、距離、named seed tieの順に従う。
+
+Friction:
+
+17. Frictionは対称、Hostilityは方向性、CurrentFrictionは0～100となる。
+18. 平時異Settlement CollisionをPairの日次raw countへ加える。
+19. root Explicit Threat Incidentだけを数え、Counterattack等Reactionを二重計上しない。
+20. Active Invasion中の両陣営CombatをFrictionへ加えない。
+21. `max(10, sqrt(LivingPopulationA * LivingPopulationB))`を日末人口から算出する。
+22. Collision weight 1、Threat weight 4、`10 * weighted / scale`、daily cap 5を適用する。
+23. 毎日`Current * exp(-ln(2)/180)`でdecayしてからimpulseを加える。
+24. Invasion宣言時にFrictionを25%残し、75%消費を記録し、Hostilityを変えない。
+25. Pair列挙順、root Event列挙順、thread順を変えても日末Frictionが同じになる。
+
+Mobilization:
+
+26. `Clamp(0.20 + 0.30 * SettlementPressure, 0.20, 0.50)`を使う。
+27. Target Forceを`floor(Population * rate + 0.5)`で決定論的に丸める。
+28. Alive、Active Affiliation、非Rest、他Invasion非参加だけをeligibleにする。
+29. Actual Forceが3未満なら開始しない。
+30. `CoreTarget = ceil(ActualForceSize / 2)`となる。
+31. Core cohortをAffinity降順、同値named seed tieで選ぶ。
+32. Frontier cohortを現在Core外からseed付きrandomで選ぶ。
+33. 片側不足時は他側で補充し、50/50を厳密制約にしない。
+34. Combat / Action値とcollection順がparticipant選択へ影響しない。
+
+Rest and Center:
+
+35. RestでAdvance BiasとParticipant状態を解除する。
+36. Rest離脱者を同じInvasion Eventへ再参加させない。
+37. Flee / Communication / Reproductionでは離脱せず、終了後の別Invasionには参加できる。
+38. Center到達、一時占有、複数日保持のいずれでもAttack Victoryにならない。
+39. Usable Core Occupation 50%以上だけでAttack Victoryになり、Center統計の有無が結果を変えない。
+
 具体的なtest framework、fixture形式、統計的試験のsample数は実装時に決める。
+

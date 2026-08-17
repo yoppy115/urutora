@@ -75,15 +75,15 @@ v0.15 Runでは少なくとも次を集計可能にする。
 - Generation→Order判定はPopulationCV、DemographicImbalance、rolling window、連続成立日数を記録できる。
 - Collisionは通常Combat、同Settlement抑制、Unaffiliated保護、異Settlement Friction、Invasion Combatを理由付きで区別する。
 - Reproduction FailureはTargetAbsent、Maturity、HP、Cooldown、Distance、Reject、Other Reality Failureへ可能な範囲で分離する。ただしNPC Outcomeへ内部値を漏らさない。
-- Invasionはtarget選択理由、Crowding、cohort、Bias離脱、勝敗条件、統合をstable Event IDで追跡する。
+- Invasionはtarget選択理由、SettlementPressure、trigger rejection、mobilization cohort、Bias離脱、同一Event再参加拒否、勝敗条件、統合をstable Event IDで追跡する。
 - AuraはConcept、Holder、対象、所属、Invasion Event、適用 / 失効を追跡できる。
 - Settlement Maintenanceは12段階のphase ordinal、日中Event、翌Tick state commitを区別する。
 - Hotspot arbitrationはimmutable Candidate ID、Reproduction Success count、seed tie-break、棄却理由、選択Centerを追跡する。
-- Friction EventはPair、加算理由、加算値、LastFrictionEventTick、decayを追跡し、Counterattack二重計上を識別できる。
+- FrictionはPair、raw collision / root threat count、weighted count、Living Population scale、decay前後、daily impulse、宣言時retentionを追跡し、Counterattack二重計上とActive Invasion combat除外を識別できる。
 - 一時MaxHP解除ClampはDamage Eventと分離したstate normalizationとして記録可能にする。
 - Invasionは利用可能Core Cell分母、攻撃側占有Cell、Rest / Death離脱、Flee中Participantを追跡する。
 - v0.2.1～v0.2.3はHotspot 5×5 / Success 3、出生所属の判定経路、ConceptMark表示、Settlement詳細、Friction、NPC履歴をVersion / commit付きで追跡可能にする。
-- v0.2.4はAction別Rest fatigue、RestPressure、Home Bias、Foreign movement、Generation Proto-Order benefit、SettlementSupport P/R/S、LowSupportDays、自然消滅、Crowding re-arm、Center Occupied、Core占拠Victory、Friction clampを機械可読にする。
+- v0.2.4はAction別Rest fatigue、RestPressure、Home Bias、Foreign movement、Generation Proto-Order benefit、SettlementSupport P/R/S、LowSupportDays、自然消滅、SettlementPressure 3成分、High / Low counter、armed、Friction、Mobilization、Center Occupied / hold days、Core占拠Victoryを機械可読にする。
 - 征服時のAffiliationChangedはAlive NPCだけに発行し、Dead NPCのHistoryを変更しない。
 - ログflush間隔はOperations設定でありEvent意味論を変えない。Run identityと保存運用は[`ENGINEERING_REPRODUCIBILITY.md`](ENGINEERING_REPRODUCIBILITY.md)に従う。
 
@@ -97,3 +97,4 @@ v0.15 Runでは少なくとも次を集計可能にする。
 - 保存期間、圧縮、sampling、個体数増加時の性能。
 - Perceptionや関係情報の記録粒度。
 - 詩篇生成へ渡す情報の選別と秘匿境界。
+
