@@ -21,8 +21,8 @@ internal static class Program
     private static readonly (string Name, Action Test)[] Tests =
     {
         ("configuration schema is strict", ConfigurationSchemaIsStrict),
-        ("v0.21 defaults preserve v0.15 ecology", V021DefaultsAndInitialAges),
-        ("v0.2 logged seeds form Settlements with the v0.21 threshold", LoggedV02SeedsFormSettlements),
+        ("v0.2.1 defaults preserve v0.15 ecology", V021DefaultsAndInitialAges),
+        ("v0.2 logged seeds form Settlements with the v0.2.1 hotspot", LoggedV02SeedsFormSettlements),
         ("partitioned RNG is deterministic and local", PartitionedRandomIsDeterministicAndLocal),
         ("utility candidate count and edge rules", UtilityCandidateRules),
         ("decision public API cannot receive Reality", DecisionApiCannotReceiveReality),
@@ -102,8 +102,8 @@ internal static class Program
     private static void V021DefaultsAndInitialAges()
     {
         var config = LoadConfig();
-        Equal("v0.21-default-1", config.Id);
-        Equal(4, config.Settlement.HotspotWindowSize);
+        Equal("v0.2.1-default-1", config.Id);
+        Equal(5, config.Settlement.HotspotWindowSize);
         Equal(3, config.Settlement.HotspotSuccessThreshold);
         Equal(0.125, config.Concept.ExposureByDistance[4], 0);
         Equal(180, config.Reproduction.MatureAgeDays);

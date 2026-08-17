@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "id": "v0.21-default-1",
+  "id": "v0.2.1-default-1",
   "world": {
     "width": 64,
     "height": 64,
@@ -111,7 +111,7 @@
   },
   "settlement": {
     "hotspotWindowDays": 90,
-    "hotspotWindowSize": 4,
+    "hotspotWindowSize": 5,
     "hotspotSuccessThreshold": 3,
     "evaluationIntervalDays": 15,
     "minimumCenterDistance": 7,

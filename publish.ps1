@@ -21,7 +21,11 @@ $appProject = Join-Path $repoRoot 'src\Simulation.App\Simulation.App.csproj'
 $runnerProject = Join-Path $repoRoot 'src\Simulation.Runner\Simulation.Runner.csproj'
 $versionProps = [xml](Get-Content -Raw (Join-Path $repoRoot 'Directory.Build.props'))
 $assemblyVersion = [Version]$versionProps.Project.PropertyGroup.Version
-$releaseVersion = "v$($assemblyVersion.Major).$($assemblyVersion.Minor)"
+$releaseVersion = if ($assemblyVersion.Build -gt 0) {
+    "v$($assemblyVersion.Major).$($assemblyVersion.Minor).$($assemblyVersion.Build)"
+} else {
+    "v$($assemblyVersion.Major).$($assemblyVersion.Minor)"
+}
 $outputDirectory = Join-Path $repoRoot "outputs\World Sim $releaseVersion"
 $dotnetCommand = Get-Command dotnet -ErrorAction Stop
 

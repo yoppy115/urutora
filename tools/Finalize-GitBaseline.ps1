@@ -1,8 +1,8 @@
 [CmdletBinding()]
 param(
     [string]$Branch = 'codex/v021-settlement-hotspot',
-    [string]$CommitMessage = 'balance: calibrate v0.21 settlement hotspot',
-    [string]$Tag = 'v0.21.0',
+    [string]$CommitMessage = 'balance: expand v0.2.1 settlement hotspot',
+    [string]$Tag = 'v0.2.1',
     [switch]$SkipTests,
     [switch]$Publish
 )

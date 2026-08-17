@@ -83,8 +83,8 @@ internal static class Program
             using (var first = store.CreateNextWorld(simulationConfig, SimulationConfigPath(), 9000))
             {
                 Equal(1, first.Info.WorldNumber);
-                Equal("v0.21", first.Info.ReleaseVersion);
-                Equal("v0.21", Directory.GetParent(first.Info.DirectoryPath)!.Name);
+                Equal("v0.2.1", first.Info.ReleaseVersion);
+                Equal("v0.2.1", Directory.GetParent(first.Info.DirectoryPath)!.Name);
                 Equal(9000L, first.Info.Seed);
                 tick = first.AdvanceOneDay();
                 firstInfo = first.Info;

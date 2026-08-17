@@ -41,7 +41,7 @@
 - Vitality Control Point値は確定Phase形状を守る保守的なv0.15 Config初期値として調整できる。
 - Held InformationはSubject + Propertyごとに3件、FIFO evictionとし、直接消滅確認時だけSubject全体をpurgeする。
 - v0.2 Settlement / Order仕様は `docs/design/V0_2_SETTLEMENT_ORDER.md` を正本とし、Generation中の形成・AffinityとOrderから有効な社会Ruleを混同しない。
-- v0.21はv0.2の社会境界を維持し、実測2 Worldに基づいてHotspot thresholdだけを3へ補正する。90日、4×4、15日評価、spacing 7、arbitrationを連動変更しない。
+- v0.2.1はv0.2の社会境界を維持し、Hotspotを90日、5×5、threshold 3、15日評価とする。spacing 7とarbitrationを連動変更しない。
 - Order中のCollision、Friction、Invasion、Auraは所属・WorldPhase・Event状態を明示的に解決し、v0.15の主観境界やTargeted Action順を弱体化しない。
 - v0.2 Settlement構造変更は固定順のTick末Maintenanceでcommitし、新規Settlement / WorldPhase / Invasion開始は原則翌Tickから反映する。
 - Hotspot arbitration、Friction、Unaffiliated保護、同一Core繁殖、Aura / temporary MaxHP、Core占有率、Invasion離脱は `V0_2_SETTLEMENT_ORDER.md` の確定境界を守る。
