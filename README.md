@@ -6,12 +6,12 @@
 
 ## Current status
 
-- フェーズ: v0.2.5 Knowledge, Fission & Invasion Update正史確定
+- フェーズ: v0.2.5 Knowledge, Fission & Invasion UpdateおよびUnresolved Contracts Closure正史確定
 - 実装: v0.2.4までの既存実装・正史を基礎に、v0.2.5は正史文書確定・コード未変更
 - 実装基盤: C# / .NET。`Simulation.Core`、`Simulation.App`、`Simulation.Core.Tests` を分離する
 - 外部依存: なし
 
-次段階では、v0.2.4までの境界を維持しながら、v0.2.5の三種Knowledge、増分統計、累積Support / Renewal、Fission先行、持続型Invasionを同一seedで再現可能なCoreと観測Appへ反映します。
+次段階では、v0.2.4までの境界を維持しながら、v0.2.5の三種Knowledge、増分統計、累積Support / Renewal、Fission先行、持続型Invasion、今回確定した記憶・Center・Migration契約を同一seedで再現可能なCoreと観測Appへ反映します。
 
 ## Source of truth
 

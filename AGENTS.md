@@ -39,6 +39,8 @@
 - v0.15のTargeted ActionはAttack → Reproduction → Communication順で、終了済みphaseへ再抽選Intentを巻き戻さない。
 - Vitality Control Point値は確定Phase形状を守る保守的なv0.15 Config初期値として調整できる。
 - v0.2.5の知識はPersonBelief / EventBelief / SettlementBeliefへ分離する。旧Subject + Property 3件FIFOを復活させず、Unknown、field provenance、人物capacity / TTL、Communication差分送信を `docs/design/KNOWLEDGE_MEMORY.md` に従って扱う。
+- EventBeliefはMandatory Memorable Eventまたは認識済みPin Importance 60以上だけを候補とし、Reality Eventを全NPCへ自動配布しない。
+- Person evictionはAggregatePersonConfidenceとPosition Unknown = PositiveInfinityを使う。SettlementBeliefは自己所属、直接観測、当事者Event、Communication、直接Outcomeだけから取得する。
 - v0.2 Settlement / Order仕様は `docs/design/V0_2_SETTLEMENT_ORDER.md` を正本とし、Generation中の形成・AffinityとOrderから有効な社会Ruleを混同しない。
 - v0.2.1はHotspotを90日、5×5、成功3件、15日評価とする。v0.2.3は既存Influence内SuccessをHotspotから除外し、新Core全Cellを既存Active Influenceと非重複にする。
 - v0.2.3出生所属は、同じActive Settlement所属の両親なら場所非依存、片親所属なら受胎時に両親とも所属先Influence内、異所属なら両親が同じ一意なActive Core内という境界を守る。
@@ -50,6 +52,7 @@
 - Order中のCollision、Friction、Invasion、Auraは所属・WorldPhase・Event状態を明示的に解決し、v0.15の主観境界やTargeted Action順を弱体化しない。
 - v0.2 Settlement構造変更は固定順のTick末Maintenanceでcommitし、新規Settlement / WorldPhase / Invasion開始は原則翌Tickから反映する。
 - Hotspot arbitration、Friction、SettlementPressure、Mobilization、Unaffiliated保護、同一Core繁殖、Aura / temporary MaxHPは `V0_2_SETTLEMENT_ORDER.md`、Support / Fissionは `SETTLEMENT_FISSION.md`、Invasion離脱・勝敗は `INVASION_V025.md` の確定境界を守る。
+- Fission CenterはCell別Unaffiliated Resident-Daysを優先し、Migration完了はchild Influenceへの実到達で判定する。Struggleはv0.2.5のWorldPhaseではなくBacklogである。
 
 ## Change contract
 

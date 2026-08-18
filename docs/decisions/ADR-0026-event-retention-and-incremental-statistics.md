@@ -2,6 +2,7 @@
 
 - **Status:** Accepted
 - **Date:** 2026-08-18
+- **Amended by:** ADR-0029
 
 ## Context
 
@@ -17,5 +18,4 @@ StatisticsはEventまたは日末差分で増分更新し、rolling値は有限r
 
 - buffer容量、表示頻度、archive有無・圧縮を変えてもSimulation結果は変わらない。
 - Event schemaはworld event、diagnostic aggregation、milestoneを識別できる必要がある。
-- Memorable / Pinの具体閾値は未決のまま残す。
-
+- ADR-0029により、Mandatory Memorable EventはImportanceに関係なく、その他は既存`PinImportance >= 60`の場合だけEventBelief候補とする。どちらもNPC自身の認識が必要で、既存Importanceを持たないEventを新しい汎用式で推測採点しない。

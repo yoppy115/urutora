@@ -98,7 +98,7 @@ Advance / Cohesionの具体WeightはConfig / implementation detailだがAdvance�
 | Defense victory | force ratio <=.30を3日、Influence内0人を7日、または90日 |
 | FieldRest | 1 day |
 
-Knowledge category、field priority、Support / Fission、Invasionの因果境界はConfigで変更しない。Event Importance閾値、SettlementBelief直接観測契約、Person eviction集約、Fission center cell、Migration完了条件は未決であり、default値で黙って固定しない。
+Knowledge category、field priority、Support / Fission、Invasionの因果境界はConfigで変更しない。v0.2.5 closureはPin Importance threshold 60、7 tracked Person field、Migration completion radius = child Influence radius（現行7）を採用する。汎用Importance式、Event / Settlement Belief容量、Struggle遷移は未決のままである。
 
 ## Run metadata
 

@@ -2,6 +2,7 @@
 
 - **Status:** Baseline / technical policy
 - **Decision:** [`ADR-0026`](../decisions/ADR-0026-event-retention-and-incremental-statistics.md)
+- **Closure:** [`ADR-0029`](../decisions/ADR-0029-v025-unresolved-contracts-closure.md)
 
 ## Four layers
 
@@ -25,14 +26,16 @@ Recent Buffer容量、archiveのflush・分割・圧縮は、Simulation結果へ
 - 個別Communication field転送、Candidate failure、friendly collision。
 - Observation更新、Affinity gain。
 
-次は原則として個別Event / Milestoneを残す。
+次のMandatory Memorable EventはImportance値に関係なく長期候補とする。
 
-- Birth、Death、CombatDeath、ConceptMark。
-- Settlement Formation、Renewal、Fission、Dissolution、Integration。
-- Invasion開始・終了、Conquest、World Phase。
-- 重要ActionOutcome、Pin、大規模人口変動。
+- WorldPhaseTransition。
+- SettlementFormation、Renewal、Fission、Dissolution、Integration。
+- InvasionStarted、InvasionEnded、Conquest。
+- ConceptMarkAcquired。
 
-何をImportant / Pinと判定する具体閾値は未決である。
+Mandatory以外のEventは既存`PinImportance >= 60`の場合だけEventBelief / Milestone候補にできる。60はv0.2.5 configurable defaultである。既存Importance値がないEventを新たな汎用式で推測採点しない。候補であってもNPCが直接経験・Observation・Communication・正式通知で認識しなければ、そのNPCのEventBeliefへ保存しない。
+
+Birth、Death、CombatDeath等はWorld Eventや増分Statisticsへ個別保持できるが、MandatoryでもImportance 60以上でもない限り、NPCのEventBeliefへ自動保存しない。
 
 ## Incremental statistics
 
@@ -47,6 +50,9 @@ Statistics projectionはEventや日末snapshot差分を受けて増分更新す�
 - field別Observation / Communication更新、優先度で拒否した更新。
 - Unknown比率、Death採用によるPersonBelief削除。
 - category別送信数、差分送信数、候補枯渇。
+- Mandatory Memorable Event生成、Pin Importance 60以上によるEventBelief、60未満による非採用、EventType別保持、Communication共有数。
+- SettlementBeliefの自己所属、Center Observation、所属表示、Event参加、Communication別作成・更新数と各field Known率。
+- AggregatePersonConfidence、HearsayOnly / TTL / Confidence / Position Unknown eviction、各保護数。
 
 ### Settlement support and fission
 
@@ -55,7 +61,8 @@ Statistics projectionはEventや日末snapshot差分を受けて増分更新す�
 - LowSupportDays、P / R / S各成分、Supportが100に達した日。
 - FissionPressureDays、hotspot候補数、不成立理由。
 - 5×5 Resident-Days、現在Unaffiliated数、候補Center。
-- migrant予定・到着・死亡・bias解除、親子Settlement、Fission回数。
+- Cell別Resident-Days最大、現在Unaffiliated在住cell選択、中心距離 / seed tie-break、Valid Centerなし、次hotspot評価。
+- migrant予定、成立時即時完了、Move / Flee / Tick末完了、死亡・child無効化中断、平均 / 最大日数、完了率、bias解除、親子Settlement、Fission回数。
 - Fission成功日、同日Invasion抑止、hotspotなしによるInvasion移行。
 
 ### Invasion

@@ -95,15 +95,22 @@ U_rest = RestPressure - 0.25 * ActivityNeed
 - Raw Archiveの必須化、History / Psalm本文生成。
 - Invasion固有Utility AI、兵科、補給、包囲、城壁。
 
-## 実装上の未決事項
+## 解消済み実装契約
 
-以下はゲーム挙動を独自確定してはならない。
+v0.2.5 Unresolved Contracts Closure Patchにより、次を確定した。
 
-- EventをMemorable / Pinと判定する具体的なImportance閾値。
-- SettlementBeliefをCommunication以外から新規取得する具体的な観測契約。
-- PersonBelief evictionで複数fieldのConfidenceを一値へ集約する方式と、Position Unknown時の距離順位。
-- Fission Candidateの有効5×5領域内で最終Center cellを選ぶ詳細規則。
-- Active Fission / Migrationが完了したとみなす厳密な条件。
-- Struggle Phaseへの遷移条件。
+- EventBeliefはMandatory Memorable Event、または認識済みでPin Importance 60以上のEventだけを候補とする。
+- SettlementBeliefは自己所属、Center / 所属表示の直接Observation、当事者Event、Communication、本人への直接Outcomeから取得する。
+- Person evictionは7 tracked fieldのConfidence平均を`AggregatePersonConfidence`とし、Unknown fieldを0として数える。
+- evictionでPosition Unknownは`PositiveInfinity`、Knownは自己位置からLastKnownPositionへのChebyshev距離とする。
+- Fission Centerは5×5内のCell別Unaffiliated Resident-Days、現在居住、幾何中心距離、named seedの順で選ぶ。
+- MigrationはAliveかつActive child SettlementのInfluence radius内へ実到達した時点で完了する。
+- Struggleはv0.2.5では意図的に実装しない。Expansion Indicatorsは統計でありWorld Phaseではない。
+
+詳細は [`KNOWLEDGE_MEMORY.md`](KNOWLEDGE_MEMORY.md)、[`EVENT_HISTORY.md`](EVENT_HISTORY.md)、[`SETTLEMENT_FISSION.md`](SETTLEMENT_FISSION.md)、[`WORLD_LIFECYCLE.md`](WORLD_LIFECYCLE.md) を正本とする。
+
+## なお未決の技術・将来仕様
 
 Recent Event Buffer容量、Raw Archiveの分割・圧縮、Invasion front cellの決定論的な具体アルゴリズムは、観測結果を変えない範囲の技術裁量である。
+
+汎用Pin Importance計算式、Event / Settlement Beliefのcapacity・TTL、Settlement人口の直接観測、Struggle正式遷移と固有RuleはBacklogである。

@@ -108,6 +108,8 @@ SettlementのHostility、Friction、Invasion状態はReality上の社会状態�
 
 v0.2.4は旧Held Information境界を維持したが、v0.2.5がこれを明示的に置換する。現行仕様は人物ごと1 PersonBelief、StableCommunication由来の全人物capacity、365日TTL、保護付きeviction、field provenanceである。Event / Settlement知識は別categoryとする。
 
+v0.2.5 closureでは、Person evictionの人物Confidenceを7 tracked fieldの0込み平均、Position Unknownを無限遠として確定した。SettlementBeliefは自己所属、距離3以内のCenter / 所属表示Observation、当事者Event、Communication、直接Outcomeからだけ取得する。Mandatory Memorable EventまたはPin Importance 60以上であっても、NPCが認識しなければEventBeliefへ保存しない。詳細は [`KNOWLEDGE_MEMORY.md`](KNOWLEDGE_MEMORY.md) を正本とする。
+
 ## Player boundary
 
 プレイヤーも通常はReality全知ではない。現在の表層状態を中心に観測し、完全な因果や全履歴の調査を主目的にしない。開発用debug projectionとは分ける。

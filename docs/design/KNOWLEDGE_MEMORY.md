@@ -2,6 +2,7 @@
 
 - **Status:** Baseline / v0.2.5 configurable defaults
 - **Decision:** [`ADR-0025`](../decisions/ADR-0025-structured-knowledge-and-person-memory.md)
+- **Closure:** [`ADR-0029`](../decisions/ADR-0029-v025-unresolved-contracts-closure.md)
 
 ## Knowledge categories
 
@@ -76,23 +77,37 @@ capacity超過時は次を保護対象とする。
 
 1. 伝聞だけの人物。
 2. `LastRecognizedTick`が古い人物。
-3. 保持fieldのConfidenceが低い人物。
+3. `AggregatePersonConfidence`が低い人物。
 4. 最後に知ったPositionが遠い人物。
 5. stable `SubjectId`順。
 
-保護対象だけでcapacityを超える場合も同じ順位で忘れてよい。新しいrecord自身が直ちにevictされてもよい。能力・Mark変化でcapacityが縮小した場合も同じ処理を使う。複数fieldのConfidence集約とPosition Unknownの順位は未決である。
+保護対象だけでcapacityを超える場合も同じ順位で忘れてよい。新しいrecord自身が直ちにevictされてもよい。能力・Mark変化でcapacityが縮小した場合も同じ処理を使う。
+
+`AggregatePersonConfidence`はAliveStatus、Position、EstimatedHP、EstimatedCombat、LifeStage、SettlementAffiliation、ConceptMarksの7 fieldを対象とする。SubjectIdとLastRecognizedTickは含めない。
+
+```text
+AggregatePersonConfidence
+  = Sum(Confidence of each known tracked field) / TrackedFieldCount
+```
+
+Unknown fieldはConfidence 0として7件の分母へ含め、結果を0～1へClampする。これは容量超過時の忘却順位だけに使用し、Combat、位置、その他Action Decisionには個別fieldのConfidenceを使う。
+
+eviction用距離は、Position Unknownなら`PositiveInfinity`とする。KnownならNPC自身の現在位置と有効なLastKnownPositionのChebyshev距離を使う。古くてもfieldが有効なら使用し、失効してUnknownになった時点でPositiveInfinityへ移る。保護規則はこの距離順位より先に適用する。
 
 旧Subject + Propertyごと3件FIFOは現行仕様ではない。PersonBeliefは各fieldの現在採用値とprovenanceだけを持つ。
 
 ## EventBelief
 
-通常の移動、会話、field転送、Collision抑制等を無制限に記憶しない。次のMemorable Event / PinだけをEventBeliefにできる。
+通常の移動、会話、field転送、Collision抑制等を無制限に記憶しない。EventBelief候補はMandatory Memorable Event、または`PinImportance >= 60`のEventだけである。Importanceは0～100、60はv0.2.5 configurable defaultである。
 
-- World Phase。
-- Settlement形成、Renewal、Dissolution、Integration、Fission。
-- Invasion開始・終了、Conquest。
-- ConceptMark取得、重要人物の死亡、大規模人口変動。
-- 本人が直接経験した重大Event、Pin。
+Mandatory Memorable EventはImportanceに関係なく次とする。
+
+- WorldPhaseTransition。
+- SettlementFormation、SettlementRenewal、SettlementFission、SettlementDissolution、SettlementIntegration。
+- InvasionStarted、InvasionEnded、Conquest。
+- ConceptMarkAcquired。
+
+Mandatory以外では、既存Pin / Importance値が60以上の重要人物死亡、本人が直接経験した重大事件、大規模人口変動、特異なCombat結果等を候補にできる。既存Importanceを持たないEventへ、この契約を理由に新しい汎用採点を行わない。
 
 ```text
 EventId / EventType / Tick
@@ -100,7 +115,7 @@ KnownParticipants / KnownSettlements / KnownLocation / KnownOutcome
 Importance / Confidence / SourceType / SourceId
 ```
 
-各値はUnknownを許す。v0.2.5ではNPC死亡まで保持し、capacity / TTLを設けない。Memorable判定とImportance閾値は未決であり、全raw eventをEventBeliefへ複製してはならない。
+各値はUnknownを許す。v0.2.5ではNPC死亡まで保持し、capacity / TTLを設けない。候補Eventでも、NPCが直接経験、直接Observation、Communication、または所属・参加状態による正式通知で認識した場合だけ保存する。Reality発生だけで全NPCへ自動配布しない。
 
 ## SettlementBelief
 
@@ -118,6 +133,29 @@ LastUpdatedTick / Confidence / SourceType / SourceId
 ```
 
 Unknownを明示する。Dissolution後もNPC死亡までは記憶を残し、`ActiveStatus`を更新できる。v0.2.5ではcapacity / TTLを設けない。直接親子以外のRelationをRealityから自動配布しない。
+
+### SettlementBelief acquisition
+
+SettlementBeliefを取得・更新できる入口は次だけである。
+
+1. 自身のActive Affiliation。
+2. Settlement Centerの直接Observation。
+3. Settlement所属NPCのAffiliation表示の直接Observation。
+4. Settlement関連Eventへの直接参加。
+5. Communication。
+6. 自身へ直接適用されたSettlement ActionOutcome。
+
+自身のActive SettlementについてはSettlementId、ActiveStatus、Center、自身とのRelation、本人が当事者として知るParent / Child関係を正確に知ってよい。全人口、全住民、Friction、Support等は自己情報ではない。
+
+通常Observation Range内、すなわちChebyshev距離3以内でCenter cellを直接観測した場合、SettlementId、ActiveStatus、Centerを既存距離別Observation Confidenceで更新できる。正確な人口、全住民、Friction、Support、Pressure、Invasion計画は得ない。
+
+人物を直接Observationした際、その人物のSettlementAffiliationをcategory情報として識別できる。SettlementBeliefがなければSettlementIdだけKnownで他fieldがUnknownの部分recordを作れるが、Centerや人口を自動補完しない。
+
+SettlementFormation / Fission / Integration / Dissolution / Renewal、Conquest、InvasionStarted / Endedの直接参加者は、本人へ明示された範囲だけ関連SettlementBeliefを更新できる。Fission migrantは親とchild、Invasion participantは攻撃・防衛Settlement、征服で所属変更されたAlive NPCは統合先を認識できる。
+
+field更新優先度は、自身の所属状態または直接Observation、直接Event参加、Communication、同SourceTypeなら新しい情報、同tickなら高Confidence、stable information IDの順とする。直接観測Centerを低優先の伝聞で上書きしない。
+
+`PopulationEstimate`はCommunication、人口を明示するMemorable Event、将来の専用観測契約からだけ更新する。Center観測や周囲に見える所属NPC数をSettlement総人口へ自動変換しない。
 
 ## Communication selection
 

@@ -386,4 +386,66 @@ Rest and Center:
 12. 90日膠着でDefense Victoryとなる。
 13. Damage式がv0.2.4から変化していない。
 
+## v0.2.5 closure: Memorable Event
+
+1. Mandatory Memorable EventはImportance 60未満でもEventBelief候補になる。
+2. Mandatory外EventはPin Importance 60以上で候補になる。
+3. Importance 59以下では候補にならない。
+4. Memorable Eventでも未認識NPCへ自動保存されない。
+5. 通常高頻度EventをEventBeliefへ自動保存しない。
+6. 既存Importance値がないEventを新規に推測採点しない。
+
+## v0.2.5 closure: SettlementBelief
+
+1. NPCは自SettlementのId / Active / Centerを正確に知る。
+2. 自Settlement人口を自動的には知らない。
+3. Centerを距離3以内で直接ObservationするとCenterがKnownになる。
+4. 所属NPCの直接ObservationでSettlementIdだけの部分recordを作れる。
+5. 所属NPC ObservationだけでCenterや人口を自動取得しない。
+6. Fission participantが親・child Settlementを認識する。
+7. Invasion participantが関連Settlementを認識する。
+8. 直接ObservationしたCenterを低優先伝聞で上書きしない。
+9. Settlement Dissolution認知でActiveStatusを更新できる。
+10. PopulationEstimateをCenter Observationだけから生成しない。
+
+## v0.2.5 closure: Person eviction
+
+1. Unknown fieldをAggregatePersonConfidence上0として扱う。
+2. 全tracked field KnownかつConfidence 1ならAggregate 1となる。
+3. 半数Unknownならcoverageを反映してAggregateが低下する。
+4. AggregatePersonConfidenceをAction Decisionへ直接使用しない。
+5. Position Unknownはeviction距離でPositiveInfinityとなる。
+6. 他条件が同じならPosition Unknown人物をKnown人物より先に削除する。
+7. Active Threat保護を距離順位より先に適用する。
+8. 同Settlement保護を距離順位より先に適用する。
+9. LastKnownPositionとの距離にChebyshev距離を使う。
+
+## v0.2.5 closure: Fission Center
+
+1. Landmark CellをCenterへ選ばない。
+2. Map外・侵入不能Cellを選ばない。
+3. 現在NPCがいるCellもDesignation Center候補にできる。
+4. Cell Resident-Days最大Cellを優先する。
+5. 同値なら現在Unaffiliated NPC在住Cellを優先する。
+6. 同値なら5×5幾何中心へ近いCellを優先する。
+7. 最終同値をnamed seedで決定論的に解決する。
+8. Map scan順で結果が変化しない。
+9. Valid Centerなしならhotspot candidateが不成立になる。
+10. 次の有効hotspotを同じMaintenanceで評価できる。
+
+## v0.2.5 closure: Migration
+
+1. child Influence内へ入ればMigration完了となる。
+2. Core到達を要求しない。
+3. Fission成立時にすでにInfluence内なら即時完了する。
+4. 2マスMoveでは最終Position後に判定する。
+5. Move後完了でMigrationBiasを解除する。
+6. Flee後でもInfluence内なら完了できる。
+7. Tick末fallbackで取り残された完了状態を解消する。
+8. 完了Eventを二重発行しない。
+9. 完了時にAffiliation変更を再発生させない。
+10. child Settlement消滅でMigrationを中断する。
+11. Invasion中はInvasion Biasを優先する。
+12. Invasion終了後、未完了Migrationを再開する。
+
 具体的なtest framework、fixture形式、統計的試験のsample数は実装時に決める。

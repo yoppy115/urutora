@@ -11,8 +11,8 @@
 - Still on hold: 国家、属国、占領統治、反乱・忠誠、内部階層、資源、疾病、Settlement間の恒常的外交。
 - v0.2.5後に保留: 軍事占領、補給、兵科、軍事Leader、Combat / Actionによるrecruitment優先、Active Invasion CombatのFriction加算。
 - Concept数値の再調整、PersonBelief圧縮、EventBelief / SettlementBeliefのcapacity・TTLはRun後まで保留。旧Subject + Property 3件FIFOはADR-0025で置換済み。
-- Struggle Phaseへの正式遷移条件、EventのMemorable / Pin閾値、SettlementBeliefの直接観測契約を保留する。
-- Fission Candidate内のCenter cell詳細選択、Migration完了条件、Person eviction時のConfidence集約とPosition Unknown距離順位を保留する。
+- 汎用Pin Importance計算式の再設計、EventBelief / SettlementBeliefのcapacity・TTL、Settlement人口の直接観測方式を保留する。
+- Struggle正式遷移条件、ExpansionからStruggleへ進む閾値、Struggle固有Rule / Bonus / Difficultyを保留する。v0.2.5のExpansionは統計だけである。
 - Future pressure: Settlementの成功が疾病、内部対立、資源不足、階層等の新Difficultyを生む。
 - Related design: [`V0_2_SETTLEMENT_ORDER.md`](../design/V0_2_SETTLEMENT_ORDER.md)
 
@@ -50,6 +50,13 @@
 - Related design: [`PLAYER_OBSERVATION.md`](../design/PLAYER_OBSERVATION.md)
 
 ## Promoted to canon
+
+- v0.2.5 Unresolved Contracts Closure Patchを採用した。
+  - Mandatory Memorable EventとPin Importance 60、SettlementBelief取得契約を確定。
+  - AggregatePersonConfidence、Position Unknown eviction順位を確定。
+  - Cell Resident-DaysによるFission Center、child Influence到達によるMigration完了を確定。
+  - Struggleを意図的延期とし、Expansion Indicatorsを統計へ限定。
+  - [`V0_2_5_KNOWLEDGE_FISSION_INVASION.md`](../design/V0_2_5_KNOWLEDGE_FISSION_INVASION.md)、[`ADR-0029`](../decisions/ADR-0029-v025-unresolved-contracts-closure.md)
 
 - v0.2.5 Knowledge, Fission & Invasion Updateを採用した。
   - KnowledgeをPerson / Event / Settlementへ分離し、人物capacity / TTL、Unknown、field provenance、差分Communicationを確定。

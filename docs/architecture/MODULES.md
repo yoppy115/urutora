@@ -17,7 +17,7 @@
 | Spatial Resolution | Grid占有、Move競合、Collision Attack変換を扱う | UtilityへReality占有状態を漏らす |
 | Combat Resolution | Attack、Damage、Counterattack、Pursuit Attackを扱う | Reactionを無限再帰させる |
 | Person Knowledge | PersonBelief field、Unknown、capacity、TTL、eviction、field優先度を扱う | Realityを自動同期する |
-| Event / Settlement Knowledge | Memorable EventBeliefとSettlementBeliefを別寿命で保持する | Raw Event全件をNPCへ複製する |
+| Event / Settlement Knowledge | Mandatory / Pin thresholdと認識入口、Settlement field取得・優先度を扱う | Raw Event全件やSettlement RealityをNPCへ複製する |
 | Communication | Event → Settlement → Personの差分field選択、受信時変形を扱う | 未知Reality情報を生成する |
 | Lifecycle / Aging | 年齢、Vitality、即時Dead遷移、tick末cleanupを扱う | 繁殖やUtility式を所有する |
 | Reproduction | Attempt/Reaction、遺伝、BirthRequest、batch出生競合、系譜を扱う | 老化方式やqueue順で結果を決める |
@@ -26,11 +26,10 @@
 | World Phase | 人口系列、PopulationCV、DemographicImbalance、Generation→Orderを扱う | Settlement個別Bonusを実装する |
 | Settlement Policy | WorldPhaseと地域・所属からRest、Vitality、Reproduction、Collision policyを提供する | Spatial、Utility、Lifecycleの権威的計算を奪う |
 | Settlement Movement Policy | Home / Foreign Biasと自Settlement内Move fatigue modifierを投影する | Flee、Invasion Advance / Defense、Reality validationを上書きする |
-| Settlement Support | 90日P/R/S、Support、Hysteresis、自然消滅を扱う | World Population比で局所生活を代用する |
 | Settlement Relations | 日次正規化Friction、方向性Hostility、Founder cohortからの初期関係、宣言時retentionを扱う | 個人に存在しないThreatを捏造する |
 | Settlement Pressure | 30日ResidentLoad / MovementCongestion / ReturnFailureとHigh / Low counterを扱う | CoreOccupancyをInvasion Triggerとして再利用する |
-| Settlement Support | SupportPotentialから累積Support、hysteresis、Renewalを扱う | P/R/SやPressureを所有する |
-| Settlement Fission | Pressure gate、Resident-Days、hotspot、migration、親子関係を扱う | InvasionやNPC Utilityを所有する |
+| Settlement Support | 90日P/R/SによるSupportPotential、累積Support、hysteresis、Renewal、自然消滅を扱う | World Population比で局所生活を代用する、Pressureを所有する |
+| Settlement Fission | Pressure gate、Cell Resident-Days、Center選択、migration完了、親子関係を扱う | InvasionやNPC Utilityを所有する |
 | Invasion | eligibility、target、mobilization、participant state、front、継続勝敗、統合を扱う | 専用Utility AI、Center勝利、国家制度を追加する |
 | Concept / Difficulty | 概念・困難データと世界進化を扱う | 表示名を安定IDとして使う |
 | Concept Exposure | Landmark距離、Exposure、Mark取得とEffective補正を扱う | Base遺伝値を書き換える |
@@ -67,8 +66,9 @@
 - EntityがDeadへ遷移したら後続Intent/Reaction eligibilityとGrid占有を即時無効化し、Event/collection cleanupはtick末へ遅延できる。
 - BirthRequestは受胎時Positionと遺伝入力をimmutableに保持し、batch resolverが希望Cell競合を順序非依存で再抽選する。
 - Person Knowledgeは1 Subject 1 recordとし、StableCommunication由来の全人物capacity、365日TTL、保護付き安定evictionを適用する。旧Subject + Property 3件FIFOを使用しない。
+- Person evictionのAggregatePersonConfidenceは7 tracked fieldをUnknown=0として平均し、Position UnknownはPositiveInfinityとする。Decisionでは個別field Confidenceを使う。
 - Reproduction Candidateには対象PerceptionのAlive / Position / LifeStageだけを渡し、対象RealityのHP / CooldownはResolution portの内側に閉じる。
-- Subject消滅の直接確認はPerception StoreへSubject全Property削除commandを発行する。TargetAbsentや死亡伝聞では発行しない。
+- 採用優先度を通った`AliveStatus=Dead`はPersonBelief削除commandを発行できる。TargetAbsentはPositionだけをinvalidにし、死亡を自動開示しない。
 - Reproduction Success EventはSettlement FormationとAffinityへ安定ID付きで渡し、過去のRealityを遡及変更しない。
 - Settlement PolicyはGeneration / Order、地域、Affiliation、Invasion関係を明示的なvalueとして各Resolverへ渡す。
 - InvasionのAdvance / Defense / FieldRest / RetreatingとCohesion Biasは既存Move direction policyへ合成し、新Actionや別Utility pipelineを作らない。
@@ -82,6 +82,7 @@
 - Settlement Supportは日末のread-only 90日集計からP/R/Sを算出し、Membership変更と自然消滅をMaintenance順でcommitする。
 - Settlement Pressureは日末のread-only 30日集計から3成分を算出し、High / Low counterとともに翌Tick stateへcommitする。InvasionはPressure値を所有せず、eligibility inputとして受け取る。
 - Settlement FissionはPressureをInvasionより先に評価し、有効hotspotがある同日にInvasionへfallbackしない。
+- Fission Centerはimmutable snapshot上のCell Resident-Days、現在Unaffiliated、幾何中心距離、named seedで選ぶ。Migration完了はchild Influence到達をAction最終PositionとTick末fallbackで一度だけ判定する。
 - Incremental Statistics、Recent Buffer、Historical Milestone、Raw Archiveはterminal observerで、保持量やflushが権威的Event列を変えない。
 - Mobilizationはeligible snapshot、SettlementPressure、Affinity、named seedだけを使い、Combat / Action値やcollection順でcohortを歪めない。
 - Observation cache、近傍index、CPU並列read phaseは最適化portの内側に閉じ、権威的順序・random stream・Event IDを変えない。

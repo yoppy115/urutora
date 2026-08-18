@@ -130,6 +130,8 @@ Person Memory:
 - EverDirectlyObserved、HearsayOnly、ActiveThreat、同Settlement人物数。
 - TTL削除、死亡認知削除、capacity削除、新record即時破棄。
 - StableCommunication別の平均capacity。
+- AggregatePersonConfidence平均、HearsayOnly / Confidence / Position Unknown順位別eviction。
+- Active Threat、同Settlement、DirectObservedの保護数。
 
 Knowledge fields:
 
@@ -137,6 +139,9 @@ Knowledge fields:
 - 直接Observationが伝聞更新を拒否した数、SubjectSwap、死亡誤認後の再遭遇。
 - NPCあたりEventBelief / SettlementBelief平均、EventType別保持、共有Event。
 - Settlement ActiveStatus認知、Parent / Child、Hostility認知。
+- Mandatory Memorable Event、Pin Importance 60以上、Importance 60未満非採用、EventType別EventBelief、共有Memorable Event。
+- 自Affiliation、Center Observation、所属NPC Observation、Event参加、Communication別SettlementBelief作成・更新。
+- Settlement Center / ActiveStatus / PopulationEstimate / Parent-Child Known率。
 
 Communication:
 
@@ -156,8 +161,10 @@ Communication:
 - RenewalCount、LastRenewalTick、LowSupportDays、Support 100到達日、Renewal間隔。
 - Renewal後の人口・Pressure変化。
 - Settlement別FissionPressureDays / eligible日数、hotspot candidate / 有効 / 不在数。
-- Candidate Resident-Days、現在Unaffiliated人口。
-- Fission回数、migrant target / 実数 / 到着 / migration中死亡。
+- Candidate Resident-Days、Cell Resident-Days最大、現在Unaffiliated人口。
+- Valid Center候補、現在居住Cell選択、中心距離 / seed tie、Valid Centerなし、次hotspot評価。
+- Fission回数、migrant target / 実数、成立時即時 / Move後 / Flee後 / Tick末完了、migration中死亡、child無効化中断。
+- 平均 / 最大Migration日数、Migration完了率。
 - child成立、親人口変化、child人口、ParentChildNonAggression、FissionによるInvasion抑止。
 
 ## v0.2.5 Invasion
@@ -174,5 +181,6 @@ Communication:
 - Parent / Child Settlement数、Fission系譜深度。
 - 日次・年次人口増加率、Settlement別人口増加。
 - 高Support・高Pressure Settlement数、Expansion候補状態日数。
+- Fission Count、Invasion Count、Parent / Child network、Settlement間Friction・人口差。
 
-これらはStruggle Phaseの観測入力候補であり、v0.2.5ではphase transitionを発火させない。
+これらを`Expansion Indicators`として扱う。Struggle Phaseの将来入力候補だが、v0.2.5ではphase transitionやRule / Bonusを発火させない。

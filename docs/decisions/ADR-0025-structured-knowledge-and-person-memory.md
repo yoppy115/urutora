@@ -3,6 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-08-18
 - **Supersedes:** ADR-0015
+- **Amended by:** ADR-0029
 
 ## Context
 
@@ -21,5 +22,5 @@ CommunicationはEvent > Settlement > Personの順で、receiverに欠けるか�
 - 旧3件FIFO、直接死亡確認だけのSubject purge、category非優先送信は現行仕様ではない。
 - Unknownと既定値を型で区別し、DecisionへReality値を補完しない。
 - capacity / TTL / eviction / field updateをnamed deterministic ruleで実装する。
-- EventのMemorable閾値、Confidence集約、Position Unknown時のeviction距離は別途確定が必要である。
-
+- ADR-0029により、Person evictionの人物単位Confidenceは7 tracked fieldのUnknownを0とした平均、Position Unknownは距離順位上`PositiveInfinity`と確定した。
+- SettlementBeliefはCommunication専用ではなく、自己所属、直接Observation、所属表示、直接参加Event、Communication、本人へのSettlement ActionOutcomeを境界とする。

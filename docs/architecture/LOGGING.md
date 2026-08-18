@@ -55,6 +55,9 @@ Decision DebugとWorld Eventは概念的に分離する。Desktop AppのEvent Lo
 - TargetAbsent、Position invalidation、Interrupt理由、Intent replacement、再評価回数を追跡可能にする。
 - Reproduction FailureはReject、Reality precondition failure、TargetAbsent等を機械可読に区別する。ただしNPC向けOutcomeへ非公開precondition値を露出しない。
 - PersonBeliefのcapacity / TTL / 保護順位eviction、死亡認知削除、field update採否を理由付きで診断可能にする。EventBelief、SettlementBelief、World Event / History Logの保持とは分離する。
+- Memorable EventはMandatory、Pin Importance 60以上、Importance不足、未認識の経路を区別する。Importance未定義Eventを推測採点しない。
+- SettlementBeliefは自己所属、Center Observation、所属表示、Event参加、Communication、直接Outcomeの取得経路とKnown fieldを記録可能にする。
+- Person evictionはAggregatePersonConfidence、Position Known / Unknown、保護理由、最終順位を診断可能にする。
 - Targeted Action EventはAttack、Reproduction、Communicationのphase ordinalと、先行phase後の再Validation結果を保持できる。
 - Interrupt再抽選Intentが実行、未処理phase待ち、終了済みphaseのため失効のどれになったかを追跡できる。
 
@@ -87,6 +90,7 @@ v0.15 Runでは少なくとも次を集計可能にする。
 - Invasionは利用可能Core Cell分母、攻撃側占有Cell、Rest / Death離脱、Flee中Participantを追跡する。
 - v0.2.1～v0.2.3はHotspot 5×5 / Success 3、出生所属の判定経路、ConceptMark表示、Settlement詳細、Friction、NPC履歴をVersion / commit付きで追跡可能にする。
 - v0.2.5はRest Candidate抑止、三種Knowledge、Communication category / field差分、SupportPotential / 累積Support / Renewal、Fission / Migration / 親子関係、Invasion participant state / front / 継続counter / Victory reasonを機械可読にする。
+- Fission CenterはCell Resident-Days、現在Unaffiliated、中心距離、seed tie、invalid理由、次hotspot評価を追跡する。Migrationは開始、成立時即時、Move / Flee / Tick末完了、死亡・child無効化中断、Invasion pause / resumeを区別する。
 
 Event保持は[`EVENT_HISTORY.md`](../design/EVENT_HISTORY.md)の四層へ分ける。Recent Bufferから消えたPinを失わず、Optional Archiveの有無、buffer容量、flush間隔でSimulation結果を変えない。
 - 征服時のAffiliationChangedはAlive NPCだけに発行し、Dead NPCのHistoryを変更しない。

@@ -2,6 +2,7 @@
 
 - **Status:** Baseline / v0.2.5 configurable defaults
 - **Decision:** [`ADR-0027`](../decisions/ADR-0027-accumulated-support-renewal-and-fission.md)
+- **Closure:** [`ADR-0029`](../decisions/ADR-0029-v025-unresolved-contracts-closure.md)
 
 ## SupportPotential and accumulated support
 
@@ -70,9 +71,24 @@ Renewalは新Settlement生成や能力bonusではない。
 
 直接の親だけは、child centerが親Influence外、両Core非重複、非親Influence非重複を満たす場合にInfluence overlapを許す。overlap cellのSettlement benefitはActive Affiliationで決める。Unaffiliatedは双方へのAffinityを得てもよい。
 
-Resident-Daysはその日に当該5×5へいたUnaffiliatedだけを加算する。
+Resident-Daysはその日に当該5×5へいたUnaffiliatedだけを加算する。さらに各Cellについて直近30日の`UnaffiliatedResidentDaysByCell`を保持または同値に集計する。Unaffiliated NPC 1人が1日そのCellにいれば+1、所属者は加算しない。
 
-複数hotspotはResident-Days最大、親への距離が近い方、named seedによる決定論的tie-breakの順で選ぶ。scan順、collection順へ依存しない。5×5内の具体Center cell選択規則は未決である。
+複数hotspotはResident-Days最大、親への距離が近い方、named seedによる決定論的tie-breakの順で選ぶ。scan順、collection順へ依存しない。
+
+### Center cell selection
+
+Center候補CellはMap内、NPCが通常占有可能、Landmarkではない、親からのFission距離8～24、親子Core非重複、非親SettlementとのCore / Influence非重複、その他既存Fission条件を満たす必要がある。Settlement CenterはDesignationであり物理占有物ではないため、現在NPCがいるCellも候補にできる。
+
+有効Cellを次の固定順で選ぶ。
+
+1. `UnaffiliatedResidentDaysByCell`最大。
+2. 同値なら評価snapshot時点でUnaffiliated NPCが存在するCell。
+3. 同値なら5×5の幾何学的中心へのChebyshev距離が短いCell。
+4. なお同値ならnamed seedによる決定論的tie-break。
+
+Fission判定開始時のimmutable snapshotを使用し、Map scan、array、dictionary、同tickのNPC移動や別Settlement生成で結果を変えない。同時Fission競合は既存Settlement arbitrationを使う。
+
+選択hotspotにValid Center Cellがなければ不成立とし、同じMaintenanceに次順位の有効hotspotがあれば評価できる。重複制限を迂回して無効Cellを採用しない。
 
 ## Migrants and child settlement
 
@@ -85,7 +101,28 @@ minimum = 4
 
 Tick末にchild SettlementをActiveで生成し、`ParentSettlementId`、Support=50、SaturatedDays=0、LowSupportDays=0を設定する。Order中なら既存Order benefitsを受ける。migrantは`FissionFounder`となりActive Affiliationをchildへ変更し、child Affinity +10と強いMigration Biasを持つ。親Affinityは履歴値として残せるが、Active membershipは一つだけである。
 
-child Core内のUnaffiliatedはchild Affinity +7を得るが、強制加入しない。Migration Biasは通常Moveをchild Core方向へ強く歪め、Flee、Active Invasion、emergencyを上書きしない。到着、死亡、child消滅で解除する。
+child Core内のUnaffiliatedはchild Affinity +7を得るが、強制加入しない。Migration Biasは通常Moveをchild方向へ強く歪め、Flee、Active Invasion、emergencyを上書きしない。
+
+### Migration completion
+
+次を満たした時点でMigration完了とする。
+
+```text
+Alive
+AND ChildSettlement is Active
+AND ChebyshevDistance(MigrantCurrentPosition, ChildSettlementCenter)
+    <= ChildSettlementInfluenceRadius
+```
+
+現行Influence radiusは7。Core到達、Affinity閾値、Rest、Communicationを要求しない。Fission成立時点ですでにchild Influence内なら即時完了としてBiasを付けない、または直ちに解除し、完了Statisticsへ一度だけ計上する。
+
+Move、Flee、その他Position変更ActionではAction全体の最終Position確定後に評価する。2マスMoveの1マス目では解除せず、方向選択を途中で変えない。Position変更がなくてもTick末Maintenanceでfallback評価し、二重Eventを発生させない。
+
+完了時はMigrationBiasとActiveMigrationを解除し、MigrationCompleted Eventまたは増分Statisticsを更新し、通常のchild Home Biasへ移行できる。Active AffiliationはFission成立時にすでにchildへ変更済みなので、完了時に再変更しない。
+
+死亡、child Dissolution、Integration等で元childが非Active、その他World Stateでtargetが無効になった場合はMigrationを中断する。Bias / ActiveMigrationを解除し、現在の有効AffiliationからHome Biasを再計算し、なければUnaffiliatedとする。死亡時は完了Eventを出さない。
+
+Migration中にActive Invasionへ参加した場合はInvasion Biasを優先し、Migration Biasを保持しても通常Moveへ適用しない。Event終了後、未完了かつchildがActiveならMigrationを再開する。
 
 親は成功時に`FissionPressureDays=0`、`HighPressureDays=0`とし、同tickにInvasionを開始しない。Supportを直接減らさない。人口流出の結果は翌日以降のP / R / S / Pressureに反映する。
 

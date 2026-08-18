@@ -3,6 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-08-18
 - **Amends:** ADR-0022、ADR-0024
+- **Amended by:** ADR-0029
 
 ## Context
 
@@ -21,5 +22,4 @@ Order中のActive SettlementがSupport 35以上、非戦時・非migrationでPre
 - Pressure 0.65を30日で直接Invasionする旧経路は、Fission gateなしには使えない。
 - Support Potential、累積Support、Renewal、Resident-Days、Migration、親子関係を別state / eventとして追跡する。
 - Fission成功時の人口変化が以後のSupport / Pressureへ自然に反映される。
-- Center cell詳細選択とMigration完了条件は未決である。
-
+- ADR-0029により、CenterはFission開始時snapshot上のCell別Unaffiliated Resident-Daysを第一順位として選び、MigrationはAliveかつActive child SettlementのInfluence内へ実到達した時点で完了すると確定した。

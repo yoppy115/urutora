@@ -69,6 +69,8 @@ flowchart LR
 19. **Knowledge categories have separate lifetimes.** Person、Event、Settlementの主観記録をReality cacheやWorld Event historyと混同しない。
 20. **History storage is layered.** Recent Buffer、Incremental Statistics、Milestone / Pin、Optional Raw Archiveを分離する。
 21. **Expansion precedes war.** SettlementPressureはFission domainへ先に渡し、有効候補がない場合だけInvasion eligibilityへ進む。
+22. **Recognition gates long-term belief.** Mandatory / high-Importance EventやSettlement Realityも、自己情報、Observation、直接参加、Communication、Outcomeの入口を通らなければNPC Knowledgeへ入れない。
+23. **Expansion is not a phase.** v0.2.5のExpansion Indicatorsはread-only Statisticsであり、World Ruleを切り替えない。
 
 ## State layers
 
@@ -148,6 +150,10 @@ Move policyはFleeとActive Invasion biasを上書きしない。Support、Settl
 v0.2.5では`SupportPotential`をread-only rolling input、`SettlementSupport`を権威的な累積Settlement stateとして分ける。Renewal、Fission、Migration、Parent / Child、Invasion Participant Stateはそれぞれtyped state / eventを持ち、万能SettlementManagerへ集約しない。
 
 PersonBelief Storeはfield provenance、capacity、TTL、evictionを所有する。EventBelief / SettlementBelief Store、Recent Event Buffer、Historical Milestone Store、Optional Archiveは別portとし、CoreのReality StoreやDecisionへ逆依存させない。
+
+Person evictionはKnowledge Store内で7 fieldのAggregatePersonConfidenceと明示的なeviction距離を算出する。SettlementBelief acquisitionは専用fact / event inputだけを受け、Settlement aggregate stateを丸ごと読まない。
+
+Fission Center選択とMigration完了はFission判定開始時snapshot、Action終了後Position、Tick末fallbackを明示的に分ける。Action途中やPresentation更新でMigration stateを変えない。
 
 Observation cache、NPC近傍index、決定論的並列read phaseは最適化層であり、権威的Event順、random purpose、stable IDを変えない。Run identityはVersion、repositoryCommit、Config、Seedを一組とする。
 

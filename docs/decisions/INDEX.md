@@ -34,6 +34,7 @@ ADRは、重要で後戻りしづらい判断について「なぜそうした�
 | [`ADR-0026`](ADR-0026-event-retention-and-incremental-statistics.md) | Accepted | Recent Event、増分統計、Milestone、optional archiveを分離 |
 | [`ADR-0027`](ADR-0027-accumulated-support-renewal-and-fission.md) | Accepted | 累積Support、Renewal、Fission先行、直接親子の平時非侵略 |
 | [`ADR-0028`](ADR-0028-invasion-field-rest-and-sustained-victory.md) | Accepted | FieldRest / Retreating、Core前線、継続占領・防衛Victory |
+| [`ADR-0029`](ADR-0029-v025-unresolved-contracts-closure.md) | Accepted | Memorable / Settlement知識、Person eviction、Fission Center、Migration完了、Struggle延期を確定 |
 
 ## Future decisions
 

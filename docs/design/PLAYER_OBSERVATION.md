@@ -65,6 +65,8 @@ v0.2.4ではCurrent Support、P/R/S、LowSupportDays、所属者のCore / Influe
 
 v0.2.5では、NPCが知らないPerson / Event / Settlement fieldを`0`や`false`に見せず`?`等のUnknownとして表現する。観測可能な詳細にはPerson Memory capacity / 使用率、category別Knowledge、SupportPotential / 累積Support / Renewal、Fission / 親子関係、Invasion participant state / front / 連続勝敗counterを追加できる。最近ログは有限buffer、長期表示はMilestone / Pin、統計は増分projectionから取得する。
 
+診断UIではMandatory / Pin経路別EventBelief、SettlementBelief取得経路とKnown率、AggregatePersonConfidence、Fission Center選択、Migration完了経路、Expansion Indicatorsを表示可能にする。これは開発・観測projectionであり、NPCへ非公開Realityを渡したりExpansionをWorldPhaseとして表示したりするものではない。
+
 具体倍率、配置、UI framework、デザインは実装時の裁量とする。
 
 Simulation TickとUI Render Updateを分離する。高速進行では複数Tick後の最新Stateだけを描画してよく、render頻度、frame rate、UI操作がSimulation Event列を変えてはならない。自動テストはGUIなしで実行可能にする。

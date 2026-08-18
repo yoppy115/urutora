@@ -39,6 +39,8 @@ v0.2はReproduction Success履歴、Core滞在・行動によるAffinity、人�
 
 Settlement Maintenanceの固定順は、当日Event / 増分Statistics確定→Affinity反映→Membership / Affiliation変更→Population / Demographic rolling更新→Frictionの日次decay / impulse→Formation Hotspot Candidate生成→同時arbitration / Settlement生成→SupportPotential算出と累積Support / Renewal / 自然消滅→Generation / Order判定→SettlementPressure rolling更新→Fission counter / hotspot / migration評価→有効Fissionがない場合だけInvasion trigger / target / mobilization評価→翌Tick state確定とする。Invasion宣言時のFriction retentionは開始Eventと同じcommitで適用する。
 
+Fission CenterはFission判定開始時のimmutable snapshotからCell Resident-Days等の確定順位で選ぶ。Migration完了は、Fission成立時、Move / Flee等のPosition変更Action全体の最終Position確定後、Tick末fallbackで評価する。2マス移動の1マス目では判定せず、完了Eventを二重発生させない。Invasion参加中はInvasion Biasを優先し、未完了MigrationはchildがActiveならInvasion終了後に再開する。
+
 日中に即時解決するAffinity発生要因、Friction Event、Rest Collision、Active InvasionのMove / Combat、勝敗成立、Auraと区別する。征服統合はVictory Outcomeとして自然消滅phaseを待たず処理できる。
 
 ## v0.15 Micro Round phases
@@ -140,3 +142,5 @@ Birth解決時点で空いている死亡Cellは利用可能。LandmarkとAlive 
 - Hotspot Candidateは同一immutable snapshotから生成し、繁殖成功数とseed tie-breakで順序非依存にarbitrateする。
 - v0.2.4のSupport、SettlementPressure、Friction、High / Low counter、Invasion作成、自然消滅は日末Maintenanceでcommitし、日中Micro Round途中でSettlementを消滅・再armしない。
 - v0.2.5のKnowledge TTL / capacity整理、増分Statistics、累積Support、Renewal、Fission、Migration、Invasion継続counterもstable ID順の日末commitとし、collection順へ依存させない。
+- Fission Center選択はsnapshot、Map走査順、collection順に依存せず、無効hotspotの次候補を同じMaintenanceで評価できる。
+- Migration完了はchild Influenceへの実到達をAction最終PositionとTick末fallbackで一度だけ判定し、Invasion中の優先関係を変えない。
