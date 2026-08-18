@@ -28,7 +28,7 @@
 - NPC占有CellへのMoveをCollision Attackへ変換し、同Actionで移動しない。
 - CounterattackからCounterattackを再帰させない。
 - Pursuit AttackからCounterattack、Flee、Pursuitを再帰させない。
-- Communicationが送信者のHeld Information外から情報を作らない。
+- Communicationが送信者のPerson / Event / Settlement Knowledge外から情報を作らない。
 - 数値distortionが設定上限を超えず、SubjectSwap率と置換候補境界を守る。
 - Observation誤差が距離ごとの最大値を超えない。
 - Communication受信Confidenceがsource Confidenceを上回らない。
@@ -61,7 +61,7 @@
 - Reproduction Rejectは相手の既存Intentを維持し、Acceptは最大1回だけ置換する。
 - TargetAbsent後、同じ古いPositionを使うTargeted Actionを反復しない。
 - Reproduction Candidateが対象RealityのCooldown / HPを読まず、ResolutionがHP / Cooldown / Distanceを検証する。
-- Held InformationはSubject + Propertyごとに3件を超えず、4件目で最古をFIFO削除する。
+- v0.15時点のSubject + Property 3件FIFOは履歴回帰として隔離し、現行v0.2.5ではPersonBelief capacity / TTL / evictionを検証する。
 - MatureAge 180日、ReproductionCooldown 90日、ThreatMemoryDuration 90日、ReproductionNeedGain +0.04/dayをConfig defaultとして検証する。
 - BaseMaxHP約50 scaleと新Damage係数 `4 + 0.9*AttackCombat - 0.4*DefenseCombat`、Random(0.9,1.1)を検証する。
 - Hit Rate、Counterattack構造、Concept Exposure / Mark値がv0.15で変化していないことを回帰検証する。
@@ -69,10 +69,10 @@
 
 ### v0.15 resolved patch
 
-- 4件目のHeld Information取得で最古記録を削除し、低Confidenceの新情報でもFIFO順を変えない。
-- Subject死亡を直接確認すると全Propertyを削除する。
+- 旧4件目FIFOはv0.15互換fixtureに限定し、現行PersonBeliefへ適用しない。
+- v0.15の直接死亡確認purgeは履歴として保持し、現行では採用済みDeath fieldによるrecord削除を検証する。
 - TargetAbsentではPositionだけを無効化し、Subject全体を削除しない。
-- Communicationによる死亡伝聞だけではSubject全体を削除しない。
+- Communicationによる死亡伝聞はfield優先規則を通し、低優先なら削除せず、採用されたDeadならPersonBeliefを削除する。
 - 同一Micro RoundのTargeted ActionをAttack → Reproduction → Communication順で解決する。
 - Attackで死亡したTargetへの後続Reproduction / Communicationを成立させない。
 - Attack後にHP条件が崩れたReproductionをReality Validationで失敗させる。
@@ -96,15 +96,15 @@
 - M. Center radius 5内のRest CollisionでRest Intentを解除し、元Action枠の再評価を同一Micro Round最大1回に制限する。
 - N. 異Settlement平時CollisionをCombatではなくFrictionへ変換する。
 - O. SettlementPressureをResidentLoad / MovementCongestion / ReturnFailureから算出し、CoreOccupancyを入力に使わない。
-- P. SettlementPressure 0.65以上の30日継続と全前提が成立するとInvasion Eligibleになる。
+- P. SettlementPressure 0.65以上の30日継続だけでは開始せず、v0.2.5のFissionPressure 90日とhotspotなしを追加要求する。
 - Q. Invasion対象がHostility、Friction、Distance、seed tie-breakの優先順位に従う。
 - R. MobilizationRateがSettlementPressureに応じ20〜50%で変化する。
 - S. Core CohortをCore内のAffinity上位から選び、同値をseed付きで解決する。
 - T. Frontier CohortをCore外の所属NPCから選ぶ。
 - U. Rest中NPCをInvasion参加候補から除外する。
-- V. Advance ParticipantがRestするとBiasを解除しEventから離脱する。
-- W. Advance Biasを保持するAlive NPCが0になるとDefense Victoryになる。
-- X. Core 50%以上占拠でAttack Victoryになる。Center単独占拠はv0.2.4で勝利条件から除外する。
+- V. 非重傷ParticipantのRestは1日FieldRest、重傷Rest / FleeはRetreatingとなる。
+- W. Defense Victoryは攻撃軍比、Influence排除、90日膠着の継続条件に従う。
+- X. Core 50%以上を3日連続占拠するとAttack Victoryになる。Center単独占拠は勝利条件ではない。
 - Y. 攻撃側勝利後、敗北Settlementを無効化してAliveな所属NPCだけを勝者へ統合する。
 - Z. World Population比による旧自然消滅条件はv0.2 originalの履歴とし、v0.2.4 Support条件へ置換する。
 - AA. Landmark Exposureをradius 4まで付与し、距離4でv0.2 default +0.125となる。
@@ -134,8 +134,8 @@
 - Patch N. Aura解除ClampをCombat / Vitality Damage Eventとして扱わず、Reactionを発生させない。
 - Patch O. Core占有率分母からMap外とLandmark等の侵入不能Cellを除外する。
 - Patch P. 防衛NPC占有Cellを利用可能Core Cellとして分母へ含める。
-- Patch Q. FleeしてもInvasion ParticipantとAdvance Biasを維持する。
-- Patch R. RestでAdvance Bias / Invasion Participantを解除し、同一Eventへ再参加させない。
+- Patch Q. HP比20%超のFleeはParticipantを維持し、20%以下ではRetreatingとなる。
+- Patch R. 非重傷RestはFieldRestから復帰し、HP比20%以下のRestだけをRetreatingとして同一Eventへ戻さない。
 - Patch S. Death、Event終了、Victory、統合時にParticipant状態を解除する。
 
 Settlement Maintenance順と翌Tick反映、Aura / Core占有計算もcollection order、scan order、thread schedulingに依存しないことを検証する。
@@ -173,7 +173,7 @@ Settlement Maintenance順と翌Tick反映、Aura / Core占有計算もcollection
 - R. Generationの通常Affinity gainが`×2`。
 - S. Founder `+10` / Initial Core `+7`をGeneration multiplierで二重化しない。
 - T. Order移行後はGeneration`×1.25`でなくOrder正Vitality`×2`になる。
-- U. `SettlementSupport = 50P + 30R + 20S`。
+- U. v0.2.4の`50P + 30R + 20S`をv0.2.5では`SupportPotential`として算出し、別stateの累積Supportを更新する。
 - V. FoundingResidentBaselineが成立時人数・最低8に従う。
 - W. Reproduction Continuityが現行Formation thresholdを再利用する。
 - X. `Support < 25`でLowSupportDaysが増える。
@@ -185,9 +185,9 @@ Settlement Maintenance順と翌Tick反映、Aura / Core占有計算もcollection
 - AD. Invasion開始時に`CrowdingInvasionArmed = false`となる。
 - AE. Active Invasion終了後、SettlementPressure`<= 0.45`が30日連続するまでre-armしない。
 - AF. Center Cell占拠だけではAttack Victoryにならない。
-- AG. Usable Core 50%占拠でAttack Victoryになる。
+- AG. Usable Core 50%以上を3日連続占拠するとAttack Victoryになる。
 - AH. Frictionを0～100へClampする。
-- AI. Rest v2導入後もRestによるInvasion離脱Ruleを維持する。
+- AI. Rest v2を維持しつつ、非重傷Invasion RestはFieldRest、重傷時だけRetreatingとする。
 - AJ. Observation cache、spatial index、parallelization等の有無で決定論的結果が変化しない。
 
 ### v0.2.4 unresolved-system closure
@@ -209,7 +209,7 @@ Invasion trigger:
 10. Active Invasion参加中のSettlementから新規Invasionを開始しない。
 11. `CrowdingInvasionArmed = true`を要求する。
 12. 攻撃可能な別Active Settlementとeligible participant 3名以上を要求する。
-13. Pressure `>= 0.65`だけHighPressureDaysを進め、下回ればresetし、30日連続を要求する。
+13. Pressure `>= 0.65`だけHighPressureDaysを進め、下回ればresetし、既存30日条件を維持する。ただしv0.2.5ではFissionPressureDays 90日とhotspotなしを満たすまで開始しない。
 14. 開始時にarmedをfalse、High / Low counterを0とし、新Eventを翌Tickから有効にする。
 15. Event終了後かつActive InvasionなしでPressure `<= 0.45`が30日連続するとre-armし、上回ればLow counterをresetし、中間帯では両counterを進めない。
 16. targetがHostility、Hostile内Friction、全体Friction、距離、named seed tieの順に従う。
@@ -240,11 +240,150 @@ Mobilization:
 
 Rest and Center:
 
-35. RestでAdvance BiasとParticipant状態を解除する。
-36. Rest離脱者を同じInvasion Eventへ再参加させない。
-37. Flee / Communication / Reproductionでは離脱せず、終了後の別Invasionには参加できる。
+35. 本項の旧「Restで永久離脱」はv0.2.5でsupersedeされた。非重傷RestはFieldRest、重傷Rest / FleeはRetreatingとなる。
+36. Retreatingだけを同じInvasion Eventへ再参加させない。
+37. 非重傷FleeはParticipantを維持し、終了後は別Invasionへ参加できる。
 38. Center到達、一時占有、複数日保持のいずれでもAttack Victoryにならない。
-39. Usable Core Occupation 50%以上だけでAttack Victoryになり、Center統計の有無が結果を変えない。
+39. Usable Core Occupation 50%以上を3日連続でAttack Victoryとし、Center統計の有無が結果を変えない。
+
+## v0.2.5 Rest
+
+1. `RestPressure <= 0`ではRest Candidateを生成しない。
+2. `RestNeed <= 2`ではRest Candidateを生成しない。
+3. `RestNeed > 2`では既存Utility式で候補評価する。
+4. Invasion中も同じ候補生成条件を使う。
+
+## v0.2.5 PersonBelief
+
+1. 1 Subjectにつき1 PersonBeliefとなる。
+2. Unknown fieldを0やfalseと区別する。
+3. StableCommunication 5でcapacity 150となる。
+4. AuraがPersonMemoryCapacityを変更しない。
+5. 永久交流Markがcapacityへ反映される。
+6. 直接Observationが伝聞より優先される。
+7. 365日認識なしで人物recordが削除される。
+8. Communicationでの再認識がTTLを更新する。
+9. 採用された死亡認知で人物recordが削除される。
+10. 低優先の死亡伝聞が有効な直接Alive観測を上書きしない。
+11. 死亡認知後の再遭遇で新recordを作る。
+12. capacity超過時にHearsayOnlyを優先削除する。
+13. Active Threat、同Settlement、DirectObservedを優先保護する。
+14. 新人物自身が最下位なら保存されない場合がある。
+
+## v0.2.5 Knowledge categories
+
+1. EventBeliefはMemorable Eventだけから作る。
+2. SettlementBeliefは1 Settlementにつき1 recordとする。
+3. PersonBelief / EventBelief / SettlementBeliefを別管理する。
+4. Event / SettlementはNPC死亡までTTL削除しない。
+5. Person死亡EventがPersonBelief削除後もEventBeliefへ残る。
+6. Settlement消滅認知でSettlementBeliefを削除せずActiveStatusを更新する。
+
+## v0.2.5 Communication
+
+1. category優先順位をEvent > Settlement > Personとする。
+2. Event候補がある間はPerson fieldを先に送らない。
+3. Event候補を使い切った後、残り枠をSettlementへ使える。
+4. Settlement候補後にPersonへ進める。
+5. Person field単位でUnknownを埋める。
+6. 送信者が知らないfieldを生成しない。
+7. 直接Observation優先規則を受信後も維持する。
+8. 既存Distortionを数値fieldへ適用する。
+9. SubjectSwapは既知人物だけを対象にする。
+
+## v0.2.5 Incremental Statistics and Event
+
+1. StatisticsをEvent発生時に増分更新する。
+2. UI更新時に全Raw Event履歴を再scanしない。
+3. Friendly Collision suppression等を日次集計できる。
+4. Historical PinがRecent Buffer削除後も残る。
+5. Raw Archive無効でもSimulation結果が変わらない。
+6. Raw Archive有効でもSimulation結果が変わらない。
+7. Recent Buffer容量変更でSimulation結果が変わらない。
+
+## v0.2.5 SettlementSupport
+
+1. SupportPotentialが既存`50P + 30R + 20S`式に従う。
+2. Settlement成立時のSupportが50となる。
+3. DailySupportDeltaが規定式に従う。
+4. SettlementSupportが0～100へClampされる。
+5. Support < 25でLowSupportDaysが増える。
+6. Support 25～35でLowSupportDaysがfreezeする。
+7. Support >= 35でLowSupportDaysが0へ戻る。
+8. Support=100かつPotential>=80でSaturatedDaysが増える。
+9. 条件を外れるとSaturatedDaysが0へ戻る。
+10. 365日継続でSupport 50へRenewalする。
+11. Renewal時LowSupportDaysが0となる。
+12. RenewalをSettlement消滅として扱わない。
+
+## v0.2.5 Fission
+
+1. Pressure >= 0.40が90日継続するまでFissionしない。
+2. 条件中断でFissionPressureDaysが0へ戻る。
+3. Order以外ではFissionしない。
+4. Support < 35ではFissionしない。
+5. Active Invasion中はFissionしない。
+6. 5×5 Hotspot条件を正しく判定する。
+7. Resident-Days 90未満ではcandidateにしない。
+8. 現在Unaffiliated 3人未満ではcandidateにしない。
+9. 距離8～24以外をcandidateにしない。
+10. 非親SettlementとのInfluence重複を拒否する。
+11. 親SettlementとのInfluence overlap例外が動作する。
+12. Candidate選択はResident-Daysを優先する。
+13. migrantを生存所属者の40%から一様抽選する。
+14. 最低4人未満ではFissionしない。
+15. FissionFounderを記録する。
+16. child SettlementSupportが50となる。
+17. migrantへAffinity 10を付与する。
+18. child Core内UnaffiliatedへAffinity 7を付与する。
+19. Migration Biasがchild Influence到達で解除される。
+20. Fission成功時HighPressureDaysが0となる。
+21. Fission成立tickに同じ親からInvasionを始めない。
+
+## v0.2.5 ParentChildNonAggression
+
+1. 親子Settlementを相互Invasion targetへ選ばない。
+2. 親子所属差だけではExplicit Attack Candidateを作らない。
+3. 平時親子CollisionをCombatへ変換しない。
+4. 実際にAttackされた場合のCounterattackは有効である。
+5. 兄弟Settlementへ不可侵を自動継承しない。
+6. 祖父母・孫へ自動継承しない。
+7. Settlement消滅・統合で関係を無効化する。
+
+## v0.2.5 Fission / Invasion priority
+
+1. FissionPressureDays 90未満ではPressure由来Invasionを始めない。
+2. 有効hotspotがあればFissionを優先する。
+3. Fission成立時は同日Invasionを始めない。
+4. hotspotがない場合だけInvasion条件を評価する。
+5. ParentChildNonAggression対象をInvasion targetから除外する。
+
+## v0.2.5 Invasion state
+
+1. RestPressure <= 0の参加者がRestを選ばない。
+2. 非重傷参加者がRestするとFieldRestになる。
+3. FieldRestは1日後に元の役割へ復帰する。
+4. HP比 <= 0.20でRestするとRetreatingになる。
+5. HP比 <= 0.20でFleeするとRetreatingになる。
+6. HP比 > 0.20でFleeしても参加状態を維持する。
+7. Retreatingは同じInvasionへ再参加しない。
+8. FieldRest中もAlive Non-Retreatingへ数える。
+9. Invasion終了時に全参加状態を解除する。
+
+## v0.2.5 Invasion combat and victory
+
+1. 敵Participant同士をActive Threatとして扱う。
+2. 攻撃側が敵usable Coreへ進む。
+3. 防衛側が侵入者へ展開する。
+4. Invasion中はHome / Foreign BiasをParticipantへ適用しない。
+5. 敵Participant CollisionをCombatへ変換する。
+6. Core占領50%未満ではAttackOccupationDaysを0にする。
+7. Core占領50%以上が3日連続でAttack Victoryとなる。
+8. 1～2日だけ50%以上でも勝利しない。
+9. Center占拠だけでは勝利しない。
+10. 攻撃軍30%以下が3日連続でDefense Victoryとなる。
+11. 防衛Influence内の攻撃Participant 0人が7日連続でDefense Victoryとなる。
+12. 90日膠着でDefense Victoryとなる。
+13. Damage式がv0.2.4から変化していない。
 
 具体的なtest framework、fixture形式、統計的試験のsample数は実装時に決める。
-

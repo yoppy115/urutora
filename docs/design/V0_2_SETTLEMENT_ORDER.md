@@ -1,5 +1,7 @@
 # v0.2 Settlement / Order Update
 
+> **Current override:** Settlement / Orderの基礎は本書を維持するが、v0.2.5の累積Support、Renewal、Fission先行、親子非侵略、FieldRest / Retreating、継続Victoryは [`V0_2_5_KNOWLEDGE_FISSION_INVASION.md`](V0_2_5_KNOWLEDGE_FISSION_INVASION.md) と各正本を優先する。
+
 **Status:** Baseline boundaries / v0.2 configurable defaults
 
 本書はv0.15までの個体生態系へSettlement、Generation / Order、社会化、Invasion、Concept Auraを追加する。v0.2.1～v0.2.3の採用済み補完を収録し、v0.2.4で変更された定住・維持規則は[`V0_2_4_SETTLEMENT_STABILIZATION.md`](V0_2_4_SETTLEMENT_STABILIZATION.md)を正本とする。
@@ -138,7 +140,7 @@ v0.2.4では平時Collisionとroot Explicit Threat Incidentを日次集約し、
 
 v0.2.4では旧CoreOccupancy / BlockedMovementの`CrowdingPressure`をInvasion Triggerから廃止する。`SettlementPressure`は直近30日のResidentLoad、MovementCongestion、ReturnFailureを`0.45 / 0.35 / 0.20`で統合し、Tick末Maintenanceで更新して翌Tickから使う。
 
-Order、Active、Support 35以上、armed、Active Invasionなし、攻撃可能targetあり、eligible participant 3名以上を前提とし、Pressure 0.65以上が30日連続した場合だけ開始する。開始時にdisarmし、Event終了後にPressure 0.45以下が30日連続した場合だけre-armする。中間帯ではどちらのcounterも進めない。GenerationはInvasionを開始しない。詳細な分子・分母、counter境界、rejection reasonは[`V0_2_4_SETTLEMENT_STABILIZATION.md`](V0_2_4_SETTLEMENT_STABILIZATION.md)を正本とする。
+Order、Active、Support 35以上、armed、Active Invasionなし、攻撃可能targetあり、eligible participant 3名以上を前提とし、Pressure 0.65以上の30日条件を維持する。ただしv0.2.5ではPressure 0.40以上のFissionPressureDaysが90日に達するまでInvasionを開始せず、有効Fission hotspotがない場合だけtriggerを評価する。開始時disarmとPressure 0.45以下30日のre-armは維持する。詳細は [`SETTLEMENT_FISSION.md`](SETTLEMENT_FISSION.md) と [`V0_2_4_SETTLEMENT_STABILIZATION.md`](V0_2_4_SETTLEMENT_STABILIZATION.md) を参照する。
 
 ## Invasion target and mobilization
 
@@ -163,11 +165,11 @@ TargetForceSize = floor(
 
 ## Invasion movement and combat
 
-参加者へ `InvasionParticipant = true` と対象SettlementへのAdvance Biasを与え、専用Actionを追加せず既存Moveの方向選択をTarget Centerへ近づくよう歪める。Utility AIとAttack、Flee、Communication、Rest、Reproduction等の候補は維持する。
+参加者へ明示的なAdvancing / Defending stateとInvasion Biasを与え、専用Actionを追加せず既存Moveを最寄りusable enemy Coreまたはdefense frontへ歪める。Utility AIとAttack、Flee、Communication、Rest、Reproduction等の候補は維持する。
 
-Advance Bias保持者が非死亡状態で自発的にEventから離脱する通常条件はRestだけである。Restを選ぶとAdvance BiasとInvasionParticipantを解除し、同一Invasionへ再参加させない。
+非重傷Restは1日FieldRestとなりEventへ残る。HP比20%以下のRest / FleeだけをRetreatingとしてParticipantとBiasから外し、同一Invasionへ再参加させない。
 
-Flee、Move、Attack、Communication、Reproduction等の通常ActionではParticipant状態を維持する。Fleeは一時的にThreatから距離を取るだけで、AliveかつAdvance Bias保持中なら後続Micro Round / TickでTarget Settlement方向へ再前進できる。Death、Event終了、Attack / Defense Victory、Settlement統合等でEvent自体が無効になった場合もParticipant状態を解除する。
+HP比20%超のFlee、Move、Attack、Communication、Reproduction等ではParticipant状態を維持する。FieldRestは翌tickにAliveかつEvent継続なら役割へ復帰する。Death、Event終了、Attack / Defense Victory、Settlement統合等でEvent自体が無効になった場合はParticipant状態を解除する。
 
 防衛Settlement所属NPCには侵攻方向へCenterより前方に展開するDefense Biasを既存Moveへ加えられる。Defense Bias保持者がRestするとBiasだけを解除し、所属は維持して通常Settlement NPCへ戻る。
 
@@ -175,7 +177,7 @@ Invasion中は攻撃・防衛Settlement所属者を敵対対象としてCombat�
 
 ## Invasion victory and integration
 
-Advance Biasを保持するAlive攻撃NPCが0になればDefense Victoryとする。v0.2.4では対象Settlement Coreの利用可能Cellの50%以上を攻撃Settlement所属NPCが占拠した場合だけAttack Victoryとする。Centerへの到達、一時占有、複数日保持はいずれも勝利条件ではなく、Event / Statisticsだけに記録できる。
+v0.2.5ではAttack Victoryをusable Core 50%以上の3日連続占有とし、Defense Victoryを攻撃戦力比30%以下3日、Influence内攻撃者0人7日、90日膠着のいずれかとする。Centerへの到達、一時占有、複数日保持はいずれも勝利条件ではなく、Event / Statisticsだけに記録できる。詳細は [`INVASION_V025.md`](INVASION_V025.md) を正本とする。
 
 終了時にAdvance Bias、Defense Bias、Invasion Participant、所属変更Lockを解除する。
 
@@ -190,7 +192,7 @@ CoreOccupationRate = AttackOccupiedUsableCoreCells
 
 ## Natural settlement dissolution
 
-World Population比による旧条件はv0.2.4で廃止した。直近90日のResident Presence、Reproduction Continuity、Social Activityから`50P + 30R + 20S`を求め、25 / 35のHysteresisと365 LowSupportDaysで自然消滅を判定する。詳細は[`V0_2_4_SETTLEMENT_STABILIZATION.md`](V0_2_4_SETTLEMENT_STABILIZATION.md)を正本とする。
+World Population比による旧条件はv0.2.4で廃止した。v0.2.5では直近90日の`50P + 30R + 20S`を`SupportPotential`とし、別stateの累積`SettlementSupport`へ25 / 35 Hysteresisと365 LowSupportDaysを適用する。詳細は [`SETTLEMENT_FISSION.md`](SETTLEMENT_FISSION.md) を正本とする。
 
 ## Concept exposure v0.2 change
 
@@ -273,4 +275,3 @@ Settlement Maintenance順、同時Hotspot arbitration、正規化Friction、Sett
 Advance BiasとAura Cohesionの具体Weight等、本文が明示的にimplementation / configurable detailへ委ねた値はConfig設計時に設定できるが、確定した主従・非stack・決定論境界を変更しない。
 
 採用理由は [`ADR-0016`](../decisions/ADR-0016-generation-settlement-and-order.md)、[`ADR-0017`](../decisions/ADR-0017-settlement-conflict-and-invasion.md)、[`ADR-0018`](../decisions/ADR-0018-concept-aura-social-transmission.md)、[`ADR-0024`](../decisions/ADR-0024-settlement-pressure-and-invasion-closure.md) を参照する。
-

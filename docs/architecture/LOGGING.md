@@ -33,6 +33,9 @@ v0では少なくとも次の型を区別できる構造化Simulation Eventを�
 - WorldPhaseChanged
 - CollisionSuppressed、SettlementFrictionChanged、InitialHostilityEstablished
 - InvasionStarted、InvasionParticipantJoined / Withdrew、InvasionEnded
+- SettlementRenewed、SettlementFissionStarted / Completed、MigrationStarted / Arrived / Ended、ParentChildRelationChanged
+- PersonBeliefCreated / Updated / Evicted / Expired / RemovedByDeathBelief、KnowledgeFieldTransmitted
+- InvasionParticipantStateChanged、InvasionOccupationProgress、InvasionDefenseProgress
 - AuraApplied / AuraExpired
 
 Decision DebugとWorld Eventは概念的に分離する。Desktop AppのEvent Logは同じWorld Event streamのread-only projectionを使う。
@@ -51,7 +54,7 @@ Decision DebugとWorld Eventは概念的に分離する。Desktop AppのEvent Lo
 - BirthRequest、希望Cell、競合tie-break、再抽選、BirthFailureを同一のstable request IDで追跡できる。
 - TargetAbsent、Position invalidation、Interrupt理由、Intent replacement、再評価回数を追跡可能にする。
 - Reproduction FailureはReject、Reality precondition failure、TargetAbsent等を機械可読に区別する。ただしNPC向けOutcomeへ非公開precondition値を露出しない。
-- Held InformationのFIFO evictionと、Subject消滅直接確認による全Property purgeを理由付きで診断可能にする。World Event / History Log削除とは分離する。
+- PersonBeliefのcapacity / TTL / 保護順位eviction、死亡認知削除、field update採否を理由付きで診断可能にする。EventBelief、SettlementBelief、World Event / History Logの保持とは分離する。
 - Targeted Action EventはAttack、Reproduction、Communicationのphase ordinalと、先行phase後の再Validation結果を保持できる。
 - Interrupt再抽選Intentが実行、未処理phase待ち、終了済みphaseのため失効のどれになったかを追跡できる。
 
@@ -83,7 +86,9 @@ v0.15 Runでは少なくとも次を集計可能にする。
 - 一時MaxHP解除ClampはDamage Eventと分離したstate normalizationとして記録可能にする。
 - Invasionは利用可能Core Cell分母、攻撃側占有Cell、Rest / Death離脱、Flee中Participantを追跡する。
 - v0.2.1～v0.2.3はHotspot 5×5 / Success 3、出生所属の判定経路、ConceptMark表示、Settlement詳細、Friction、NPC履歴をVersion / commit付きで追跡可能にする。
-- v0.2.4はAction別Rest fatigue、RestPressure、Home Bias、Foreign movement、Generation Proto-Order benefit、SettlementSupport P/R/S、LowSupportDays、自然消滅、SettlementPressure 3成分、High / Low counter、armed、Friction、Mobilization、Center Occupied / hold days、Core占拠Victoryを機械可読にする。
+- v0.2.5はRest Candidate抑止、三種Knowledge、Communication category / field差分、SupportPotential / 累積Support / Renewal、Fission / Migration / 親子関係、Invasion participant state / front / 継続counter / Victory reasonを機械可読にする。
+
+Event保持は[`EVENT_HISTORY.md`](../design/EVENT_HISTORY.md)の四層へ分ける。Recent Bufferから消えたPinを失わず、Optional Archiveの有無、buffer容量、flush間隔でSimulation結果を変えない。
 - 征服時のAffiliationChangedはAlive NPCだけに発行し、Dead NPCのHistoryを変更しない。
 - ログflush間隔はOperations設定でありEvent意味論を変えない。Run identityと保存運用は[`ENGINEERING_REPRODUCIBILITY.md`](ENGINEERING_REPRODUCIBILITY.md)に従う。
 
@@ -97,4 +102,3 @@ v0.15 Runでは少なくとも次を集計可能にする。
 - 保存期間、圧縮、sampling、個体数増加時の性能。
 - Perceptionや関係情報の記録粒度。
 - 詩篇生成へ渡す情報の選別と秘匿境界。
-

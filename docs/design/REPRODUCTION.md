@@ -104,6 +104,8 @@ ConceptMarkによるEffective補正はBase遺伝値を書き換えず、子へ�
 
 Settlement Affinity、Active Affiliation、Founder状態、Invasion参加、Auraも遺伝対象ではない。Settlement Core内のReproduction Successは、当事者へv0.2 ConfigのSettlement Affinityを加え、Hotspot生成判定の機械可読Eventとなる。
 
+v0.2.5のFissionでは移住者を親Settlement所属の生存個体から選び、child AffiliationとAffinityを設定するが、遺伝・親子NPC関係・出生規則を変更しない。`FissionFounder`、Migration Bias、親子Settlement関係も非遺伝である。
+
 ## Tests
 
 非遺伝情報が子へ移らないこと、各項目の独立blend、Mutation再現性とClamp、MarkがBase値を変更しないこと、Candidateが対象RealityのHP/Cooldownを読まないこと、Reality precondition検証、Reject時のIntentとNeed/Cooldown不変、Accept時最大1回のIntent置換、Birth位置競合のqueue順非依存と失敗時コスト維持をheadless testで検証する。

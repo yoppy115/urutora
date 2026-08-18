@@ -1,4 +1,4 @@
-# v0.2 Statistics and Diagnostics
+# v0.2.5 Statistics and Diagnostics
 
 **Status:** Baseline observation obligations / Draft storage and UI mechanics
 
@@ -120,5 +120,59 @@ NPC向けActionOutcomeへ非公開Reality値を露出しないという境界は
 - Center: occupied、occupation start / end、hold days、non-victory reason、UsableCoreOccupationRate。
 - Concept / Held Information: Exposure、Mark / Aura、同種抑制、Held Information総数、NPC平均 / 最大、FIFO eviction、直接purge、TargetAbsent Position invalidation。
 
-SettlementSupportの診断は90日windowの分子・分母も保持し、形成閾値の変更がReproduction Continuityへ反映されたことを確認できるようにする。
+v0.2.4までのSettlementSupport診断は90日windowの分子・分母も保持し、形成閾値の変更がReproduction Continuityへ反映されたことを確認できるようにする。v0.2.5ではこの瞬間値を`SupportPotential`と呼び、累積`SettlementSupport`と区別する。
 
+## v0.2.5 Knowledge
+
+Person Memory:
+
+- NPCあたりPersonBelief平均・最大、平均capacity、capacity使用率。
+- EverDirectlyObserved、HearsayOnly、ActiveThreat、同Settlement人物数。
+- TTL削除、死亡認知削除、capacity削除、新record即時破棄。
+- StableCommunication別の平均capacity。
+
+Knowledge fields:
+
+- Unknown field率、Observation / Communication由来field数。
+- 直接Observationが伝聞更新を拒否した数、SubjectSwap、死亡誤認後の再遭遇。
+- NPCあたりEventBelief / SettlementBelief平均、EventType別保持、共有Event。
+- Settlement ActiveStatus認知、Parent / Child、Hostility認知。
+
+Communication:
+
+- 送信総field、Event / Settlement / Person別件数と割合。
+- Unknownを埋めた数、新record、既知field更新、矛盾情報。
+- capacity不足で保存されなかったPerson field、平均sendCount、成功率。
+
+## v0.2.5 Event layers
+
+- Recent Event Buffer件数、Live Core保持Event件数、Incremental Statistics更新数。
+- Historical Pin件数、Optional Archive出力件数、日次集計化したRaw Event件数。
+- 全Event再scan回数と時間。通常UI更新では0を目標にする。
+
+## v0.2.5 Support and fission
+
+- SupportPotential、SettlementSupport、DailySupportDelta、SaturatedDays。
+- RenewalCount、LastRenewalTick、LowSupportDays、Support 100到達日、Renewal間隔。
+- Renewal後の人口・Pressure変化。
+- Settlement別FissionPressureDays / eligible日数、hotspot candidate / 有効 / 不在数。
+- Candidate Resident-Days、現在Unaffiliated人口。
+- Fission回数、migrant target / 実数 / 到着 / migration中死亡。
+- child成立、親人口変化、child人口、ParentChildNonAggression、FissionによるInvasion抑止。
+
+## v0.2.5 Invasion
+
+- Advancing、Defending、FieldRest、FieldRest復帰、Retreating。
+- RestによるFieldRest / 重傷撤退、Fleeによる重傷撤退。
+- InitialAttackForce、AliveNonRetreatingAttackParticipants、AttackForceRatio。
+- AttackCollapseDays、InfluenceClearDays、AttackOccupationDays、UsableCoreOccupationRate。
+- CombatDeath、Retreat後生存率、Event期間、Victory Reason、親子target除外。
+
+## v0.2.5 Population and expansion
+
+- World / Affiliated / Unaffiliated Population、Settlement数。
+- Parent / Child Settlement数、Fission系譜深度。
+- 日次・年次人口増加率、Settlement別人口増加。
+- 高Support・高Pressure Settlement数、Expansion候補状態日数。
+
+これらはStruggle Phaseの観測入力候補であり、v0.2.5ではphase transitionを発火させない。

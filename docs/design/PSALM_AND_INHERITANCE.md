@@ -8,7 +8,7 @@
 Reality -> Perception -> History -> Psalm
 ```
 
-HistoryはRealityそのものではない。世界の住人が出来事をどう理解し、語ったかを含む。Psalm / 詩篇は、その歴史と重要なピンから生成され、次世界へ物語として渡る。
+HistoryはRealityそのものではない。世界の住人が出来事をどう理解し、語ったかを含む。Psalm / 詩篇は、その歴史と重要なピンから生成され、次世界へ物語として渡る。v0.2.5のHistorical Milestones / PinsとEventBeliefは将来の入力候補だが、Recent Event Bufferや全Raw EventをそのままPsalmへ渡す契約ではない。
 
 ## Baseline: dual inheritance
 
@@ -67,4 +67,3 @@ LLMはSimulation Coreに使用しない。機械可読ログ、主観、ピン�
 - 啓示の最終回数、伝播、変形規則。
 - ローカルLLM、常駐型AI、API、非LLM fallbackの選択。
 - 生成結果の検証、失敗時処理、再生成規則。
-

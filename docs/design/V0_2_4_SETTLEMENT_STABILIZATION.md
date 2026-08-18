@@ -1,5 +1,7 @@
 # v0.2.4 Settlement Stabilization Update
 
+> **Historical baseline:** 本書はv0.2.4時点の正史を保存する。v0.2.5でHeld Information、SettlementSupport、Pressure→Invasion順、Invasion Rest / Victoryが置換された。現行overrideは [`V0_2_5_KNOWLEDGE_FISSION_INVASION.md`](V0_2_5_KNOWLEDGE_FISSION_INVASION.md) を参照する。
+
 Status: **Baseline / v0.2.4 configurable defaults**
 
 この文書は[`V0_2_SETTLEMENT_ORDER.md`](V0_2_SETTLEMENT_ORDER.md)を拡張し、明示した箇所だけを置換する。Reality / Perception、Utility、Targeted Action順、Combat、Reproduction、v0.15 Ecologyの未変更規則は維持する。
@@ -287,4 +289,3 @@ Held InformationはSubject + Propertyごとに3件、FIFO eviction、代表値�
 - Active Invasion CombatによるFriction加算。
 
 これらは現行挙動ではなくBacklogであり、実装裁量で確定しない。
-

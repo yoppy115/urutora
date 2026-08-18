@@ -17,5 +17,4 @@
 | NPC neighborhood index | Optimization | query semanticsを変更しない |
 | Deterministic CPU parallelization | Engineering | read / planningだけを分離並列化し、stable順でmergeする |
 
-v0.2.4は未実装の正史更新であり、SettlementPressure、日次正規化Friction、Invasion hysteresis / Mobilizationを含む。実装後にこの台帳へConfig schema、Event schema、最適化、保守的技術既定値を追記する。
-
+v0.2.5は未実装の正史更新であり、Person / Event / Settlement Belief、増分Statistics、累積Support / Renewal、Fission、Invasion participant state / 継続Victoryを含む。v0.2.4以前の実装状態をこの文書更新だけで変更済みとみなさない。実装後にConfig schema、Event schema、最適化、保守的技術既定値を追記する。

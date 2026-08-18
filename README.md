@@ -6,12 +6,12 @@
 
 ## Current status
 
-- フェーズ: v0.2.4 Settlement Stabilization Update未決システム解消
-- 実装: v0.2.1～v0.2.3の採用済み挙動を正史化し、v0.2.4は正史文書確定・コード未変更
+- フェーズ: v0.2.5 Knowledge, Fission & Invasion Update正史確定
+- 実装: v0.2.4までの既存実装・正史を基礎に、v0.2.5は正史文書確定・コード未変更
 - 実装基盤: C# / .NET。`Simulation.Core`、`Simulation.App`、`Simulation.Core.Tests` を分離する
 - 外部依存: なし
 
-次段階では、v0.15の個体生態系とv0.2.3までの確定境界を維持したまま、v0.2.4のRest v2、定住、局所Support、SettlementPressure、正規化Friction、Invasionを同一seedで再現可能なCoreと観測Appへ反映します。
+次段階では、v0.2.4までの境界を維持しながら、v0.2.5の三種Knowledge、増分統計、累積Support / Renewal、Fission先行、持続型Invasionを同一seedで再現可能なCoreと観測Appへ反映します。
 
 ## Source of truth
 
@@ -50,8 +50,7 @@
 
 ## Next decisions
 
-1. v0.2.4文書をC#型、interface、Config schemaへ反映する。
-2. Rest、Move bias、SettlementSupport、SettlementPressure、Friction、Invasionを既存責務へ分離して実装する。
-3. v0.2.4 headless testsとStatistics projectionを実装する。
-4. Generation→Order前後を再実行し、定住・維持・Rest・社会化の因果を比較する。
-
+1. v0.2.5文書をC#型、interface、Config schemaへ反映する。
+2. Knowledge / Memory、Event retention、Statistics、Support / Renewal / Fission、Invasion participant stateを既存責務へ分離して実装する。
+3. v0.2.5 headless testsと増分Statistics projectionを実装する。
+4. 同一seedでv0.2.4とv0.2.5を比較し、記憶、平和的拡張、戦線、Settlement寿命の因果を観測する。

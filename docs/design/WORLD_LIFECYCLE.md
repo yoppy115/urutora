@@ -64,11 +64,10 @@ v0.2では、90日rolling windowのPopulationCVとBirth / DeathのDemographicImb
 ## Draft mechanics
 
 - Order以降のフェーズ遷移の正確な閾値と検出方法。Generation→Orderのv0.2 defaultは確定済み。
-- v0.2.4後のCenter保持Victory、軍事占領、Leader / 能力値による軍事選抜。現行Invasion Trigger、SettlementPressure、Mobilization、Center非勝利は確定済み。
+- v0.2.5後のStruggle正式遷移、軍事占領、Leader / 能力値による軍事選抜。Expansion指標は観測するが、Fission / Invasionの発生だけでStruggleへ自動遷移させない。
 - 一世界の実時間と各フェーズの長さ。
 - 滅亡時にどのシステムをどう変調・停止するか。
 - 安定世界を再編するタイミング。
 - 複数の遷移条件が同時成立した場合の優先順位。
 
 採用理由は [`ADR-0003`](../decisions/ADR-0003-causal-world-lifecycle.md) を参照する。
-

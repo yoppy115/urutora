@@ -9,8 +9,10 @@
 - Status: On hold after v0.2
 - Adopted in v0.2: Settlement生成、Affinity / 所属、Order Bonus、治安、Friction、Invasion、統合、Aura。
 - Still on hold: 国家、属国、占領統治、反乱・忠誠、内部階層、資源、疾病、Settlement間の恒常的外交。
-- v0.2.4後に保留: Center保持Victory / 保持日数、軍事占領、Rest離脱者の同一Invasion再参加、軍事Leader、Combat / Actionによるrecruitment優先、Active Invasion CombatのFriction加算。
-- Concept数値の再調整と、Held Informationの全体上限・importance eviction・圧縮もRun後まで保留。現行Concept値とSubject + Property 3件FIFOは変更しない。
+- v0.2.5後に保留: 軍事占領、補給、兵科、軍事Leader、Combat / Actionによるrecruitment優先、Active Invasion CombatのFriction加算。
+- Concept数値の再調整、PersonBelief圧縮、EventBelief / SettlementBeliefのcapacity・TTLはRun後まで保留。旧Subject + Property 3件FIFOはADR-0025で置換済み。
+- Struggle Phaseへの正式遷移条件、EventのMemorable / Pin閾値、SettlementBeliefの直接観測契約を保留する。
+- Fission Candidate内のCenter cell詳細選択、Migration完了条件、Person eviction時のConfidence集約とPosition Unknown距離順位を保留する。
 - Future pressure: Settlementの成功が疾病、内部対立、資源不足、階層等の新Difficultyを生む。
 - Related design: [`V0_2_SETTLEMENT_ORDER.md`](../design/V0_2_SETTLEMENT_ORDER.md)
 
@@ -48,6 +50,13 @@
 - Related design: [`PLAYER_OBSERVATION.md`](../design/PLAYER_OBSERVATION.md)
 
 ## Promoted to canon
+
+- v0.2.5 Knowledge, Fission & Invasion Updateを採用した。
+  - KnowledgeをPerson / Event / Settlementへ分離し、人物capacity / TTL、Unknown、field provenance、差分Communicationを確定。
+  - Recent Event、増分Statistics、Milestone、optional archiveを分離。
+  - 累積Support / Renewal、高Pressure時のFission先行、直接親子の平時非侵略を追加。
+  - InvasionのFieldRest / Retreating、Core前線、継続Attack / Defense Victoryを確定。
+  - [`V0_2_5_KNOWLEDGE_FISSION_INVASION.md`](../design/V0_2_5_KNOWLEDGE_FISSION_INVASION.md)、[`ADR-0025`](../decisions/ADR-0025-structured-knowledge-and-person-memory.md)～[`ADR-0028`](../decisions/ADR-0028-invasion-field-rest-and-sustained-victory.md)
 
 - v0.2.1～v0.2.3 minorとv0.2.4 Settlement Stabilizationを採用した。
   - Hotspot 5×5 / Success 3、出生所属3経路、観測・決定論的性能改善を正史化。
@@ -95,4 +104,3 @@
 - Conditions for reconsideration:
 - Related design or ADR:
 ```
-

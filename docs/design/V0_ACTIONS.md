@@ -32,11 +32,11 @@ Order中、Settlement所属NPCはInfluence内UnaffiliatedがActive PerceivedThre
 
 ## Rest
 
-Restは主観上、休息欲求を満たす行動である。Rest -4、Activity +1を維持し、HPを直接回復させない。v0.2.4では`RestNeed <= 2`のPressureを0とし、それを超えると対数式で増えるRestPressureをUtilityへ使う。
+Restは主観上、休息欲求を満たす行動である。Rest -4、Activity +1を維持し、HPを直接回復させない。v0.2.5では`RestNeed <= 2`、すなわち`RestPressure <= 0`ならCandidateを生成せず、それを超える場合だけ既存対数RestPressureをUtilityへ使う。
 
 初回Runで長く見えたため、v0.2 Order中はSettlement CoreのRest Need減少だけを1.5倍し、Activity側の既存効果は変えない。Generation中はBonusなし。Centerからradius 5以内のRest Collisionで未実行Rest Intentを解除し、同一Micro Round最大1回だけ元Action枠を再評価できる。
 
-Advance Biasを持つInvasion ParticipantがRestを選択するとBiasとParticipant状態を解除してEventから離脱し、同一Eventへ再参加しない。Flee、Move、Attack、Communication、Reproduction等では離脱しない。Death、Event終了、Victory、統合によるEvent無効化ではParticipant状態を解除する。Defense BiasはRestで解除するが、所属は維持する。
+v0.2.5ではHP比20%超のInvasion ParticipantがRestを選ぶと1日FieldRestとなり、Eventへ残る。HP比20%以下でRestまたはFleeを選んだ場合だけRetreatingとなり、同一Eventへ再参加しない。非重傷FleeはParticipantを維持する。Death、Event終了、Victory、統合によるEvent無効化ではParticipant状態を解除する。詳細は [`INVASION_V025.md`](INVASION_V025.md) を正本とする。
 
 ## TargetAbsent
 
@@ -44,7 +44,7 @@ Attack、Communication、Reproduction等でTargetが既知Position / 距離に�
 
 ## Communication
 
-距離2以内のAがBへCommunicationを選ぶと、A→BとB→Aの双方向で情報を交換する。Communication Needが3減るのは選択したAだけ。各送信者は自身のHeld Informationからseed付きランダムで選ぶ。複数targetは有効候補からseed付きランダムで選び、情報価値はv0 Utilityへ加えない。
+距離2以内のAがBへCommunicationを選ぶと、A→BとB→Aの双方向で情報を交換する。Communication Needが3減るのは選択したAだけ。各送信者は自身のKnowledgeからEvent > Settlement > Person順に、receiverへ伝える価値があるfieldを選ぶ。複数targetは有効候補からseed付きランダムで選び、情報価値はv0 Utilityへ加えない。詳細は [`KNOWLEDGE_MEMORY.md`](KNOWLEDGE_MEMORY.md) を正本とする。
 
 ```text
 sendCount = 1 + floor(EffectiveCommunication_sender / 3)

@@ -16,7 +16,9 @@
 | Interrupt Coordinator | Attack / Reproduction Accept時のIntent破棄と上限付き再評価を調整する | Action枠を増やす、RejectでIntentを消す |
 | Spatial Resolution | Grid占有、Move競合、Collision Attack変換を扱う | UtilityへReality占有状態を漏らす |
 | Combat Resolution | Attack、Damage、Counterattack、Pursuit Attackを扱う | Reactionを無限再帰させる |
-| Communication | Held Information交換と受信時変形を扱う | 未知Reality情報を生成する |
+| Person Knowledge | PersonBelief field、Unknown、capacity、TTL、eviction、field優先度を扱う | Realityを自動同期する |
+| Event / Settlement Knowledge | Memorable EventBeliefとSettlementBeliefを別寿命で保持する | Raw Event全件をNPCへ複製する |
+| Communication | Event → Settlement → Personの差分field選択、受信時変形を扱う | 未知Reality情報を生成する |
 | Lifecycle / Aging | 年齢、Vitality、即時Dead遷移、tick末cleanupを扱う | 繁殖やUtility式を所有する |
 | Reproduction | Attempt/Reaction、遺伝、BirthRequest、batch出生競合、系譜を扱う | 老化方式やqueue順で結果を決める |
 | Settlement Formation | Reproduction Successのrolling spatial集計、Candidate、Center、Founderを扱う | Order Bonus、Combat、所属変更を所有する |
@@ -27,7 +29,9 @@
 | Settlement Support | 90日P/R/S、Support、Hysteresis、自然消滅を扱う | World Population比で局所生活を代用する |
 | Settlement Relations | 日次正規化Friction、方向性Hostility、Founder cohortからの初期関係、宣言時retentionを扱う | 個人に存在しないThreatを捏造する |
 | Settlement Pressure | 30日ResidentLoad / MovementCongestion / ReturnFailureとHigh / Low counterを扱う | CoreOccupancyをInvasion Triggerとして再利用する |
-| Invasion | eligibility、target、mobilization、cohort、Bias、勝敗、統合を扱う | 専用Utility AI、Center勝利、国家制度を追加する |
+| Settlement Support | SupportPotentialから累積Support、hysteresis、Renewalを扱う | P/R/SやPressureを所有する |
+| Settlement Fission | Pressure gate、Resident-Days、hotspot、migration、親子関係を扱う | InvasionやNPC Utilityを所有する |
+| Invasion | eligibility、target、mobilization、participant state、front、継続勝敗、統合を扱う | 専用Utility AI、Center勝利、国家制度を追加する |
 | Concept / Difficulty | 概念・困難データと世界進化を扱う | 表示名を安定IDとして使う |
 | Concept Exposure | Landmark距離、Exposure、Mark取得とEffective補正を扱う | Base遺伝値を書き換える |
 | Concept Aura | 所属・距離・Invasion Eventから一時AuraとCohesionを投影する | Markを付与・遺伝・無限stackする |
@@ -39,8 +43,10 @@
 | Psalm Generator | Historyとピンから詩篇入力を構成する | Simulation Coreの結果を変更する |
 | Narrative Adapter | LLMまたはfallbackで人間可読文を生成する | 世界状態の権威を持つ |
 | Configuration | schema検証済み設定とゲームデータを供給する | 実行中に暗黙のglobal状態になる |
-| Event Log | 機械可読な世界内イベントを記録する | ドメインの結果を変える |
-| Statistics Projection | World / Settlement / Invasion / Concept集計を構築する | 集計値からSimulationへcommandを返す |
+| Recent Event Buffer | UI / debug用の有限Event窓を保持する | 長期HistoryやNPC Memoryを兼ねる |
+| Historical Milestones | Pinと重要Eventを長期保持する | 全高頻度Eventを保存する |
+| Optional Raw Archive | Core外へEventをstreamする | Coreの進行をarchive状態へ依存させる |
+| Statistics Projection | World / Knowledge / Settlement / Fission / Invasion / Concept集計を増分構築する | 集計値からSimulationへcommandを返す |
 | Research Exporter | 注目実験の再現情報と要約を保存する | 巨大な生ログを正史へ混ぜる |
 | Player Observation | 現在中心のviewと文章表現を作る | Simulation Coreから参照される |
 | Presentation Adapter | ゲームエンジン・UIへ接続する | Simulation Coreから参照される |
@@ -60,12 +66,12 @@
 - 通常ActionとReactionを別contractにし、ReactionがAction回数や通常Need costを消費しないことを型またはdispatcherで守る。
 - EntityがDeadへ遷移したら後続Intent/Reaction eligibilityとGrid占有を即時無効化し、Event/collection cleanupはtick末へ遅延できる。
 - BirthRequestは受胎時Positionと遺伝入力をimmutableに保持し、batch resolverが希望Cell競合を順序非依存で再抽選する。
-- Held Information capacityはSubject + Propertyごとに3件とし、4件目で最古をFIFO削除する。Confidence代表値選択と容量管理を分ける。
+- Person Knowledgeは1 Subject 1 recordとし、StableCommunication由来の全人物capacity、365日TTL、保護付き安定evictionを適用する。旧Subject + Property 3件FIFOを使用しない。
 - Reproduction Candidateには対象PerceptionのAlive / Position / LifeStageだけを渡し、対象RealityのHP / CooldownはResolution portの内側に閉じる。
 - Subject消滅の直接確認はPerception StoreへSubject全Property削除commandを発行する。TargetAbsentや死亡伝聞では発行しない。
 - Reproduction Success EventはSettlement FormationとAffinityへ安定ID付きで渡し、過去のRealityを遡及変更しない。
 - Settlement PolicyはGeneration / Order、地域、Affiliation、Invasion関係を明示的なvalueとして各Resolverへ渡す。
-- InvasionのAdvance / Defense / Cohesion Biasは既存Move direction policyへ合成し、新Actionや別Utility pipelineを作らない。
+- InvasionのAdvance / Defense / FieldRest / RetreatingとCohesion Biasは既存Move direction policyへ合成し、新Actionや別Utility pipelineを作らない。
 - Statistics ProjectionはDomain Eventとread-only queryだけを受け、Simulation用random streamを消費しない。
 - Settlement Maintenance Coordinatorは確定した12段階の日末順だけを調整し、各domain ruleを所有しない。日中Eventと翌Tick stateを分離する。
 - Hotspot arbitratorはimmutable Candidate snapshot、Reproduction Success数、named seedを使い、scan / collection / thread順へ依存しない。
@@ -75,6 +81,8 @@
 - Generation Proto-OrderとOrder Benefitを別policyとして表現し、倍率を重ねない。
 - Settlement Supportは日末のread-only 90日集計からP/R/Sを算出し、Membership変更と自然消滅をMaintenance順でcommitする。
 - Settlement Pressureは日末のread-only 30日集計から3成分を算出し、High / Low counterとともに翌Tick stateへcommitする。InvasionはPressure値を所有せず、eligibility inputとして受け取る。
+- Settlement FissionはPressureをInvasionより先に評価し、有効hotspotがある同日にInvasionへfallbackしない。
+- Incremental Statistics、Recent Buffer、Historical Milestone、Raw Archiveはterminal observerで、保持量やflushが権威的Event列を変えない。
 - Mobilizationはeligible snapshot、SettlementPressure、Affinity、named seedだけを使い、Combat / Action値やcollection順でcohortを歪めない。
 - Observation cache、近傍index、CPU並列read phaseは最適化portの内側に閉じ、権威的順序・random stream・Event IDを変えない。
 - Run envelopeはVersion、repositoryCommit、Config、Seedを一組として記録する。
@@ -86,4 +94,3 @@
 - domain eventの配送順と失敗処理。
 - LLMを使わない場合の文章生成fallback。
 - module間の許可依存表とarchitecture test。
-

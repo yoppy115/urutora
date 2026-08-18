@@ -38,7 +38,7 @@
 | Vitality | 約3年scale、複数Age Control Point間のsmooth cubic curve。具体値は制約付きConfig調整 |
 | HP / Damage | BaseMaxHP center about 50、Damage `max(1, 4 + 0.9*A - 0.4*D) * Random(0.9,1.1)` |
 | InitialAge | 180–700 days |
-| Held Information | max 3 records per Subject + Property、FIFO eviction、直接消滅確認時にSubject purge |
+| Knowledge (historical v0.15) | Subject + Property 3件FIFO。v0.2.5でPerson / Event / Settlement Beliefへ置換 |
 | Concept | exposure 1.0/0.5/0.25、threshold 100、effective multiplier 1.2 |
 
 Need増減、Utility Effect、Threat Risk、Observation誤差・Confidence、Communication Confidence、Communication変形、Combat、Pursuit、初期分布等の全defaultは各設計文書を正本とする。これらの数値はv0.15 configurableであり、主観境界、Base/Effective分離、即時Dead、TargetAbsent invalidation、順序非依存競合等のBaselineと混同しない。まだコード実装を行わないため、この変更では `default.json` を作らない。
@@ -82,6 +82,24 @@ Advance / Cohesionの具体WeightはConfig / implementation detailだがAdvance�
 
 これらはv0.2.4 Simulation Run後に調整可能なConfig値。出生所属predicate、主観境界、Proto-Order / Order分離、hysteresis、phase順、Alive-only conquest、Center非勝利、Concept / Held Information非変更等のBaselineを数値調整で変更しない。
 
+## v0.2.5 adopted defaults
+
+| Area | Defaults |
+| --- | --- |
+| Rest candidate | `RestPressure > 0`、現行式では`RestNeed > 2` |
+| Person memory | `DeterministicRound(75 + 15 * StableCommunication)`、TTL 365 days |
+| Support accumulation | initial / renewal 50、`Clamp((SupportPotential-50)/50,-1,1)` per day |
+| Renewal | Support 100かつPotential >=80を365日 |
+| Fission gate | Pressure >=.40を90日、Order / Active / Support >=35 / non-Invasion / non-Migration |
+| Fission hotspot | 5×5、parent distance 8–24、30-day Unaffiliated Resident-Days >=90、current >=3 |
+| Migrants | 40%、deterministic round、minimum 4、migrant Affinity +10、Core Unaffiliated +7 |
+| Heavy retreat | HP ratio <=.20でRest / FleeするとRetreating |
+| Attack victory | usable Core >=.50を3 consecutive days |
+| Defense victory | force ratio <=.30を3日、Influence内0人を7日、または90日 |
+| FieldRest | 1 day |
+
+Knowledge category、field priority、Support / Fission、Invasionの因果境界はConfigで変更しない。Event Importance閾値、SettlementBelief直接観測契約、Person eviction集約、Fission center cell、Migration完了条件は未決であり、default値で黙って固定しない。
+
 ## Run metadata
 
 将来、再現用metadataを保存する場合は最低限次を扱えるようにする。ただしファイル出力自体はv0初期必須要件ではない。
@@ -93,10 +111,9 @@ Advance / Cohesionの具体WeightはConfig / implementation detailだがAdvance�
   "config": "configs/default.json",
   "preset": "presets/example.json",
   "ticks": 0,
-  "version": "v0.2.4",
+  "version": "v0.2.5",
   "repositoryCommit": "git-commit-hash"
 }
 ```
 
 完全なconfig、初期状態、外部入力列を参照または同梱できるようにする。同じVersion名でも異なるrepositoryCommitのRunを混在させない。保存形式はDraftである。
-

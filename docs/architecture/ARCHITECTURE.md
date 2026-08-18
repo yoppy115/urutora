@@ -66,6 +66,9 @@ flowchart LR
 16. **Settlement formation and order are separate.** Generation中からSettlement関係stateを形成し、v0.2.4の限定Proto-OrderとOrder専用Benefitを明示的に分ける。
 17. **Social conflict is typed state.** Affiliation、Friction、Hostility、Invasionを個人ThreatやSpatial Resolutionへ暗黙に埋め込まない。
 18. **Statistics are read-only projections.** 集計、UI、logging量はSimulation state、乱数、phase順を変えない。
+19. **Knowledge categories have separate lifetimes.** Person、Event、Settlementの主観記録をReality cacheやWorld Event historyと混同しない。
+20. **History storage is layered.** Recent Buffer、Incremental Statistics、Milestone / Pin、Optional Raw Archiveを分離する。
+21. **Expansion precedes war.** SettlementPressureはFission domainへ先に渡し、有効候補がない場合だけInvasion eligibilityへ進む。
 
 ## State layers
 
@@ -119,7 +122,7 @@ Targeted Action PhaseはAttack → Reproduction → Communicationの明示的な
 ReproductionSuccess events -> Settlement Formation -> Affinity / Affiliation
 Daily population series    -> World Phase
 Affiliation + Phase         -> Order Policies -> Spatial / Utility / Vitality modifiers
-SettlementPressure + Relations -> Invasion -> Move Bias / Combat / Integration
+SettlementPressure -> Support / Fission -> Invasion eligibility -> Move Bias / Combat / Integration
 ConceptMark + Affiliation   -> Aura projection -> temporary Effective modifiers
 Domain events / snapshots   -> Statistics projection -> App
 ```
@@ -128,7 +131,7 @@ Settlement Formation、Affiliation、World Phase、Order Policy、Friction / Hos
 
 Settlement構造変更は固定順のTick末Maintenanceでcommitする。日中即時Eventと日末集約を分け、新規Settlement、WorldPhase、Invasion開始を原則翌Tickから有効化する。Hotspot Candidateは同一immutable snapshotから生成し、Reproduction Success数とnamed seed tie-breakで順序非依存に解決する。
 
-Statisticsはdomain eventとread-only snapshotを購読するterminal observerであり、Settlement / Invasion判定の入力stateを所有しない。
+Statisticsはdomain eventとread-only snapshotを購読するterminal observerであり、Settlement / Fission / Invasion判定の入力stateを所有しない。rolling値は増分projectionとして保持し、全raw historyを毎回再scanしない。
 
 ## v0.2.4 stabilization dependency
 
@@ -141,6 +144,10 @@ Daily pair incidents -> normalized Friction -> target selection / declaration re
 ```
 
 Move policyはFleeとActive Invasion biasを上書きしない。Support、SettlementPressure、Frictionはread-only集計から算出して日末にだけ翌Tick stateへcommitする。ConquestはAlive NPCだけを変更し、Dead historyをimmutableに保つ。
+
+v0.2.5では`SupportPotential`をread-only rolling input、`SettlementSupport`を権威的な累積Settlement stateとして分ける。Renewal、Fission、Migration、Parent / Child、Invasion Participant Stateはそれぞれtyped state / eventを持ち、万能SettlementManagerへ集約しない。
+
+PersonBelief Storeはfield provenance、capacity、TTL、evictionを所有する。EventBelief / SettlementBelief Store、Recent Event Buffer、Historical Milestone Store、Optional Archiveは別portとし、CoreのReality StoreやDecisionへ逆依存させない。
 
 Observation cache、NPC近傍index、決定論的並列read phaseは最適化層であり、権威的Event順、random purpose、stable IDを変えない。Run identityはVersion、repositoryCommit、Config、Seedを一組とする。
 
@@ -161,4 +168,3 @@ AppはSnapshotまたはread-only projectionと構造化Event streamを受け取�
 - 永続化形式とschema versioning。
 - event busを使用するか、明示的な呼び出しと戻り値を使うか。
 - 大規模個体数に対する性能目標。
-

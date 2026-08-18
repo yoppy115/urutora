@@ -3,6 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-08-18
 - **Supersedes:** ADR-0017の旧Crowding / raw Friction detail、ADR-0023
+- **Amended by:** ADR-0027、ADR-0028
 
 ## Context
 
@@ -29,6 +30,8 @@ v0.2.4はInvasion連打、Center一人到達、Friction無制限化を暫定guar
 - 日末MaintenanceはPressure、Friction、trigger counterを固定順でcommitし、翌Tickから反映する。
 - Configは住宅容量比、Pressure weight / threshold、Friction weight / half-life / retention、Mobilization係数を明示する。
 - Statistics / Eventは分子・分母、rejection reason、root incident、cohort選択、Center非勝利を追跡する。
-- Center保持Victory、軍事占領、同一EventへのRest再参加、能力値による軍事選抜はBacklogへ残す。
+- 本ADR時点ではCenter保持Victory、軍事占領、同一EventへのRest再参加、能力値による軍事選抜をBacklogへ残した。v0.2.5で通常RestはFieldRest復帰、Core占領は3日継続へ進んだが、Center保持Victory、軍事占領、能力値選抜は未採用のままである。
 
+## v0.2.5 amendments
 
+ADR-0027はPressure起因Invasionの前へ90日Fission gateを置き、有効hotspotがない場合だけInvasionを許す。ADR-0028は通常Restを1日FieldRestとし、重傷時だけRetreatingへ移し、瞬間Core 50%勝利を3日連続条件へ置換する。Pressure成分、Friction、armed / re-arm、Mobilization、Center非勝利、能力値非選抜は維持する。

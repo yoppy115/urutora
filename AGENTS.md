@@ -38,17 +38,18 @@
 - Move/Birth等の競合結果を配列、queue、生成、collection列挙順で決めない。
 - v0.15のTargeted ActionはAttack → Reproduction → Communication順で、終了済みphaseへ再抽選Intentを巻き戻さない。
 - Vitality Control Point値は確定Phase形状を守る保守的なv0.15 Config初期値として調整できる。
-- Held InformationはSubject + Propertyごとに3件、FIFO evictionとし、直接消滅確認時だけSubject全体をpurgeする。
+- v0.2.5の知識はPersonBelief / EventBelief / SettlementBeliefへ分離する。旧Subject + Property 3件FIFOを復活させず、Unknown、field provenance、人物capacity / TTL、Communication差分送信を `docs/design/KNOWLEDGE_MEMORY.md` に従って扱う。
 - v0.2 Settlement / Order仕様は `docs/design/V0_2_SETTLEMENT_ORDER.md` を正本とし、Generation中の形成・AffinityとOrderから有効な社会Ruleを混同しない。
 - v0.2.1はHotspotを90日、5×5、成功3件、15日評価とする。v0.2.3は既存Influence内SuccessをHotspotから除外し、新Core全Cellを既存Active Influenceと非重複にする。
 - v0.2.3出生所属は、同じActive Settlement所属の両親なら場所非依存、片親所属なら受胎時に両親とも所属先Influence内、異所属なら両親が同じ一意なActive Core内という境界を守る。
-- v0.2.4は `docs/design/V0_2_4_SETTLEMENT_STABILIZATION.md` を正本とする。Rest v2、Home / Foreign Bias、Generation Proto-Order、SettlementSupport、SettlementPressure、Invasion hysteresisを旧v0.2規則と混同しない。
-- v0.2.4の自然消滅は局所Support、Invasionは30日SettlementPressureを使う。旧CoreOccupancy / BlockedMovement Crowding、raw Friction加算、Pressure 0.70 re-armを復活させない。
-- Centerには現行Victory ruleを持たせず、Usable Core 50%占拠だけをAttack Victoryとする。征服所属変更はAlive NPCだけに行う。
-- Invasion cohortをCombat / Action値で全知的に選ばず、Rest離脱者を同一Eventへ再参加させない。Concept / Held Informationのv0.2.4非変更境界を実装裁量で再調整しない。
+- v0.2.4の履歴は `docs/design/V0_2_4_SETTLEMENT_STABILIZATION.md`、現行overrideは `docs/design/V0_2_5_KNOWLEDGE_FISSION_INVASION.md` とその正本群を使う。
+- 自然消滅は累積SettlementSupport、更新はRenewal、高PressureはFissionを先に評価する。旧CoreOccupancy / BlockedMovement Crowding、raw Friction加算、Pressureからの直接Invasionを復活させない。
+- CenterにはVictory ruleを持たせず、Attack VictoryはUsable Core 50%以上を3日連続とする。Defense Victoryとparticipant stateは `INVASION_V025.md` に従い、征服所属変更はAlive NPCだけに行う。
+- Invasion cohortをCombat / Action値で全知的に選ばない。通常RestはFieldRest、HP比20%以下のRest / FleeだけがRetreatingとなり、同じEventへ戻らない。
+- Recent Event Buffer、Incremental Statistics、Historical Milestone、Optional Raw Archiveを分け、表示・保持・archive設定でSimulation結果を変えない。
 - Order中のCollision、Friction、Invasion、Auraは所属・WorldPhase・Event状態を明示的に解決し、v0.15の主観境界やTargeted Action順を弱体化しない。
 - v0.2 Settlement構造変更は固定順のTick末Maintenanceでcommitし、新規Settlement / WorldPhase / Invasion開始は原則翌Tickから反映する。
-- Hotspot arbitration、Friction、SettlementPressure、Mobilization、Unaffiliated保護、同一Core繁殖、Aura / temporary MaxHP、Core占有率、Invasion離脱は `V0_2_SETTLEMENT_ORDER.md` の確定境界を守る。
+- Hotspot arbitration、Friction、SettlementPressure、Mobilization、Unaffiliated保護、同一Core繁殖、Aura / temporary MaxHPは `V0_2_SETTLEMENT_ORDER.md`、Support / Fissionは `SETTLEMENT_FISSION.md`、Invasion離脱・勝敗は `INVASION_V025.md` の確定境界を守る。
 
 ## Change contract
 
@@ -76,4 +77,3 @@
 - テストまたは妥当な検証を実行し、結果を報告した。
 - 設定・seed・再現手順が、変更の性質に応じて保存されている。
 - 未決事項を実装上の既成事実にしていない。
-

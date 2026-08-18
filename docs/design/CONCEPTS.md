@@ -69,6 +69,8 @@ EffectiveMaxHP         = BaseMaxHP         * ConceptModifier
 
 該当MarkなしはModifier 1.0、ありはv0 default 1.2。EffectiveActionはrepeat、Intent競合、second step、pursuitへ使う。EffectiveCombatはRealityのhit、Damage、Counterattackと自己の主観予測へ使う。EffectiveCommunicationはsendCountへそのまま使い、情報品質計算だけ0〜10へClampする。EffectiveMaxHPはSurvivalNeed、SelfHPRatio、繁殖HP条件、CurrentHP上限へ使う。
 
+v0.2.5のPersonMemoryCapacityだけは`StableCommunication = BaseCommunication * PermanentCommunicationMarkModifier`を使う。一時Auraをcapacityへ含めず、Auraの出入りで記憶が不安定に増減することを防ぐ。
+
 Mark取得時にCurrentHPの絶対値を維持し、増えたEffectiveMaxHPまで即時補充しない。v0.15の例では50/50の個体が生存Markを得た直後は50/60となり、将来のVitality回復で不足分を回復できる。
 
 採用理由は [`ADR-0012`](../decisions/ADR-0012-concept-landmarks-and-selection.md) を参照する。
@@ -127,4 +129,3 @@ v0.2.4ではこのConcept系を意図的に変更しない。Exposure radius 4�
 - LLMを用いる場合の出力検証と安定ID付与。
 
 実データは将来 `simulation/concepts/` に置く。
-

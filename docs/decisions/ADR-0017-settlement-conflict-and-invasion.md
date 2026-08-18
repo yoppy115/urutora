@@ -2,7 +2,7 @@
 
 - **Status:** Accepted
 - **Date:** 2026-08-17
-- **Amended by:** ADR-0024（Crowding、Friction更新、Mobilizationの具体規則を置換）
+- **Amended by:** ADR-0024（Crowding、Friction更新、Mobilization）、ADR-0027（Fission先行・親子target除外）、ADR-0028（FieldRest / Retreat / 継続Victory）
 
 ## Context
 
@@ -18,7 +18,7 @@ Influence内Unaffiliated非ThreatはCandidateとResolutionの両方でExplicit A
 
 実際のSettlementPressureが継続したSettlementはInvasion Eligibleとなる。Hostility、Friction、距離から対象を選び、既存MoveへAdvance / Defense Biasを加える。専用Actionや別Utility AIは作らない。勝敗後はBiasとlockを解除し、攻撃側勝利では敗北Settlementを勝者へ統合する。Trigger、re-arm、Friction、Mobilization、Center境界はADR-0024を正本とする。
 
-Core 50%勝利の分母はMap外・侵入不能Cellを除く利用可能Core Cellとする。侵攻側の通常の自発的離脱はRestだけで、FleeではParticipant / Advance Biasを維持する。Death、Event終了、Victory、統合ではstateを解除する。
+Core 50%勝利の分母はMap外・侵入不能Cellを除く利用可能Core Cellとする。v0.2.5では50%以上を3日連続で要求し、非重傷Restは1日FieldRest、HP比20%以下のRest / FleeだけをRetreatingとする。Death、Event終了、Victory、統合ではstateを解除する。
 
 ## Reasons
 
@@ -32,4 +32,3 @@ Core 50%勝利の分母はMap外・侵入不能Cellを除く利用可能Core Cel
 - Friction、SettlementPressure、Invasion、統合を独立したdomain state / eventとして追跡する。
 - 平時抑制と戦時Combatの条件をheadless testで固定する。
 - Friction Event、保護拒否、利用可能Core占有率、離脱理由を構造化Event / Statisticsで分離する。
-
