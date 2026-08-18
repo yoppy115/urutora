@@ -84,7 +84,7 @@
 - Settlement FissionはPressureをInvasionより先に評価し、有効hotspotがある同日にInvasionへfallbackしない。
 - Fission Centerはimmutable snapshot上の全Alive NPC Cell Resident-Days、現在Alive NPC、幾何中心距離、named seedで選ぶ。Migration完了はchild Influence到達をAction最終PositionとTick末fallbackで一度だけ判定する。
 - Incremental Statistics、Recent Buffer、Historical Milestone、Raw Archiveはterminal observerで、保持量やflushが権威的Event列を変えない。
-- Mobilizationはeligible snapshot、SettlementPressure、Affinity、named seedだけを使い、Combat / Action値やcollection順でcohortを歪めない。
+- MobilizationはAlive affiliated member snapshotを全員採用し、Affinityとnamed seedはCore / Frontier内の分類順だけに使う。Combat / Action値やcollection順で参加可否を歪めない。
 - Observation cache、近傍index、CPU並列read phaseは最適化portの内側に閉じ、権威的順序・random stream・Event IDを変えない。
 - Run envelopeはVersion、repositoryCommit、Config、Seedを一組として記録する。
 

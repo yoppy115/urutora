@@ -30,7 +30,7 @@
 | [`V0_2_SETTLEMENT_ORDER.md`](design/V0_2_SETTLEMENT_ORDER.md) | Baseline / v0.2 configurable | Settlement自然発生、Maintenance、Order、Friction、Invasion、Aura |
 | [`V0_2_4_SETTLEMENT_STABILIZATION.md`](design/V0_2_4_SETTLEMENT_STABILIZATION.md) | Baseline / v0.2.4 configurable | Rest v2、Home Bias、Proto-Order、Support、SettlementPressure、Friction、Mobilization、Invasion |
 | [`V0_2_5_KNOWLEDGE_FISSION_INVASION.md`](design/V0_2_5_KNOWLEDGE_FISSION_INVASION.md) | Baseline / v0.2.5 configurable | v0.2.5の適用範囲、置換関係、closureと将来Backlog |
-| [`V0_2_6_FISSION_INVASION_THROUGHPUT.md`](design/V0_2_6_FISSION_INVASION_THROUGHPUT.md) | Baseline / v0.2.6 configurable | Fission hotspot全NPC化、Invasion動員2倍、距離連動Defense、60日cooldown |
+| [`V0_2_6_FISSION_INVASION_THROUGHPUT.md`](design/V0_2_6_FISSION_INVASION_THROUGHPUT.md) | Baseline / v0.2.6 configurable | Fission hotspot全NPC化、Invasion全所属者参加、距離連動Defense、60日cooldown |
 | [`KNOWLEDGE_MEMORY.md`](design/KNOWLEDGE_MEMORY.md) | Baseline / v0.2.5 configurable | Person / Event / Settlement Belief、capacity、TTL、Communication |
 | [`EVENT_HISTORY.md`](design/EVENT_HISTORY.md) | Baseline constraints / technical policy | Event保持四層と増分Statistics |
 | [`SETTLEMENT_FISSION.md`](design/SETTLEMENT_FISSION.md) | Baseline / v0.2.6 configurable | 累積Support、Renewal、全NPC Fission Center、Migration、親子非侵略 |

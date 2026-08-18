@@ -62,10 +62,7 @@ public sealed class SettlementMaintenanceCoordinator
             $"phase=9;order=evaluated;stabilityDays={world.StabilityConsecutiveDays}");
         UpdateCrowding(world, dayEvents, emit);
         var fission = _fission.Evaluate(world, emit);
-        var resting = dayEvents.Where(item => item.Type == SimulationEventType.Rest && item.Success && item.ActorId.HasValue)
-            .Select(item => item.ActorId!.Value)
-            .ToHashSet();
-        _invasion.StartEligibleInvasions(world, resting, emit, fission.InvasionFallbackSettlementIds);
+        _invasion.StartEligibleInvasions(world, emit, fission.InvasionFallbackSettlementIds);
         emit(0, SimulationEventType.SettlementMaintenance, null, null, null, true, "phase=11;invasion=evaluated");
         emit(0, SimulationEventType.SettlementMaintenance, null, null, null, true,
             $"phase=12;worldPhase={world.Phase};pendingPhase={world.PendingPhase?.ToString() ?? "-"};" +

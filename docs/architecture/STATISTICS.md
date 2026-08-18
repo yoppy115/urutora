@@ -70,8 +70,8 @@ NPC向けActionOutcomeへ非公開Reality値を露出しないという境界は
 各Invasion Eventについて次を確認可能にする。
 
 - 開始日、終了日、Attack Settlement、Defense Settlement。
-- Trigger SettlementPressure、High / Low Pressure Days、Armed、前提別trigger rejection reason、Target選択理由。
-- MobilizationRate、Target / Actual Force Size、eligible人数、不適格理由、Core / Frontier target・actual・不足補充、最終participant ID。
+- Trigger SettlementPressure、HighPressureDays、cooldown残日数、前提別trigger rejection reason、Target選択理由。
+- Alive affiliated population、Target / Actual Force Size、既存Invasion stateによる保留、Core / Frontier target・actual、最終participant ID。
 - Advance Bias離脱数、Combat Death、Rest離脱。
 - 最大Core占有率、Center占拠有無、Center hold days。
 - Attack / Defense Victory、戦争期間、統合後人口。
@@ -120,7 +120,7 @@ NPC向けActionOutcomeへ非公開Reality値を露出しないという境界は
 - Return: Strong Home Move Attempts、Failed Strong Home Moves、failure理由、ReturnFailure。
 - Trigger: SettlementPressure、HighPressureDays、LastInvasionStartedTick、cooldown残日数、Support / Phase / Active / target / participant等のrejection reason。
 - Friction: 日次Pair raw Collision、root Explicit Threat、weighted events、Living Population A/B、scale、decay前後、impulse、retention前後、Hostility。
-- Mobilization: rate、Settlement Population、target / actual force、eligible / ineligible reason、Core / Frontier target / actual / fill、participant ID。
+- Mobilization: Alive affiliated population、target / actual force、既存Invasion stateによる保留、Core / Frontier target / actual / fill、participant ID。
 - Center: occupied、occupation start / end、hold days、non-victory reason、UsableCoreOccupationRate。
 - Concept / Held Information: Exposure、Mark / Aura、同種抑制、Held Information総数、NPC平均 / 最大、FIFO eviction、直接purge、TargetAbsent Position invalidation。
 

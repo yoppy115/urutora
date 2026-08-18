@@ -159,15 +159,10 @@ Order、Active、Support 35以上、Active Invasionなし、攻撃可能target�
 5. さらに同値ならseed付き乱数。
 
 ```text
-MobilizationRate = Clamp(
-  0.20 + 0.30 * SettlementPressure,
-  0.20, 0.50)
-
-TargetForceSize = floor(
-  SettlementPopulation * MobilizationRate + 0.5)
+TargetForceSize = LivingAffiliatedPopulation
 ```
 
-候補はAlive、攻撃SettlementへActive Affiliation、現在Rest中でない、他Invasionへ参加していないNPC。実数はTargetとeligibleの小さい方で、3名未満なら開始しない。`ceil(ActualForceSize / 2)`をCore目標とし、Core内はAffinity上位・同値seed tie、Core外はseed randomで選ぶ。不足は他側から補充し、50/50は目標比率とする。Combat / Action値で全知的に選抜しない。
+v0.2.6では攻撃SettlementへActive Affiliationを持つ全Alive NPCを参加者にし、同日にRestした人物も除外しない。Active Invasion stateが残る所属者が1人でもいれば部分動員せず開始しない。3名未満なら開始せず、`DeterministicRound(ActualForceSize * 0.50)`をCore目標とする。Core内はAffinity上位・同値seed tie、Core外はseed randomで分類し、不足は他側から補充する。Combat / Action値で参加可否を選抜しない。
 
 ## Invasion movement and combat
 
@@ -258,7 +253,7 @@ Raw Logを人間が直接読み続けるより、ゲーム内Statistics UIでSim
 | Initial Hostility | 30% |
 | Friction | Collision weight 1、Threat weight 4、pair scale floor 10、daily impulse cap 5、half-life 180日、Invasion declaration retention 0.25 |
 | SettlementPressure | capacity ratio .70、Resident / Congestion / Return = .45 / .35 / .20、30-day window、trigger .65 ×30日、攻撃開始cooldown 60日 |
-| Mobilization | 0.20 + 0.30 × SettlementPressure、Clamp 0.20–0.50、minimum 3、Core target 50% |
+| Mobilization | 全Alive affiliated member、minimum 3、Core target 50% |
 | Natural dissolution | v0.2.4では90-day Support、25 / 35 Hysteresis、365 LowSupportDays |
 | Exposure | radius 4、1/0.5/0.25/0.125、threshold 100 |
 | Aura | radius 2、Rest -0.10/day、stat ×1.1 |

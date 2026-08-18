@@ -15,7 +15,7 @@
 | v0.2.4 closure patch | Unresolved Systems Closure | SettlementPressure、Trigger / re-arm、正規化Friction、Mobilization、Center非勝利を確定 |
 | v0.2.5 | Knowledge, Fission & Invasion Update | 三種Knowledge、増分統計、累積Support / Renewal、Fission先行、持続型Invasion |
 | v0.2.5 closure patch | Unresolved Contracts Closure | Memorable / Settlement知識、Person eviction、Fission Center、Migration完了、Struggle延期を確定 |
-| v0.2.6 | Fission / Invasion Throughput Update | Fission hotspot全NPC化、Invasion動員2倍、距離連動攻撃者不在判定、60日cooldown |
+| v0.2.6 | Fission / Invasion Throughput Update | Fission hotspot全NPC化、Invasion全所属者参加、距離連動攻撃者不在判定、60日cooldown |
 
 ## Run identity
 

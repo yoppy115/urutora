@@ -85,7 +85,6 @@ public sealed class InvasionSystem
 
     public void StartEligibleInvasions(
         WorldState world,
-        IReadOnlySet<long> restingNpcIds,
         DomainEventEmitter emit,
         IReadOnlySet<int>? permittedSourceIds = null)
     {
@@ -118,24 +117,18 @@ public sealed class InvasionSystem
                 continue;
             }
 
-            var population = world.Npcs.Values.Count(item => item.IsAlive && item.SettlementId == source.Id);
-            var rate = Math.Clamp(
-                _config.Invasion.MobilizationBase + _config.Invasion.MobilizationCrowdingFactor * source.CrowdingPressure,
-                _config.Invasion.MobilizationMinimum,
-                _config.Invasion.MobilizationMaximum);
-            var forceSize = Math.Min(population, (int)Math.Round(
-                population * rate * _config.Invasion.MobilizationMultiplier,
-                MidpointRounding.AwayFromZero));
-            if (forceSize < _config.Invasion.MinimumForceSize)
+            var members = world.Npcs.Values
+                .Where(item => item.IsAlive && item.SettlementId == source.Id)
+                .OrderBy(item => item.Id)
+                .ToArray();
+            if (members.Length < _config.Invasion.MinimumForceSize ||
+                members.Any(item => item.InvasionId.HasValue))
             {
                 continue;
             }
 
-            var candidates = world.Npcs.Values
-                .Where(item => item.IsAlive && item.SettlementId == source.Id && !restingNpcIds.Contains(item.Id) &&
-                               !item.InvasionId.HasValue)
-                .OrderBy(item => item.Id)
-                .ToArray();
+            var candidates = members;
+            var forceSize = members.Length;
             var desiredCore = (int)Math.Round(forceSize * _config.Invasion.CoreCohortRatio,
                 MidpointRounding.AwayFromZero);
             var coreCandidates = candidates
@@ -192,6 +185,7 @@ public sealed class InvasionSystem
             source.LastInvasionStartedTick = world.Tick;
             emit(0, SimulationEventType.SettlementMaintenance, null, null, source.Center, true,
                 $"phase=11;invasion={invasion.Id};status=pending;effectiveTick={invasion.EffectiveTick};" +
+                $"mobilization=all-living-affiliated;force={participants.Length};" +
                 $"centerDistance={centerDistance};influenceClearRequiredDays={influenceClearRequiredDays};" +
                 $"cooldownDays={_config.Invasion.CooldownDays}");
         }

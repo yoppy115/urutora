@@ -3,6 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-08-19
 - **Amends:** ADR-0024、ADR-0027、ADR-0028
+- **Amended by:** ADR-0031
 
 ## Context
 
@@ -28,3 +29,4 @@ v0.2.5のFission hotspotはUnaffiliatedだけを数えたため、既存Settleme
 - 高Pressure時のTarget Forceは従来の2倍で、所属人口を超えない。
 - Invasionは開始後60日でcooldown上は再開可能だが、Event継続中は開始できない。
 - Config schemaを5、diagnostics schemaを7へ更新し、resident集計、最終開始tick、cooldown残日数、Center距離、攻撃者不在必要日数を記録する。
+- ADR-0031により、2.0倍Target Forceは全Alive affiliated memberの参加へ置換され、Config schemaは6となった。

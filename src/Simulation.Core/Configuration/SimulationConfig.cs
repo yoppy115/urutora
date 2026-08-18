@@ -27,7 +27,7 @@ public sealed class SimulationConfig
     public void Validate()
     {
         var errors = new List<string>();
-        Require(SchemaVersion == 5, "schemaVersion must be 5.", errors);
+        Require(SchemaVersion == 6, "schemaVersion must be 6.", errors);
         Require(!string.IsNullOrWhiteSpace(Id), "id is required.", errors);
         Require(World.Width > 2 && World.Height > 2, "world dimensions must be greater than 2.", errors);
         Require(World.DaysPerYear > 0, "world.daysPerYear must be positive.", errors);
@@ -368,11 +368,6 @@ public sealed class SimulationConfig
     {
         Require(new[]
         {
-            Invasion.MobilizationBase,
-            Invasion.MobilizationCrowdingFactor,
-            Invasion.MobilizationMinimum,
-            Invasion.MobilizationMaximum,
-            Invasion.MobilizationMultiplier,
             Invasion.CoreCohortRatio,
             Invasion.AttackOccupationThreshold,
             Invasion.AdvanceBiasWeight,
@@ -382,11 +377,8 @@ public sealed class SimulationConfig
             Invasion.SevereInjuryHpRatio,
             Invasion.AttackCollapseRatio
         }.All(double.IsFinite), "invasion numeric values must be finite.", errors);
-        Require(Invasion.MobilizationMinimum is >= 0 and <= 1 &&
-                Invasion.MobilizationMaximum is >= 0 and <= 1 &&
-                Invasion.MobilizationMaximum >= Invasion.MobilizationMinimum &&
-                Invasion.MobilizationMultiplier > 0,
-            "invasion mobilization bounds are invalid.", errors);
+        Require(Invasion.MobilizeAllLivingAffiliatedMembers,
+            "v0.2.6 requires invasion.mobilizeAllLivingAffiliatedMembers.", errors);
         Require(Invasion.CoreCohortRatio is >= 0 and <= 1 && Invasion.AttackOccupationThreshold is > 0 and <= 1,
             "invasion cohort or occupation ratio is invalid.", errors);
         Require(Invasion.AdvanceBiasWeight > Invasion.AuraCohesionWeight &&
@@ -651,11 +643,7 @@ public sealed class SettlementConfig
 
 public sealed class InvasionConfig
 {
-    public double MobilizationBase { get; set; }
-    public double MobilizationCrowdingFactor { get; set; }
-    public double MobilizationMinimum { get; set; }
-    public double MobilizationMaximum { get; set; }
-    public double MobilizationMultiplier { get; set; }
+    public bool MobilizeAllLivingAffiliatedMembers { get; set; }
     public double CoreCohortRatio { get; set; }
     public double AttackOccupationThreshold { get; set; }
     public double AdvanceBiasWeight { get; set; }

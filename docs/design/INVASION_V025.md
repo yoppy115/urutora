@@ -59,6 +59,6 @@ FieldRestはAlive Non-Retreatingとして数える。RetreatingとDeadは数え�
 
 trigger、target評価、Pressure、Friction、Alive-only integration等は、[`SETTLEMENT_FISSION.md`](SETTLEMENT_FISSION.md)のFission先行gateと親子target除外を加えた上で維持する。Damage、Hit、Counterattack、Pursuitも変更しない。
 
-v0.2.6ではTarget Forceを既存Pressure rateの2.0倍（所属人口上限）とし、armed / re-armを廃止して攻撃Settlementごとの開始間隔60日へ置換する。式と不変条件は[`V0_2_6_FISSION_INVASION_THROUGHPUT.md`](V0_2_6_FISSION_INVASION_THROUGHPUT.md)を正本とする。
+v0.2.6では攻撃Settlementの全Alive affiliated memberを開始時Participantとし、armed / re-armを廃止して攻撃Settlementごとの開始間隔60日へ置換する。式と不変条件は[`V0_2_6_FISSION_INVASION_THROUGHPUT.md`](V0_2_6_FISSION_INVASION_THROUGHPUT.md)を正本とする。
 
 死亡数quotaは勝敗条件にしない。

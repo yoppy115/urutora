@@ -35,7 +35,8 @@ ADRは、重要で後戻りしづらい判断について「なぜそうした�
 | [`ADR-0027`](ADR-0027-accumulated-support-renewal-and-fission.md) | Accepted | 累積Support、Renewal、Fission先行、直接親子の平時非侵略 |
 | [`ADR-0028`](ADR-0028-invasion-field-rest-and-sustained-victory.md) | Accepted | FieldRest / Retreating、Core前線、継続占領・防衛Victory |
 | [`ADR-0029`](ADR-0029-v025-unresolved-contracts-closure.md) | Accepted | Memorable / Settlement知識、Person eviction、Fission Center、Migration完了、Struggle延期を確定 |
-| [`ADR-0030`](ADR-0030-v026-fission-and-invasion-throughput.md) | Accepted | Fission hotspotを全Alive NPCへ拡張し、Invasion動員2倍・距離連動Defense・60日cooldownを採用 |
+| [`ADR-0030`](ADR-0030-v026-fission-and-invasion-throughput.md) | Accepted | Fission hotspot全NPC化、距離連動Defense、60日cooldownを採用。動員2倍はADR-0031が置換 |
+| [`ADR-0031`](ADR-0031-v026-all-member-invasion-mobilization.md) | Accepted | Invasion開始時に攻撃Settlementの全Alive affiliated memberを参加させる |
 
 ## Future decisions
 

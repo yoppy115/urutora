@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "id": "v0.2.6-default-1",
   "world": {
     "width": 64,
@@ -204,11 +204,7 @@
     "migrationBiasWeight": 1.6094379124341003
   },
   "invasion": {
-    "mobilizationBase": 0.20,
-    "mobilizationCrowdingFactor": 0.30,
-    "mobilizationMinimum": 0.20,
-    "mobilizationMaximum": 0.50,
-    "mobilizationMultiplier": 2.0,
+    "mobilizeAllLivingAffiliatedMembers": true,
     "coreCohortRatio": 0.50,
     "attackOccupationThreshold": 0.50,
     "advanceBiasWeight": 1.6094379124341003,

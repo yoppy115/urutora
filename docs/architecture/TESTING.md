@@ -98,10 +98,10 @@
 - O. SettlementPressureをResidentLoad / MovementCongestion / ReturnFailureから算出し、CoreOccupancyを入力に使わない。
 - P. SettlementPressure 0.65以上の30日継続だけでは開始せず、v0.2.5のFissionPressure 90日とhotspotなしを追加要求する。
 - Q. Invasion対象がHostility、Friction、Distance、seed tie-breakの優先順位に従う。
-- R. MobilizationRateがSettlementPressureに応じ20〜50%で変化する。
-- S. Core CohortをCore内のAffinity上位から選び、同値をseed付きで解決する。
-- T. Frontier CohortをCore外の所属NPCから選ぶ。
-- U. Rest中NPCをInvasion参加候補から除外する。
+- R. Invasion開始時のTarget / Actual ForceがAlive affiliated populationと一致する。
+- S. 全参加者のCore CohortをCore内のAffinity上位から分類し、同値をseed付きで解決する。
+- T. 全参加者のFrontier CohortをCore外の所属NPCから分類する。
+- U. 同日にRestしたNPCもInvasion開始時Participantへ含める。
 - V. 非重傷ParticipantのRestは1日FieldRest、重傷Rest / FleeはRetreatingとなる。
 - W. Defense Victoryは攻撃軍比、Influence排除、90日膠着の継続条件に従う。
 - X. Core 50%以上を3日連続占拠するとAttack Victoryになる。Center単独占拠は勝利条件ではない。
@@ -257,11 +257,11 @@ Friction:
 
 Mobilization:
 
-26. `Clamp(0.20 + 0.30 * SettlementPressure, 0.20, 0.50) * 2.0`を使い、所属人口を上限とする。
-27. Target Forceを`floor(Population * rate * 2.0 + 0.5)`で決定論的に丸める。
-28. Alive、Active Affiliation、非Rest、他Invasion非参加だけをeligibleにする。
+26. Target Forceを攻撃SettlementのAlive affiliated populationと一致させる。
+27. 同日にRestした所属者も開始時Participantへ含める。
+28. 他のActive Invasion stateを持つ所属者がいれば部分動員せず開始しない。
 29. Actual Forceが3未満なら開始しない。
-30. `CoreTarget = ceil(ActualForceSize / 2)`となる。
+30. `CoreTarget = DeterministicRound(ActualForceSize * 0.50)`となる。
 31. Core cohortをAffinity降順、同値named seed tieで選ぶ。
 32. Frontier cohortを現在Core外からseed付きrandomで選ぶ。
 33. 片側不足時は他側で補充し、50/50を厳密制約にしない。

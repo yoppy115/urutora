@@ -2,6 +2,7 @@
 
 - **Status:** Baseline / v0.2.6 configurable defaults
 - **Decision:** [`ADR-0030`](../decisions/ADR-0030-v026-fission-and-invasion-throughput.md)
+- **Current amendment:** [`ADR-0031`](../decisions/ADR-0031-v026-all-member-invasion-mobilization.md)
 
 ## Scope
 
@@ -20,16 +21,13 @@ Center選択の第一順位もCell別の全Alive NPC Resident-Daysとし、同�
 
 ## Invasion mobilization
 
-既存のPressure由来rateを2倍してTarget Forceを決める。
+攻撃SettlementにActive Affiliationを持つ全Alive NPCを参加者にする。
 
 ```text
-BaseRate = Clamp(0.20 + 0.30 * SettlementPressure, 0.20, 0.50)
-TargetForce = min(
-    LivingAffiliatedPopulation,
-    DeterministicRound(LivingAffiliatedPopulation * BaseRate * 2.0))
+TargetForce = LivingAffiliatedPopulation
 ```
 
-丸めは0.5を大きい側へ送る。Alive、Active Affiliation、非Rest、他Invasion非参加、最低3名、Core / Frontier cohort、能力値非選抜は維持する。eligible不足時のActual ForceはTarget Force未満になり得る。
+同日にRestしたNPCも開始時の参加対象とし、開始後のRestは既存FieldRest / Retreating規則で処理する。Active Invasion stateが残る所属者が1人でもいる場合は部分動員せず開始しない。最低3名、Core / Frontier cohort、能力値非選抜は維持する。
 
 ## Distance-scaled defender clear period
 
@@ -55,5 +53,5 @@ WorldTick - LastInvasionStartedTick >= 60
 
 - FissionのPressure 0.40 / 90日、40% migrant、最低4名、Migration完了条件を変えない。
 - 親子Settlement非侵略、Invasion target順位、Friction消費を変えない。
-- Participant state、Rest / Flee、Damage、Hit、Combat、Conquestを変えない。
+- 開始後のParticipant state、Rest / Flee、Damage、Hit、Combat、Conquestを変えない。
 - Struggle、軍事占領、補給、兵科、能力値による動員優先を追加しない。

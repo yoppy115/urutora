@@ -66,7 +66,7 @@ internal static class Program
         ("Friction decay is symmetric and bounded", FrictionDecayRules),
         ("Friction is clamped at the v0.2.4 maximum", FrictionMaximumClamp),
         ("Invasion Rest withdraws while Flee state remains", InvasionWithdrawalRules),
-        ("Invasion doubled mobilization cooldown and conquest guardrails are enforced", InvasionStabilizationGuardrails),
+        ("Invasion all-member mobilization cooldown and conquest guardrails are enforced", InvasionStabilizationGuardrails),
         ("Core occupation denominator excludes unusable cells", CoreOccupationDenominator),
         ("whole run and render frequency are deterministic", WholeRunAndRenderDeterminism),
         ("Recent Event capacity does not change authority", RecentEventCapacityIsTerminal),
@@ -105,7 +105,7 @@ internal static class Program
         var invalidPath = Path.Combine(Path.GetTempPath(), $"world-sim-invalid-{Guid.NewGuid():N}.json");
         try
         {
-            File.WriteAllText(invalidPath, original.Replace("\"schemaVersion\": 5", "\"schemaVersion\": 5, \"unknown\": true", StringComparison.Ordinal));
+            File.WriteAllText(invalidPath, original.Replace("\"schemaVersion\": 6", "\"schemaVersion\": 6, \"unknown\": true", StringComparison.Ordinal));
             Throws<ConfigurationException>(() => SimulationConfigLoader.Load(invalidPath));
         }
         finally
@@ -142,7 +142,8 @@ internal static class Program
         Equal(1.25, config.Settlement.GenerationPositiveVitalityMultiplier, 0);
         Equal(90, config.Settlement.SupportWindowDays);
         Equal(50, config.Invasion.AttackOccupationThreshold * 100, 0);
-        Equal(2, config.Invasion.MobilizationMultiplier, 0);
+        True(config.Invasion.MobilizeAllLivingAffiliatedMembers,
+            "All living affiliated members must be mobilized in v0.2.6.");
         Equal(60, config.Invasion.CooldownDays);
         Equal(7, config.Invasion.InfluenceClearBaseDays);
         Equal(1, config.Invasion.InfluenceClearDaysPerCenterDistance, 0);
@@ -1781,16 +1782,22 @@ internal static class Program
         var startWorld = SocialWorld(config);
         startWorld.Settlements[1].CrowdingPressure = 0.9;
         startWorld.Settlements[1].CrowdingConsecutiveDays = config.Settlement.CrowdingConsecutiveDays;
-        for (var id = 1L; id <= 7; id++)
+        for (var id = 1L; id <= 10; id++)
         {
             var participant = Npc(id, new Position(2 + (int)id, 2), 5, 5, 5, 100);
             participant.SettlementId = 1;
             startWorld.Npcs.Add(id, participant);
         }
-        system.StartEligibleInvasions(startWorld, new HashSet<long>(), Capture(events));
+        startWorld.Npcs[10].InvasionId = 999;
+        system.StartEligibleInvasions(startWorld, Capture(events));
+        Equal(0, startWorld.Invasions.Count);
+        startWorld.Npcs[10].InvasionId = null;
+        system.StartEligibleInvasions(startWorld, Capture(events));
         Equal(1, startWorld.Invasions.Count);
         var created = startWorld.Invasions.Values.Single();
-        Equal(7, created.InitialAttackForce);
+        Equal(10, created.InitialAttackForce);
+        True(created.AttackParticipantIds.SequenceEqual(Enumerable.Range(1, 10).Select(item => (long)item)),
+            "Invasion did not include every living affiliated member.");
         Equal(6, created.CenterDistance);
         Equal(config.Invasion.InfluenceClearBaseDays +
               (int)Math.Ceiling(created.CenterDistance * config.Invasion.InfluenceClearDaysPerCenterDistance),
@@ -1800,14 +1807,14 @@ internal static class Program
         created.EndTick = startWorld.Tick;
         created.Outcome = InvasionOutcome.DefenseVictory;
         startWorld.Tick = config.Invasion.CooldownDays - 1;
-        system.StartEligibleInvasions(startWorld, new HashSet<long>(), Capture(events));
+        system.StartEligibleInvasions(startWorld, Capture(events));
         Equal(1, startWorld.Invasions.Count);
         True(events.Any(item => item.Type == SimulationEventType.InvasionStartPrevented &&
                                 item.Detail.Contains("reason=cooldown", StringComparison.Ordinal)),
             "The 60-day start-to-start cooldown did not block an early invasion.");
 
         startWorld.Tick = config.Invasion.CooldownDays;
-        system.StartEligibleInvasions(startWorld, new HashSet<long>(), Capture(events));
+        system.StartEligibleInvasions(startWorld, Capture(events));
         Equal(2, startWorld.Invasions.Count);
     }
 

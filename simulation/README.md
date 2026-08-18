@@ -107,13 +107,14 @@ Knowledge category、field priority、Support / Fission、Invasionの因果境�
 ## v0.2.6 adopted defaults
 
 - Fission hotspotのResident-Days / 現在人口は全Alive NPCを対象にする。
-- Invasion mobilization multiplierは2.0、所属人口を上限とする。
+- Invasion開始時は攻撃Settlementの全Alive affiliated memberを参加させる。同日のRestも除外しない。
+- `mobilizeAllLivingAffiliatedMembers`はtrue固定で、旧Pressure rate / 2.0倍係数は使用しない。
 - 攻撃者不在判定はbase 7日 + Center間Chebyshev距離ごとに1.0日（切上げ）。
 - 攻撃Settlementの開始間cooldownは60日。armed / 低Pressure再武装設定は削除する。
 
 ## Implemented configuration and run metadata
 
-`configs/v0-default.json` はschema version 5、ID `v0.2.6-default-1`。観測App Configはschema version 7で、Worldログのflush間隔、diagnostics間隔、automatic advanceのwork sliceとcooldownを設定できる。defaultは2日ごとに15ms休止し、CPU並列度8と組み合わせて旧BIOS環境での持続的な全論理CPU負荷を避ける。日次CSVは毎日記録し、diagnosticsは30日間隔とWorld完了時に記録する。観測Appは各Worldへ完全Config snapshotと次の再現情報を保存する。
+`configs/v0-default.json` はschema version 6、ID `v0.2.6-default-1`。観測App Configはschema version 7で、Worldログのflush間隔、diagnostics間隔、automatic advanceのwork sliceとcooldownを設定できる。defaultは2日ごとに15ms休止し、CPU並列度8と組み合わせて旧BIOS環境での持続的な全論理CPU負荷を避ける。日次CSVは毎日記録し、diagnosticsは30日間隔とWorld完了時に記録する。観測Appは各Worldへ完全Config snapshotと次の再現情報を保存する。
 
 ```json
 {

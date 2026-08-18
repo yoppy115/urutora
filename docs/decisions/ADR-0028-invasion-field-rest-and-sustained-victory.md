@@ -22,3 +22,4 @@ Attack Victoryはusable Core 50%以上を3日連続とする。Defense Victory�
 - Event終了時にParticipant、Bias、Event専用Threat / lock、counterを明示的にcleanupする。
 - 既存Damage、Hit、Friction、Mobilization、Alive-only integrationは維持し、Fission先行gateだけを追加する。
 - ADR-0030により、攻撃者不在7日はCenter間距離に応じた連続日数へ、Mobilizationは2.0倍へ、armed / re-armは開始間隔60日へ置換された。Participant state、Core占領、戦力崩壊、90日膠着は維持する。
+- ADR-0031により開始時は全Alive affiliated memberが参加し、同日のRestは除外しない。開始後のFieldRest / Retreating規則は維持する。

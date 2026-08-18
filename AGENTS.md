@@ -54,7 +54,7 @@
 - Order中のCollision、Friction、Invasion、Auraは所属・WorldPhase・Event状態を明示的に解決し、v0.15の主観境界やTargeted Action順を弱体化しない。
 - v0.2 Settlement構造変更は固定順のTick末Maintenanceでcommitし、新規Settlement / WorldPhase / Invasion開始は原則翌Tickから反映する。
 - Hotspot arbitration、Friction、SettlementPressure、Mobilization、Unaffiliated保護、同一Core繁殖、Aura / temporary MaxHPは `V0_2_SETTLEMENT_ORDER.md`、Support / Fissionは `SETTLEMENT_FISSION.md`、Invasion離脱・勝敗は `INVASION_V025.md` の確定境界を守る。
-- Fission CenterはCell別の全Alive NPC Resident-Daysを優先し、Migration完了はchild Influenceへの実到達で判定する。Invasionは既存Pressure rateの2倍、Center距離連動の攻撃者不在日数、攻撃Settlementごとの60日cooldownを使い、旧armed / re-armを復活させない。Struggleは現行WorldPhaseではなくBacklogである。
+- Fission CenterはCell別の全Alive NPC Resident-Daysを優先し、Migration完了はchild Influenceへの実到達で判定する。Invasion開始時は攻撃Settlementの全Alive affiliated memberを参加させ、Center距離連動の攻撃者不在日数、攻撃Settlementごとの60日cooldownを使い、旧割合動員・armed / re-armを復活させない。Struggleは現行WorldPhaseではなくBacklogである。
 
 ## Change contract
 

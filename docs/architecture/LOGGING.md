@@ -100,7 +100,7 @@ Event保持は[`EVENT_HISTORY.md`](../design/EVENT_HISTORY.md)の四層へ分け
 - 征服時のAffiliationChangedはAlive NPCだけに発行し、Dead NPCのHistoryを変更しない。
 - ログflush間隔はOperations設定でありEvent意味論を変えない。Run identityと保存運用は[`ENGINEERING_REPRODUCIBILITY.md`](ENGINEERING_REPRODUCIBILITY.md)に従う。
 
-v0.2.6実装ではSimulation Config schema 5、`run.json` schema 5、Event wrapper schema 4、diagnostics schema 7、Observation App Config schema 7を使用する。diagnostics schema 7は全NPC Fission resident集計、Invasion Center距離・攻撃者不在必要日数・最終開始tick・cooldown残日数を追加し、廃止したarmed / re-arm stateを除く。Core内Recent Eventはdefault 20,000件の有限窓、Appの`events.jsonl`はCore外Optional Raw Archiveとして分離する。
+v0.2.6実装ではSimulation Config schema 6、`run.json` schema 5、Event wrapper schema 4、diagnostics schema 7、Observation App Config schema 7を使用する。diagnostics schema 7は全NPC Fission resident集計、Invasion Center距離・攻撃者不在必要日数・最終開始tick・cooldown残日数を追加し、廃止したarmed / re-arm stateを除く。Core内Recent Eventはdefault 20,000件の有限窓、Appの`events.jsonl`はCore外Optional Raw Archiveとして分離する。
 
 必須集計項目は [`STATISTICS.md`](STATISTICS.md) を正本とする。
 

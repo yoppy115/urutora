@@ -11,7 +11,7 @@
 - 実装基盤: C# / .NET 10。`Simulation.Core`、`Simulation.App`、`Simulation.Runner`、各Testsを分離
 - 外部依存: test-onlyのFsCheck 3.3.4。Production Core / App / Runnerは外部packageなし
 
-v0.2.5までの境界を維持しながら、v0.2.6の全NPC Fission hotspot、Invasion動員2倍、Center距離連動の攻撃者不在判定、開始間隔60日を同一seedで再現可能なCoreへ反映する。Windows Formsは交換可能なPresentation Adapterであり、GUIはRealityの権威を持たない。
+v0.2.5までの境界を維持しながら、v0.2.6の全NPC Fission hotspot、Invasion全所属者参加、Center距離連動の攻撃者不在判定、開始間隔60日を同一seedで再現可能なCoreへ反映する。Windows Formsは交換可能なPresentation Adapterであり、GUIはRealityの権威を持たない。
 
 ## Source of truth
 
