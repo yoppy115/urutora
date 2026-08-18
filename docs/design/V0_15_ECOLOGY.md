@@ -1,5 +1,7 @@
 # v0.15 Ecology Update
 
+> **Historical baseline:** 本書はv0.15時点の生態系正史を保存する。v0.2.5はHeld Informationの3件FIFOと死亡認知規則をPerson / Event / Settlement Knowledgeへ置換する。現行仕様は [`KNOWLEDGE_MEMORY.md`](KNOWLEDGE_MEMORY.md) を優先する。
+
 **Status:** Baseline boundaries / v0.15 configurable defaults
 
 ## Purpose and evidence

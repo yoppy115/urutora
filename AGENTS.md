@@ -39,17 +39,22 @@
 - Move/Birth等の競合結果を配列、queue、生成、collection列挙順で決めない。
 - v0.15のTargeted ActionはAttack → Reproduction → Communication順で、終了済みphaseへ再抽選Intentを巻き戻さない。
 - Vitality Control Point値は確定Phase形状を守る保守的なv0.15 Config初期値として調整できる。
-- Held InformationはSubject + Propertyごとに3件、FIFO evictionとし、直接消滅確認時だけSubject全体をpurgeする。
+- v0.2.5の知識はPersonBelief / EventBelief / SettlementBeliefへ分離する。旧Subject + Property 3件FIFOを復活させず、Unknown、field provenance、人物capacity / TTL、Communication差分送信を `docs/design/KNOWLEDGE_MEMORY.md` に従って扱う。
+- EventBeliefはMandatory Memorable Eventまたは認識済みPin Importance 60以上だけを候補とし、Reality Eventを全NPCへ自動配布しない。
+- Person evictionはAggregatePersonConfidenceとPosition Unknown = PositiveInfinityを使う。SettlementBeliefは自己所属、直接観測、当事者Event、Communication、直接Outcomeだけから取得する。
 - v0.2 Settlement / Order仕様は `docs/design/V0_2_SETTLEMENT_ORDER.md` を正本とし、Generation中の形成・AffinityとOrderから有効な社会Ruleを混同しない。
 - v0.2.1はv0.2の社会境界を維持し、Hotspotを90日、5×5、threshold 3、15日評価とする。spacing 7とarbitrationを連動変更しない。
 - v0.2.3の出生所属は、両親が同じActive Settlement所属なら位置を問わず通常の親近傍へ出生し同所属で開始する。片親だけが所属する場合は、受胎時の両親がそのActive SettlementのInfluence内にいる場合に限り、子を同Influence内へ出生させ同所属で開始する。両親の所属が異なる場合は、両者が同じ一意なActive Settlement Core内にいる従来条件とCore内出生を維持する。
 - v0.2.3はCoreを5×5とし、既存Settlement Influence内の繁殖成功を新規Hotspotから除外する。新Coreを既存Influenceへ重ねず、消滅済みSettlementの空間は予約しない。
-- v0.2.4は `docs/design/V0_2_4_SETTLEMENT_STABILIZATION.md` を正本とする。Rest v2、Home / Foreign Bias、Generation Proto-Order、SettlementSupport、Invasion暫定安定化を旧v0.2規則と混同しない。
-- v0.2.4同版追補では、Active Settlement所属者が一人でも参加した繁殖成功を新規Hotspotから除外し、Active Invasion参加者のHome / Foreign Biasを無効化して攻撃側を敵Core CenterへStrong Home相当で前進させる。
-- v0.2.4の自然消滅はWorld Population比ではなく局所SupportとHysteresisを使う。Center一人到達をVictoryにせず、征服所属変更はAlive NPCだけに行う。
+- v0.2.4の履歴は `docs/design/V0_2_4_SETTLEMENT_STABILIZATION.md`、現行overrideは `docs/design/V0_2_5_KNOWLEDGE_FISSION_INVASION.md` とその正本群を使う。
+- 自然消滅は累積SettlementSupport、更新はRenewal、高PressureはFissionを先に評価する。旧CoreOccupancy / BlockedMovement Crowding、raw Friction加算、Pressureからの直接Invasionを復活させない。
+- CenterにはVictory ruleを持たせず、Attack VictoryはUsable Core 50%以上を3日連続とする。Defense Victoryとparticipant stateは `INVASION_V025.md` に従い、征服所属変更はAlive NPCだけに行う。
+- Invasion cohortをCombat / Action値で全知的に選ばない。通常RestはFieldRest、HP比20%以下のRest / FleeだけがRetreatingとなり、同じEventへ戻らない。
+- Recent Event Buffer、Incremental Statistics、Historical Milestone、Optional Raw Archiveを分け、表示・保持・archive設定でSimulation結果を変えない。
 - Order中のCollision、Friction、Invasion、Auraは所属・WorldPhase・Event状態を明示的に解決し、v0.15の主観境界やTargeted Action順を弱体化しない。
 - v0.2 Settlement構造変更は固定順のTick末Maintenanceでcommitし、新規Settlement / WorldPhase / Invasion開始は原則翌Tickから反映する。
-- Hotspot arbitration、Friction、Unaffiliated保護、同一Core繁殖、Aura / temporary MaxHP、Core占有率、Invasion離脱は `V0_2_SETTLEMENT_ORDER.md` の確定境界を守る。
+- Hotspot arbitration、Friction、SettlementPressure、Mobilization、Unaffiliated保護、同一Core繁殖、Aura / temporary MaxHPは `V0_2_SETTLEMENT_ORDER.md`、Support / Fissionは `SETTLEMENT_FISSION.md`、Invasion離脱・勝敗は `INVASION_V025.md` の確定境界を守る。
+- Fission CenterはCell別Unaffiliated Resident-Daysを優先し、Migration完了はchild Influenceへの実到達で判定する。Struggleはv0.2.5のWorldPhaseではなくBacklogである。
 
 ## Change contract
 

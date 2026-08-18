@@ -94,7 +94,6 @@ public sealed class ActionResolutionSystem
         ResolveMovementPhase();
         ResolveSimplePhase(RestPhase);
         ResolveSimplePhase(IdlePhase);
-        _invasion.ResolveVictories(world, EmitDomain, microRound);
         return;
 
         void EmitDomain(
@@ -194,6 +193,13 @@ public sealed class ActionResolutionSystem
                 EmitMovementBias(actor, intent);
                 var attacked = ResolveMovement(
                     world, currentOccupancy, actor, intent, microRound, intent.Kind == ActionKind.Flee, emit);
+                if (intent.Kind == ActionKind.Flee)
+                {
+                    _invasion.NotifyFlee(world, actor, EmitDomain, microRound);
+                }
+                SettlementFissionSystem.CompleteMigrations(
+                    world, _config, EmitDomain, microRound,
+                    intent.Kind == ActionKind.Flee ? "flee" : "move", actor);
                 var collisionAttack = collisionTarget is not null && collisionPolicy == CollisionPolicy.Combat;
                 var fatigueMultiplier = intent.Kind == ActionKind.Move && !collisionAttack
                     ? SettlementMoveFatigueMultiplier(world, actor, origin, actor.Position)
@@ -452,6 +458,7 @@ public sealed class ActionResolutionSystem
                 var reason = policy switch
                 {
                     CollisionPolicy.SameSettlementSuppressed => "same-settlement",
+                    CollisionPolicy.ParentChildSuppressed => "parent-child-nonaggression",
                     CollisionPolicy.UnaffiliatedProtected => "unaffiliated-protected",
                     CollisionPolicy.OtherSettlementFriction => "other-settlement-friction",
                     _ => throw new ArgumentOutOfRangeException()
@@ -860,7 +867,9 @@ public sealed class ActionResolutionSystem
             .Where(id => world.Npcs.TryGetValue(id, out var target) && target.IsAlive && target.Id != npc.Id &&
                          SettlementQueries.ExplicitAttackProtection(world, npc, target, _config) is not null)
             .ToHashSet();
-        var movementTarget = _invasion.MovementTarget(world, npc);
+        var invasionTarget = _invasion.MovementTarget(world, npc);
+        var migrationTarget = SettlementFissionSystem.MigrationTarget(world, npc);
+        var movementTarget = invasionTarget ?? migrationTarget;
         var settlementRegions = SettlementQueries.ActiveSettlements(world)
             .Select(item => new SettlementMovementRule(
                 item.Id,
@@ -876,7 +885,8 @@ public sealed class ActionResolutionSystem
             suppressedTargets,
             movementTarget,
             npc.HasAdvanceBias ? _config.Invasion.AdvanceBiasWeight :
-                npc.HasDefenseBias ? _config.Invasion.DefenseBiasWeight : 0,
+                npc.HasDefenseBias ? _config.Invasion.DefenseBiasWeight :
+                migrationTarget.HasValue ? _config.Settlement.MigrationBiasWeight : 0,
             _aura.FindCohesionTarget(world, npc),
             _config.Invasion.AuraCohesionWeight,
             world.Phase == WorldPhase.Order,

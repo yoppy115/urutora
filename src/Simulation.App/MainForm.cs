@@ -716,7 +716,8 @@ public sealed class MainForm : Form
         AddNpcRow("Invasion", status.InvasionId.HasValue
             ? $"#{status.InvasionId} / {status.InvasionRole}"
             : "なし");
-        AddNpcRow("Held Information", $"{status.HeldInformationCount}件");
+        AddNpcRow("人物記憶", $"{status.PersonBeliefCount}人");
+        AddNpcRow("出来事 / 集落記憶", $"{status.EventBeliefCount} / {status.SettlementBeliefCount}");
     }
 
     private void RefreshLightweightStatistics(DailyObservationProjection observation)
@@ -831,7 +832,8 @@ public sealed class MainForm : Form
             ? $"#{details.InvasionId} / {details.InvasionRole}"
             : "なし");
         AddNpcRow("キル数", details.KillCount.ToString("N0"));
-        AddNpcRow("Held Information", $"{details.HeldInformationCount}件");
+        AddNpcRow("人物記憶", $"{details.PersonBeliefCount}人");
+        AddNpcRow("出来事 / 集落記憶", $"{details.EventBeliefCount} / {details.SettlementBeliefCount}");
 
         foreach (var record in details.ActionHistory
                      .OrderByDescending(item => item.Tick)
@@ -995,8 +997,8 @@ public sealed class MainForm : Form
 
         AddDiagnosticRow("知覚", "位置無効化 / Subject purge",
             $"{statistics.Perception.PositionInvalidations:N0} / {statistics.Perception.SubjectPurges:N0}");
-        AddDiagnosticRow("知覚", "FIFO eviction", $"{statistics.Perception.HeldInformationEvictions:N0}");
-        AddDiagnosticRow("知覚", "Held Info 総/平均/最大",
+        AddDiagnosticRow("知覚", "PersonBelief capacity eviction", $"{statistics.Perception.HeldInformationEvictions:N0}");
+        AddDiagnosticRow("知覚", "PersonBelief 総/平均/最大",
             $"{statistics.Perception.HeldInformationTotal:N0} / " +
             $"{statistics.Perception.HeldInformationAverage:0.0} / {statistics.Perception.HeldInformationMaximum:N0}");
         foreach (var item in statistics.ConceptMarks)

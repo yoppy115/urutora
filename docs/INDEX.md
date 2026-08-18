@@ -27,8 +27,13 @@
 | [`WORLD_LIFECYCLE.md`](design/WORLD_LIFECYCLE.md) | Baseline constraints / Draft mechanics | 世界フェーズ、困難、再編、継承 |
 | [`V0_SIMULATION.md`](design/V0_SIMULATION.md) | Baseline / v0 configurable | v0の目的、範囲、初期世界、実装基盤 |
 | [`V0_15_ECOLOGY.md`](design/V0_15_ECOLOGY.md) | Baseline / v0.15 configurable | 初回Runに基づく生態系変更と解消済み実装規則 |
-| [`V0_2_SETTLEMENT_ORDER.md`](design/V0_2_SETTLEMENT_ORDER.md) | Baseline / v0.2.3 configurable | Settlement自然発生、Hotspot・Core境界、出生所属、Maintenance、Order、Friction、Invasion、Aura |
-| [`V0_2_4_SETTLEMENT_STABILIZATION.md`](design/V0_2_4_SETTLEMENT_STABILIZATION.md) | Baseline / v0.2.4 configurable | Rest v2、Home Bias、Proto-Order、SettlementSupport、Invasion暫定安定化 |
+| [`V0_2_SETTLEMENT_ORDER.md`](design/V0_2_SETTLEMENT_ORDER.md) | Baseline / v0.2 configurable | Settlement自然発生、Maintenance、Order、Friction、Invasion、Aura |
+| [`V0_2_4_SETTLEMENT_STABILIZATION.md`](design/V0_2_4_SETTLEMENT_STABILIZATION.md) | Baseline / v0.2.4 configurable | Rest v2、Home Bias、Proto-Order、Support、SettlementPressure、Friction、Mobilization、Invasion |
+| [`V0_2_5_KNOWLEDGE_FISSION_INVASION.md`](design/V0_2_5_KNOWLEDGE_FISSION_INVASION.md) | Baseline / v0.2.5 configurable | v0.2.5の適用範囲、置換関係、closureと将来Backlog |
+| [`KNOWLEDGE_MEMORY.md`](design/KNOWLEDGE_MEMORY.md) | Baseline / v0.2.5 configurable | Person / Event / Settlement Belief、capacity、TTL、Communication |
+| [`EVENT_HISTORY.md`](design/EVENT_HISTORY.md) | Baseline constraints / technical policy | Event保持四層と増分Statistics |
+| [`SETTLEMENT_FISSION.md`](design/SETTLEMENT_FISSION.md) | Baseline / v0.2.5 configurable | 累積Support、Renewal、Fission Center、Migration、親子非侵略 |
+| [`INVASION_V025.md`](design/INVASION_V025.md) | Baseline / v0.2.5 configurable | FieldRest、Retreating、前線、継続Victory |
 | [`SIMULATION_TICK.md`](design/SIMULATION_TICK.md) | Baseline / v0 configurable | 日、Micro Round、即時Death、Birth競合、乱数 |
 | [`V0_ACTIONS.md`](design/V0_ACTIONS.md) | Baseline / v0 configurable | Action/Reaction、Move、Communication、Combat、Flee、Pursuit |
 | [`CONCEPTS.md`](design/CONCEPTS.md) | Baseline constraints / Draft mechanics | 概念と困難、初期3概念 |

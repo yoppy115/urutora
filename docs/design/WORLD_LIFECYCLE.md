@@ -37,6 +37,16 @@ v0.2では、90日rolling windowのPopulationCVとBirth / DeathのDemographicImb
 - 社会制度の副作用
 - 上位存在と社会の矛盾
 
+### v0.2.5 Expansion observation
+
+v0.2.5で正式に実装するWorldPhaseはGenerationとOrderだけである。Struggle / 群雄割拠を追加しないことは未決ブロッカーではなく、Run観測までの意図的延期である。
+
+Order内部でWorld Population Growth、Affiliated Population Ratio、Active / Child Settlement Count、Fission Count、SettlementPressure、高Support / 高Pressure Settlement数、Invasion Count、Parent / Child network、Settlement間Friction、Settlement間人口差を`Expansion Indicators`として増分集計できる。
+
+Expansionは診断・統計上の状態でありWorldPhaseではない。新しいWorld Rule、Bonus、Difficultyを自動解禁しない。
+
+正式なStruggle条件は、複数Settlementの持続、親子の独立存続、InvasionによるCombat・死傷・征服、先行者独占、人口圧のFission / Invasion変換、継続的Settlement競争をv0.2.5 Runで評価してから設計する。
+
 ## 争覇から滅亡・再編
 
 ```text
@@ -64,7 +74,7 @@ v0.2では、90日rolling windowのPopulationCVとBirth / DeathのDemographicImb
 ## Draft mechanics
 
 - Order以降のフェーズ遷移の正確な閾値と検出方法。Generation→Orderのv0.2 defaultは確定済み。
-- v0.2.4後のInvasion Trigger、SettlementPressure、Crowding式、Mobilization、Center保持Victory。
+- v0.2.5後のStruggle正式遷移、軍事占領、Leader / 能力値による軍事選抜。Expansion Indicatorsは確定済みだが、遷移閾値とStruggle固有RuleはBacklogである。
 - 一世界の実時間と各フェーズの長さ。
 - 滅亡時にどのシステムをどう変調・停止するか。
 - 安定世界を再編するタイミング。

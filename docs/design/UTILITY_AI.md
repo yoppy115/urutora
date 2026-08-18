@@ -74,11 +74,13 @@ R > 2:  RestPressure = 10 * ln(1 + R - 2) / ln(9)
 U_rest = RestPressure - 0.25 * A
 ```
 
+v0.2.5では`RestPressure <= 0`（現行式では`RestNeed <= 2`）ならRest Candidate自体を生成しない。`RestPressure > 0`の場合だけ上式で評価する。通常時とInvasion参加中で同じ境界を使う。
+
 Order中、Reproduction参加者2名が同一Active Settlement Core内にいる場合だけPenaltyを免除する。それ以外はv0.2 defaultとして `U_reproduce -= 2.0`、受諾側の `U_accept -= 2.0` を適用する。Generation中は適用しない。MembershipではなくAction位置を基準とし、成功率へ別のrandom penaltyを加えず、野外Reproductionを禁止しない。
 
 Move自体にRiskCostを置かず、Reality占有状態でMove Utilityを変えない。Collision AttackはResolutionで発生させる。v0.2.4では所属NPCの通常Move候補だけをHome / Foreign Settlement weightで歪める。FleeとActive InvasionのAdvance / Defenseを上書きせず、詳細は[`V0_2_4_SETTLEMENT_STABILIZATION.md`](V0_2_4_SETTLEMENT_STABILIZATION.md)を正本とする。
 
-Invasion ParticipantのMoveはv0.2でTarget Settlement CenterへのAdvance Biasを受ける。近傍のConceptMark HolderによるCohesion Biasは副とし、Advanceを上書きしない。これはMove方向のConfig / implementation detailであり、新Actionや別Utility式を追加しない。通常時のMove方向は従来通りseed付きランダムである。
+Invasion ParticipantのMoveはv0.2.5で敵の最寄りusable Coreまたは防衛frontへのBiasを受ける。Center固定ではない。近傍のConceptMark HolderによるCohesion Biasは副とし、Invasion Biasを上書きしない。これはMove方向policyであり、新Actionや別Utility式を追加しない。通常時のMove方向は従来通りseed付きランダムである。
 
 CommunicationとReproductionに複数の有効対象がある場合、v0は対象をseed付きランダムで選ぶ。情報価値や相手の受諾見込みをUtilityへ入れず、Realityから先読みしない。
 

@@ -9,7 +9,10 @@
 - Status: On hold after v0.2
 - Adopted in v0.2: Settlement生成、Affinity / 所属、Order Bonus、治安、Friction、Invasion、統合、Aura。
 - Still on hold: 国家、属国、占領統治、反乱・忠誠、内部階層、資源、疾病、Settlement間の恒常的外交。
-- v0.2.4後に保留: Invasion Trigger、SettlementPressure、Crowding式、Friction新生成/減衰、Mobilization、Rest後再参加、Center保持Victory、Concept / Held Information再調整。
+- v0.2.5後に保留: 軍事占領、補給、兵科、軍事Leader、Combat / Actionによるrecruitment優先、Active Invasion CombatのFriction加算。
+- Concept数値の再調整、PersonBelief圧縮、EventBelief / SettlementBeliefのcapacity・TTLはRun後まで保留。旧Subject + Property 3件FIFOはADR-0025で置換済み。
+- 汎用Pin Importance計算式の再設計、EventBelief / SettlementBeliefのcapacity・TTL、Settlement人口の直接観測方式を保留する。
+- Struggle正式遷移条件、ExpansionからStruggleへ進む閾値、Struggle固有Rule / Bonus / Difficultyを保留する。v0.2.5のExpansionは統計だけである。
 - Future pressure: Settlementの成功が疾病、内部対立、資源不足、階層等の新Difficultyを生む。
 - Related design: [`V0_2_SETTLEMENT_ORDER.md`](../design/V0_2_SETTLEMENT_ORDER.md)
 
@@ -48,10 +51,30 @@
 
 ## Promoted to canon
 
+- v0.2.5 Unresolved Contracts Closure Patchを採用した。
+  - Mandatory Memorable EventとPin Importance 60、SettlementBelief取得契約を確定。
+  - AggregatePersonConfidence、Position Unknown eviction順位を確定。
+  - Cell Resident-DaysによるFission Center、child Influence到達によるMigration完了を確定。
+  - Struggleを意図的延期とし、Expansion Indicatorsを統計へ限定。
+  - [`V0_2_5_KNOWLEDGE_FISSION_INVASION.md`](../design/V0_2_5_KNOWLEDGE_FISSION_INVASION.md)、[`ADR-0029`](../decisions/ADR-0029-v025-unresolved-contracts-closure.md)
+
+- v0.2.5 Knowledge, Fission & Invasion Updateを採用した。
+  - KnowledgeをPerson / Event / Settlementへ分離し、人物capacity / TTL、Unknown、field provenance、差分Communicationを確定。
+  - Recent Event、増分Statistics、Milestone、optional archiveを分離。
+  - 累積Support / Renewal、高Pressure時のFission先行、直接親子の平時非侵略を追加。
+  - InvasionのFieldRest / Retreating、Core前線、継続Attack / Defense Victoryを確定。
+  - [`V0_2_5_KNOWLEDGE_FISSION_INVASION.md`](../design/V0_2_5_KNOWLEDGE_FISSION_INVASION.md)、[`ADR-0025`](../decisions/ADR-0025-structured-knowledge-and-person-memory.md)～[`ADR-0028`](../decisions/ADR-0028-invasion-field-rest-and-sustained-victory.md)
+
 - v0.2.1～v0.2.3 minorとv0.2.4 Settlement Stabilizationを採用した。
   - Hotspot 5×5 / Success 3、出生所属3経路、観測・決定論的性能改善を正史化。
   - Rest v2、Home / Foreign Bias、Generation Proto-Order、局所SettlementSupport、Invasion暫定guardrailを追加。
   - [`V0_2_4_SETTLEMENT_STABILIZATION.md`](../design/V0_2_4_SETTLEMENT_STABILIZATION.md)
+
+- v0.2.4未決システム解消パッチを採用した。
+  - ResidentLoad / MovementCongestion / ReturnFailureによるSettlementPressure、0.65 / 0.45 hysteresis、Support / participant前提を確定。
+  - 人口scale付き日次Friction、宣言時25% retention、Pressure連動Mobilizationを確定。
+  - Rest同一Event再参加禁止、Center非勝利、Concept / Held Information非変更を確定。
+  - [`V0_2_4_SETTLEMENT_STABILIZATION.md`](../design/V0_2_4_SETTLEMENT_STABILIZATION.md)、[`ADR-0024`](../decisions/ADR-0024-settlement-pressure-and-invasion-closure.md)
 
 - v0.2の重要未決事項解消パッチを採用した。
   - Tick末Settlement Maintenance、Hotspot arbitration、Friction、Unaffiliated保護、同一Core繁殖判定を確定。
@@ -60,7 +83,7 @@
 
 - v0.2 Settlement / Order Updateを採用した。
   - Generation中の繁殖HotspotからSettlementが発生し、人口安定後のOrderで社会Ruleを解禁する。
-  - 同SettlementのCollision抑制、異SettlementのFriction、Crowding由来Invasion、Concept Auraを追加する。
+  - 同SettlementのCollision抑制、異SettlementのFriction、過密由来Invasion、Concept Auraを追加した。旧Crowding式はv0.2.4 closureでSettlementPressureへ置換済み。
   - [`V0_2_SETTLEMENT_ORDER.md`](../design/V0_2_SETTLEMENT_ORDER.md)
 
 - v0.15の旧未決3項目を解消した。

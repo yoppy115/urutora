@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Globalization;
 using System.Text.Json;
+using System.Text;
 using Simulation.Core.Communication;
 using Simulation.Core.Configuration;
 using Simulation.Core.Concepts;
@@ -33,6 +34,10 @@ public sealed class SimulationEngine
     private readonly InvasionSystem _invasion;
     private readonly SettlementMaintenanceCoordinator _maintenance;
     private readonly List<SimulationEvent> _events = new();
+    private readonly List<SimulationEvent> _currentDayEvents = new();
+    private readonly List<string> _eventFingerprints = new();
+    private readonly IncrementalEventStatistics _incrementalEventStatistics = new();
+    private string _eventHashChain = "0";
     private readonly List<DecisionTrace> _lastDecisionTraces = new();
     private readonly Dictionary<ActionKind, long> _selectedActionCounts = Enum
         .GetValues<ActionKind>()
@@ -85,7 +90,7 @@ public sealed class SimulationEngine
         lock (_gate)
         {
             _cachedWorldStatistics = null;
-            var eventStart = _events.Count;
+            _currentDayEvents.Clear();
             _eventSequence = 0;
             _lastDecisionTraces.Clear();
 
@@ -137,14 +142,15 @@ public sealed class SimulationEngine
             _aura.Refresh(State, AddEvent, 0);
             ApplyVitalityAndAging();
             ResolveBirthQueue();
+            _invasion.ResolveVictories(State, AddEvent, 0);
             _minimumPopulation = Math.Min(_minimumPopulation, State.Npcs.Values.Count(item => item.IsAlive));
-            var dayEvents = _events.Skip(eventStart).ToArray();
+            var dayEvents = _currentDayEvents.ToArray();
             _maintenance.RunEndOfDay(State, dayEvents, AddEvent);
             State.Tick++;
 
             return new TickResult(
                 State.Tick - 1,
-                _events.Skip(eventStart).ToArray());
+                _currentDayEvents.ToArray());
         }
     }
 
@@ -229,7 +235,7 @@ public sealed class SimulationEngine
     {
         lock (_gate)
         {
-            return _events.Select(item => item.Fingerprint()).ToArray();
+            return _eventFingerprints.ToArray();
         }
     }
 
@@ -239,7 +245,7 @@ public sealed class SimulationEngine
         {
             var checkpoint = new
             {
-                SchemaVersion = 3,
+                SchemaVersion = 4,
                 State.Tick,
                 State.Phase,
                 State.PendingPhase,
@@ -297,11 +303,17 @@ public sealed class SimulationEngine
                         item.SettlementId,
                         item.InvasionId,
                         item.InvasionRole,
+                        item.InvasionParticipation,
+                        item.FieldRestUntilTick,
                         item.HasAdvanceBias,
                         item.HasDefenseBias,
+                        item.MigrationTargetSettlementId,
+                        item.MigrationStartedTick,
+                        item.FissionFounder,
                         item.SettlementAtDeathId,
                         item.DeathAgeDays,
                         item.DeathCause,
+                        item.KillCount,
                         Needs = item.Needs.Snapshot(),
                         ConceptMarks = item.ConceptMarks.OrderBy(value => value).ToArray(),
                         ActiveAuras = item.ActiveAuras.OrderBy(value => value).ToArray(),
@@ -311,18 +323,23 @@ public sealed class SimulationEngine
                             .OrderBy(value => value.Key)
                             .Select(value => new { Concept = value.Key, value.Value })
                             .ToArray(),
-                        HeldInformation = item.HeldInformation.Select((value, index) => new
+                        Knowledge = new
                         {
-                            Index = index,
-                            value.InformationId,
-                            value.SubjectId,
-                            value.Property,
-                            value.EstimatedValue,
-                            value.Confidence,
-                            value.SourceId,
-                            value.AcquiredBy,
-                            value.AcquiredTick
-                        }).ToArray(),
+                            Persons = item.Knowledge.Persons.Values.OrderBy(value => value.SubjectId).Select(value => new
+                            {
+                                value.SubjectId,
+                                value.LastRecognizedTick,
+                                value.EverDirectlyObserved,
+                                Fields = value.Fields.OrderBy(field => field.Key).ToArray()
+                            }).ToArray(),
+                            Events = item.Knowledge.Events.Values.OrderBy(value => value.EventId, StringComparer.Ordinal).ToArray(),
+                            Settlements = item.Knowledge.Settlements.Values.OrderBy(value => value.SettlementId)
+                                .Select(value => new
+                                {
+                                    value.SettlementId,
+                                    Fields = value.Fields.OrderBy(field => field.Key).ToArray()
+                                }).ToArray()
+                        },
                         item.NextInformationSequence,
                         ThreatMemory = item.ThreatMemory
                             .OrderBy(value => value.Key)
@@ -349,6 +366,12 @@ public sealed class SimulationEngine
                     item.CoreOccupancy,
                     item.BlockedMovementRate,
                     item.CrowdingPressure,
+                    item.UsableInfluenceCells,
+                    item.NominalResidentialCapacity,
+                    item.ResidentLoad,
+                    item.MovementCongestion,
+                    item.ReturnFailure,
+                    PressureHistory = item.PressureHistory.ToArray(),
                     CrowdingHistory = item.CrowdingHistory.ToArray(),
                     item.CrowdingConsecutiveDays,
                     item.CrowdingInvasionArmed,
@@ -359,8 +382,16 @@ public sealed class SimulationEngine
                     item.SupportPopulationComponent,
                     item.SupportReproductionComponent,
                     item.SupportSocialComponent,
+                    item.SupportPotential,
+                    item.DailySupportDelta,
                     item.Support,
-                    item.LowSupportDays
+                    item.LowSupportDays,
+                    item.SaturatedDays,
+                    item.RenewalCount,
+                    item.LastRenewalTick,
+                    item.FissionPressureDays,
+                    item.ParentSettlementId,
+                    Children = item.ChildSettlementIds.OrderBy(value => value).ToArray()
                 }).ToArray(),
                 Frictions = State.Frictions.Values.OrderBy(item => item.Pair.FirstId).ThenBy(item => item.Pair.SecondId)
                     .Select(item => new
@@ -393,7 +424,12 @@ public sealed class SimulationEngine
                     item.MaximumCoreOccupationRate,
                     item.CenterOccupied,
                     item.RestWithdrawals,
-                    item.DeathWithdrawals
+                    item.DeathWithdrawals,
+                    item.InitialAttackForce,
+                    item.AttackOccupationDays,
+                    item.AttackCollapseDays,
+                    item.InfluenceClearDays,
+                    item.LastVictoryEvaluationTick
                 }).ToArray(),
                 ReproductionSuccesses = State.ReproductionSuccesses.OrderBy(item => item.EventId, StringComparer.Ordinal).ToArray(),
                 PopulationHistory = State.PopulationHistory.ToArray(),
@@ -404,6 +440,13 @@ public sealed class SimulationEngine
                 State.AttackCandidateSuppressionCount,
                 State.UnaffiliatedThreatExceptionAttackCount,
                 State.InvasionStartPreventedCount,
+                UnaffiliatedResidentHistory = State.UnaffiliatedResidentHistory
+                    .OrderBy(item => item.Tick)
+                    .Select(item => new
+                    {
+                        item.Tick,
+                        Residents = item.ResidentCounts.OrderBy(value => value.Key).ToArray()
+                    }).ToArray(),
                 BirthRequests = State.BirthRequests
                     .OrderBy(item => item.RequestId, StringComparer.Ordinal)
                     .Select(item => new
@@ -434,7 +477,8 @@ public sealed class SimulationEngine
                         item.SettlementPlacement
                     })
                     .ToArray(),
-                Events = _events.Select(item => item.Fingerprint()).ToArray()
+                EventCount = _eventFingerprints.Count,
+                EventHashChain = _eventHashChain
             };
 
             var bytes = JsonSerializer.SerializeToUtf8Bytes(checkpoint);
@@ -512,8 +556,10 @@ public sealed class SimulationEngine
                     .ToArray(),
                 npc.InvasionId,
                 npc.InvasionRole,
-                CountKills(relatedEvents, npcId),
-                npc.HeldInformation.Count,
+                npc.KillCount,
+                npc.Knowledge.Persons.Count,
+                npc.Knowledge.Events.Count,
+                npc.Knowledge.Settlements.Count,
                 actionHistory);
         }
     }
@@ -542,7 +588,9 @@ public sealed class SimulationEngine
                 npc.SettlementId,
                 npc.InvasionId,
                 npc.InvasionRole,
-                npc.HeldInformation.Count);
+                npc.Knowledge.Persons.Count,
+                npc.Knowledge.Events.Count,
+                npc.Knowledge.Settlements.Count);
         }
     }
 
@@ -596,6 +644,7 @@ public sealed class SimulationEngine
                 _events,
                 _selectedActionCounts,
                 _perception,
+                _incrementalEventStatistics,
                 _minimumPopulation).GetWorldStatistics();
             return _cachedWorldStatistics;
         }
@@ -613,7 +662,7 @@ public sealed class SimulationEngine
                 .OrderBy(item => item.Key)
                 .Select(item => new ActionSelectionCount(item.Key, item.Value))
                 .ToArray();
-            var heldCounts = alive.Select(item => item.HeldInformation.Count).ToArray();
+            var heldCounts = alive.Select(item => item.Knowledge.Persons.Count).ToArray();
             var selectedActions = _selectedActionCounts.Values.Sum();
 
             return new DailyObservationProjection(
@@ -634,7 +683,12 @@ public sealed class SimulationEngine
                     _perception.EvictionCount,
                     heldCounts.Sum(),
                     heldCounts.Length == 0 ? 0 : heldCounts.Average(),
-                    heldCounts.Length == 0 ? 0 : heldCounts.Max()),
+                    heldCounts.Length == 0 ? 0 : heldCounts.Max(),
+                    alive.Sum(item => item.Knowledge.Events.Count),
+                    alive.Sum(item => item.Knowledge.Settlements.Count),
+                    alive.Length == 0 ? 0 : alive.Average(item => _perception.PersonCapacity(item)),
+                    alive.Sum(item => item.Knowledge.TtlRemovalCount),
+                    alive.Sum(item => item.Knowledge.DeathRecognitionRemovalCount)),
                 selectedActions == 0 ? 0 : (double)_restActions / selectedActions,
                 alive.Length == 0 ? 0 : alive.Average(item => item.Needs.Rest),
                 _restActions == 0 ? 0 : _selectedRestNeedTotal / _restActions,
@@ -729,7 +783,9 @@ public sealed class SimulationEngine
             .Where(id => State.Npcs.TryGetValue(id, out var target) && target.IsAlive && target.Id != npc.Id &&
                          SettlementQueries.ExplicitAttackProtection(State, npc, target, Config) is not null)
             .ToHashSet();
-        var movementTarget = _invasion.MovementTarget(State, npc);
+        var invasionTarget = _invasion.MovementTarget(State, npc);
+        var migrationTarget = SettlementFissionSystem.MigrationTarget(State, npc);
+        var movementTarget = invasionTarget ?? migrationTarget;
         return new WorldDecisionRules(
             Config.World.Width,
             Config.World.Height,
@@ -738,7 +794,8 @@ public sealed class SimulationEngine
             suppressedTargets,
             movementTarget,
             npc.HasAdvanceBias ? Config.Invasion.AdvanceBiasWeight :
-                npc.HasDefenseBias ? Config.Invasion.DefenseBiasWeight : 0,
+                npc.HasDefenseBias ? Config.Invasion.DefenseBiasWeight :
+                migrationTarget.HasValue ? Config.Settlement.MigrationBiasWeight : 0,
             _aura.FindCohesionTarget(State, npc),
             Config.Invasion.AuraCohesionWeight,
             State.Phase == WorldPhase.Order,
@@ -779,6 +836,7 @@ public sealed class SimulationEngine
         foreach (var actorId in intents.Select(item => item.ActorId).Distinct().OrderBy(item => item))
         {
             if (!State.Npcs.TryGetValue(actorId, out var npc) || !npc.IsAlive ||
+                npc.InvasionParticipation == InvasionParticipationState.FieldRest ||
                 actionCounts[actorId] >= Config.Action.MaximumActionsPerDay)
             {
                 continue;
@@ -874,6 +932,24 @@ public sealed class SimulationEngine
             actorSettlementId,
             targetSettlementId);
         _events.Add(simulationEvent);
+        _currentDayEvents.Add(simulationEvent);
+        _incrementalEventStatistics.Observe(simulationEvent);
+        if (type == SimulationEventType.Death &&
+            targetId.HasValue &&
+            detail.StartsWith("combat:", StringComparison.Ordinal) &&
+            State.Npcs.TryGetValue(targetId.Value, out var killer))
+        {
+            killer.KillCount++;
+        }
+        var fingerprint = simulationEvent.Fingerprint();
+        _eventFingerprints.Add(fingerprint);
+        _eventHashChain = Convert.ToHexString(SHA256.HashData(
+            Encoding.UTF8.GetBytes($"{_eventHashChain}\n{fingerprint}")));
+        if (_events.Count > Config.EventHistory.RecentEventCapacity)
+        {
+            _events.RemoveRange(0, _events.Count - Config.EventHistory.RecentEventCapacity);
+        }
+        RecordRecognizedKnowledge(simulationEvent);
         if (type == SimulationEventType.Rest && success)
         {
             _restActions++;
@@ -913,5 +989,126 @@ public sealed class SimulationEngine
             }
         }
         return 0;
+    }
+
+    private void RecordRecognizedKnowledge(SimulationEvent simulationEvent)
+    {
+        var mandatory = simulationEvent.Type is
+            SimulationEventType.WorldPhaseChanged or
+            SimulationEventType.SettlementFormed or
+            SimulationEventType.SettlementRenewed or
+            SimulationEventType.SettlementFission or
+            SimulationEventType.SettlementDissolved or
+            SimulationEventType.SettlementIntegrated or
+            SimulationEventType.InvasionStarted or
+            SimulationEventType.InvasionEnded or
+            SimulationEventType.ConceptMarkAcquired;
+        var importance = DetailInt(simulationEvent.Detail, "importance");
+        if (!mandatory && importance is not >= 60)
+        {
+            return;
+        }
+
+        var recognized = new HashSet<long>();
+        if (simulationEvent.ActorId.HasValue)
+        {
+            recognized.Add(simulationEvent.ActorId.Value);
+        }
+        if (simulationEvent.TargetId.HasValue)
+        {
+            recognized.Add(simulationEvent.TargetId.Value);
+        }
+        if (simulationEvent.Position.HasValue)
+        {
+            foreach (var npc in State.Npcs.Values.Where(item => item.IsAlive &&
+                         item.Position.ChebyshevDistance(simulationEvent.Position.Value) <= Config.Observation.MaximumDistance))
+            {
+                recognized.Add(npc.Id);
+            }
+        }
+        if (simulationEvent.Type == SimulationEventType.WorldPhaseChanged)
+        {
+            foreach (var npc in State.Npcs.Values.Where(item => item.IsAlive))
+            {
+                recognized.Add(npc.Id);
+            }
+        }
+        var invasionId = DetailInt(simulationEvent.Detail, "invasion");
+        if (invasionId.HasValue && State.Invasions.TryGetValue(invasionId.Value, out var invasion))
+        {
+            foreach (var id in invasion.AttackParticipantIds.Concat(invasion.DefenseParticipantIds))
+            {
+                recognized.Add(id);
+            }
+        }
+        var childId = DetailInt(simulationEvent.Detail, "child");
+        if (childId.HasValue)
+        {
+            foreach (var npc in State.Npcs.Values.Where(item => item.MigrationTargetSettlementId == childId))
+            {
+                recognized.Add(npc.Id);
+            }
+        }
+
+        foreach (var npcId in recognized.OrderBy(item => item))
+        {
+            if (!State.Npcs.TryGetValue(npcId, out var npc) || !npc.IsAlive)
+            {
+                continue;
+            }
+            npc.Knowledge.UpsertEvent(new EventBelief(
+                simulationEvent.EventId,
+                simulationEvent.Type,
+                simulationEvent.Tick,
+                importance,
+                KnowledgeSourceType.ParticipantEvent,
+                npc.Id,
+                1,
+                State.Tick,
+                simulationEvent.Detail));
+            foreach (var settlementId in RelatedSettlementIds(simulationEvent).Distinct().OrderBy(item => item))
+            {
+                _perception.AddSettlementField(npc, settlementId, SettlementBeliefField.ActiveStatus,
+                    IsSettlementActiveForBelief(settlementId) ? 1 : 0, null, null, 1, npc.Id, State.Tick,
+                    KnowledgeSourceType.ParticipantEvent, simulationEvent.EventId);
+            }
+        }
+    }
+
+    private IEnumerable<int> RelatedSettlementIds(SimulationEvent simulationEvent)
+    {
+        if (simulationEvent.ActorSettlementId.HasValue)
+        {
+            yield return simulationEvent.ActorSettlementId.Value;
+        }
+        if (simulationEvent.TargetSettlementId.HasValue)
+        {
+            yield return simulationEvent.TargetSettlementId.Value;
+        }
+        foreach (var key in new[] { "settlement", "parent", "child", "from", "to", "attack", "defense" })
+        {
+            var value = DetailInt(simulationEvent.Detail, key);
+            if (value.HasValue)
+            {
+                yield return value.Value;
+            }
+        }
+    }
+
+    private bool IsSettlementActiveForBelief(int settlementId) =>
+        State.Settlements.TryGetValue(settlementId, out var settlement) && settlement.DissolvedTick is null;
+
+    private static int? DetailInt(string detail, string key)
+    {
+        foreach (var part in detail.Split(';', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var separator = part.IndexOf('=');
+            if (separator > 0 && string.Equals(part[..separator], key, StringComparison.Ordinal) &&
+                int.TryParse(part[(separator + 1)..], NumberStyles.Integer, CultureInfo.InvariantCulture, out var value))
+            {
+                return value;
+            }
+        }
+        return null;
     }
 }

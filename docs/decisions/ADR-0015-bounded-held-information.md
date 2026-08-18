@@ -1,6 +1,6 @@
 # ADR-0015: v0.15 bounds Held Information per subject property
 
-- **Status:** Accepted
+- **Status:** Superseded by ADR-0025
 - **Date:** 2026-08-17
 
 ## Context
@@ -22,3 +22,7 @@ Subjectの消滅を本人が直接ObservationまたはActionOutcomeで確認し�
 - capacity不変条件は確定する。
 - Eviction結果が単純な取得順で決まり、Confidence調整がMemory容量管理を変えない。
 - Subject消滅の直接確認と伝聞・不在を区別する必要がある。
+
+## Supersession
+
+v0.2.5では、人物知識をfield統合したPersonBeliefへ再構成し、全人物横断capacity、TTL、保護付きevictionを採用した。旧Subject + Propertyごと3件FIFOは履歴としてのみ残り、現行実装へ適用しない。詳細は [`ADR-0025`](ADR-0025-structured-knowledge-and-person-memory.md) を参照する。

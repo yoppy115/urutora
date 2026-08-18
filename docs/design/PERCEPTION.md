@@ -1,4 +1,4 @@
-# Perception and Held Information
+# Perception and Knowledge
 
 **Status:** Baseline boundaries / v0 default and configurable mechanics
 
@@ -42,13 +42,13 @@ Reality変更で既存情報を自動更新しない。古い情報を保持で�
 
 Realityの最新値による自動上書きを禁止する。
 
-v0.15では同一Subject + Propertyにつき最大3件だけHeld Informationとして保持できる。4件目を取得した場合は、最も先に取得した記録をFIFOで破棄し、残り2件と新記録を保持する。Confidenceは代表値選択に使うがEvictionには使わず、Memory容量管理と情報評価を分離する。World Event LogはNPCの有限Memoryとは別で、長期保存できる。
+この節の旧Subject + Property記録方式はv0.15の履歴である。v0.2.5ではPersonBelief / EventBelief / SettlementBeliefへ置換し、詳細は [`KNOWLEDGE_MEMORY.md`](KNOWLEDGE_MEMORY.md) を正本とする。
 
 ## Directly confirmed subject disappearance
 
-NPCがSubjectの死亡を直接Observationした、自身のActionOutcomeで死亡を確認した等、本人がSubject消滅を直接経験した場合、そのSubjectに属するPosition、HP、Combat、LifeStage、ConceptMark、その他PropertyのHeld Informationを全削除する。
+旧v0.15では、本人がSubject消滅を直接経験した場合に全Propertyを削除した。v0.2.5では通常のfield優先規則を通った死亡認知でもPersonBeliefを削除できる。
 
-TargetAbsent、Position Unknown、Communicationによる死亡伝聞だけでは直接確認とみなさず、Subject全体は削除しない。TargetAbsentはPositionだけを無効化する。World Event LogとHistory Logは削除しない。
+TargetAbsentは現在もPositionだけを無効化し、死亡を自動開示しない。死亡伝聞は自動採用ではなく、既存直接Alive等とのfield優先度を通して評価する。World Event LogとHistory Logは削除しない。
 
 ## v0 direct observation
 
@@ -106,6 +106,10 @@ Settlement AffinityとActive AffiliationはNPC自身の社会状態として扱�
 
 SettlementのHostility、Friction、Invasion状態はReality上の社会状態である。Order中のUnaffiliated保護Candidateは、NPCがPerception上把握する対象Position / Affiliationと自身のActive PerceivedThreatだけを使う。ResolutionはReality上のUnaffiliated、Influence、Active Threatを再Validationする。NPCへ公開してよい専用入力を使い、Reality Store全体をPerception境界越しに渡さない。
 
+v0.2.4は旧Held Information境界を維持したが、v0.2.5がこれを明示的に置換する。現行仕様は人物ごと1 PersonBelief、StableCommunication由来の全人物capacity、365日TTL、保護付きeviction、field provenanceである。Event / Settlement知識は別categoryとする。
+
+v0.2.5 closureでは、Person evictionの人物Confidenceを7 tracked fieldの0込み平均、Position Unknownを無限遠として確定した。SettlementBeliefは自己所属、距離3以内のCenter / 所属表示Observation、当事者Event、Communication、直接Outcomeからだけ取得する。Mandatory Memorable EventまたはPin Importance 60以上であっても、NPCが認識しなければEventBeliefへ保存しない。詳細は [`KNOWLEDGE_MEMORY.md`](KNOWLEDGE_MEMORY.md) を正本とする。
+
 ## Player boundary
 
 プレイヤーも通常はReality全知ではない。現在の表層状態を中心に観測し、完全な因果や全履歴の調査を主目的にしない。開発用debug projectionとは分ける。
@@ -118,7 +122,8 @@ SettlementのHostility、Friction、Invasion状態はReality上の社会状態�
 - 数値変形とSubjectSwapは設定上限を超えず、未知Entityを生成しない。
 - Observation誤差は距離別上限を超えない。
 - Communication受信Confidenceはsource Confidenceを上回らない。
-- Held InformationはSubject + Propertyごとに3件を超えず、4件目ではConfidenceに関係なく最古記録をFIFOで破棄する。
+- PersonBeliefは1 Subject 1 recordで、全人物capacity、TTL、保護付き決定論的evictionに従う。
+- PersonBelief / EventBelief / SettlementBeliefを別管理し、Unknownを0 / falseと区別する。
 - Subject消滅を直接確認した場合だけ全Propertyを削除し、TargetAbsentや死亡伝聞だけでは全削除しない。
 - TargetAbsent後は同じ古いPositionをTargeted Action根拠へ使えない。
 - 隠れたReality差はActionOutcomeだけを変え得る。

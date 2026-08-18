@@ -1,6 +1,6 @@
 {
-  "schemaVersion": 3,
-  "id": "v0.2.4-default-2",
+  "schemaVersion": 4,
+  "id": "v0.2.5-default-1",
   "world": {
     "width": 64,
     "height": 64,
@@ -62,7 +62,9 @@
     "errorFactor": 0.025,
     "confidenceByDistance": [1.0, 1.0, 0.9, 0.8],
     "threatMemoryDays": 90,
-    "heldInformationCapacityPerSubjectProperty": 3
+    "personBeliefBaseCapacity": 75,
+    "personBeliefCapacityPerStableCommunication": 15.0,
+    "personBeliefTtlDays": 365
   },
   "performance": {
     "maximumDegreeOfParallelism": 8,
@@ -157,9 +159,10 @@
     "frictionDecayIntervalDays": 30,
     "frictionDecayAmount": 1.0,
     "frictionMaximum": 100.0,
-    "crowdingOccupancyWeight": 0.5,
-    "crowdingBlockedMovementWeight": 0.5,
-    "crowdingThreshold": 0.70,
+    "pressureResidentLoadWeight": 0.45,
+    "pressureMovementCongestionWeight": 0.35,
+    "pressureReturnFailureWeight": 0.20,
+    "crowdingThreshold": 0.65,
     "crowdingWindowDays": 30,
     "crowdingConsecutiveDays": 30,
     "moveFatigueInfluenceMultiplier": 0.75,
@@ -184,7 +187,21 @@
     "supportSocialActionsPerMemberDay": 0.25,
     "supportLowThreshold": 25.0,
     "supportRecoveryThreshold": 35.0,
-    "supportLowDaysForDissolution": 365
+    "supportLowDaysForDissolution": 365,
+    "supportRenewalPotentialThreshold": 80.0,
+    "supportRenewalConsecutiveDays": 365,
+    "fissionPressureThreshold": 0.40,
+    "fissionPressureConsecutiveDays": 90,
+    "fissionResidentWindowDays": 30,
+    "fissionResidentDaysThreshold": 90,
+    "fissionCurrentResidentsMinimum": 3,
+    "fissionMinimumDistance": 8,
+    "fissionMaximumDistance": 24,
+    "fissionMigrantRatio": 0.40,
+    "fissionMinimumMigrants": 4,
+    "fissionFounderAffinity": 10.0,
+    "fissionCoreResidentAffinity": 7.0,
+    "migrationBiasWeight": 1.6094379124341003
   },
   "invasion": {
     "mobilizationBase": 0.20,
@@ -196,12 +213,22 @@
     "advanceBiasWeight": 1.6094379124341003,
     "defenseBiasWeight": 2.0,
     "auraCohesionWeight": 0.75,
-    "crowdingRearmPressureThreshold": 0.70,
-    "crowdingRearmConsecutiveDays": 30
+    "crowdingRearmPressureThreshold": 0.45,
+    "crowdingRearmConsecutiveDays": 30,
+    "severeInjuryHpRatio": 0.20,
+    "attackOccupationConsecutiveDays": 3,
+    "attackCollapseRatio": 0.30,
+    "attackCollapseConsecutiveDays": 3,
+    "influenceClearConsecutiveDays": 7,
+    "stalemateDays": 90,
+    "minimumForceSize": 3
   },
   "aura": {
     "radius": 2,
     "restNeedDailyReduction": 0.10,
     "effectiveMultiplier": 1.10
+  },
+  "eventHistory": {
+    "recentEventCapacity": 20000
   }
 }

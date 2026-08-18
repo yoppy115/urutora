@@ -27,8 +27,10 @@ internal static class Program
         ("utility candidate count and edge rules", UtilityCandidateRules),
         ("decision public API cannot receive Reality", DecisionApiCannotReceiveReality),
         ("observation error and unobserved Reality boundary", ObservationAndSubjectiveBoundary),
-        ("communication stays within held information", CommunicationUsesHeldInformationOnly),
-        ("held information is FIFO bounded and TargetAbsent only clears position", HeldInformationAndTargetAbsent),
+        ("communication stays within structured knowledge", CommunicationUsesKnowledgeOnly),
+        ("PersonBelief is structured and TargetAbsent only clears position", PersonBeliefAndTargetAbsent),
+        ("PersonBelief priority capacity and TTL follow v0.2.5", PersonBeliefPriorityCapacityAndTtl),
+        ("Communication sends Event then Settlement before Person", CommunicationCategoryPriority),
         ("reproduction candidates stay subjective and Reality rejects later", ReproductionCandidateBoundary),
         ("targeted phases precede movement and attack interrupt is bounded", TargetedPhaseAndInterrupt),
         ("Move conflict is input-order independent", MoveConflictIsInputOrderIndependent),
@@ -57,6 +59,8 @@ internal static class Program
         ("Settlement movement uses Home, Foreign, and local fatigue weights", SettlementMovementBiasAndFatigue),
         ("Invasion movement suppresses Home and advances toward the enemy Core", InvasionMovementBias),
         ("Settlement Support uses local rolling activity and hysteresis", SettlementSupportAndHysteresis),
+        ("Settlement Support renewal resets accumulated state", SettlementSupportRenewal),
+        ("Fission creates a child and deterministic migrants", SettlementFissionCreatesChild),
         ("outside-Core reproduction applies both utility penalties", OutsideCoreReproductionPenalty),
         ("Concept Aura is non-stacking and normalizes temporary MaxHP", ConceptAuraRules),
         ("Friction decay is symmetric and bounded", FrictionDecayRules),
@@ -65,6 +69,7 @@ internal static class Program
         ("Invasion re-arm and conquest guardrails are enforced", InvasionStabilizationGuardrails),
         ("Core occupation denominator excludes unusable cells", CoreOccupationDenominator),
         ("whole run and render frequency are deterministic", WholeRunAndRenderDeterminism),
+        ("Recent Event capacity does not change authority", RecentEventCapacityIsTerminal),
         ("serial and parallel read phases are deterministic", SerialAndParallelReadPhasesAreDeterministic),
         ("FsCheck generated runs remain deterministic", FsCheckGeneratedRunsRemainDeterministic),
         ("daily Micro Rounds respect maximum actions", MaximumActionsPerDay)
@@ -100,7 +105,7 @@ internal static class Program
         var invalidPath = Path.Combine(Path.GetTempPath(), $"world-sim-invalid-{Guid.NewGuid():N}.json");
         try
         {
-            File.WriteAllText(invalidPath, original.Replace("\"schemaVersion\": 3", "\"schemaVersion\": 3, \"unknown\": true", StringComparison.Ordinal));
+            File.WriteAllText(invalidPath, original.Replace("\"schemaVersion\": 4", "\"schemaVersion\": 4, \"unknown\": true", StringComparison.Ordinal));
             Throws<ConfigurationException>(() => SimulationConfigLoader.Load(invalidPath));
         }
         finally
@@ -115,14 +120,15 @@ internal static class Program
     private static void V024DefaultsAndInitialAges()
     {
         var config = LoadConfig();
-        Equal("v0.2.4-default-2", config.Id);
+        Equal("v0.2.5-default-1", config.Id);
         Equal(5, config.Settlement.HotspotWindowSize);
         Equal(3, config.Settlement.HotspotSuccessThreshold);
         Equal(0.125, config.Concept.ExposureByDistance[4], 0);
         Equal(180, config.Reproduction.MatureAgeDays);
         Equal(90, config.Reproduction.CooldownDays);
         Equal(90, config.Observation.ThreatMemoryDays);
-        Equal(3, config.Observation.HeldInformationCapacityPerSubjectProperty);
+        Equal(75, config.Observation.PersonBeliefBaseCapacity);
+        Equal(365, config.Observation.PersonBeliefTtlDays);
         Equal(0.04, config.Needs.DailyReproductionIncrease, 0);
         Equal(50, config.InitialPopulation.MaxHpMean, 0);
         Equal(4, config.Combat.DamageBase, 0);
@@ -268,9 +274,8 @@ internal static class Program
         var riskAfter = decision.ThreatRisk(contextAfter, contextAfter.Perception.Find(subject.Id)!);
         Equal(riskBefore, riskAfter, 1e-12);
 
-        observer.HeldInformation.Add(new InformationRecord(
-            "new-perceived-combat", subject.Id, InformationProperty.Combat, 0, 1, observer.Id,
-            InformationAcquisition.DirectOutcome, 1));
+        SetPersonNumber(observer, subject.Id, PersonBeliefField.EstimatedCombat, 0, 1,
+            KnowledgeSourceType.DirectOutcome, "new-perceived-combat");
         var changedContext = DecisionContextFor(observer, config, perceptionSystem.CreateView(observer, 1), rules);
         var changedTarget = changedContext.Perception.Find(subject.Id)!;
         True(Math.Abs(decision.AttackUtility(contextBefore, perceived).Utility -
@@ -281,26 +286,26 @@ internal static class Program
             "PerceivedCombat did not change Flee Utility.");
     }
 
-    private static void CommunicationUsesHeldInformationOnly()
+    private static void CommunicationUsesKnowledgeOnly()
     {
         var config = LoadConfig();
         var random = new RandomStreamFactory(77);
         var sender = Npc(1, new Position(0, 0), action: 5, combat: 5, communication: 5, hp: 100);
         var receiver = Npc(2, new Position(1, 0), action: 5, combat: 5, communication: 10, hp: 100);
-        sender.HeldInformation.Add(new InformationRecord(
-            "known", 99, InformationProperty.Combat, 7, 0.8, sender.Id,
-            InformationAcquisition.Observation, 0));
+        SetPersonNumber(sender, 99, PersonBeliefField.EstimatedCombat, 7, 0,
+            KnowledgeSourceType.DirectObservation, "known", 0.8);
         var system = new CommunicationSystem(config, random);
         var result = system.Exchange(sender, receiver, 1, 1);
         Equal(1, result.SentByInitiator);
-        Equal(1, receiver.HeldInformation.Count);
-        Equal(99L, receiver.HeldInformation[0].SubjectId);
-        True(receiver.HeldInformation[0].Confidence <= 0.8, "Transmission increased confidence.");
+        Equal(1, receiver.Knowledge.Persons.Count);
+        True(receiver.Knowledge.Persons.ContainsKey(99), "Communication changed the Person subject without a swap candidate.");
+        True(receiver.Knowledge.Persons[99].Fields[PersonBeliefField.EstimatedCombat].Confidence <= 0.8,
+            "Transmission increased confidence.");
         True(system.ErrorMaximum(12) >= 0, "Communication error became negative above ability 10.");
         True(system.SubjectSwapChance(12) >= 0, "Subject swap chance became negative above ability 10.");
     }
 
-    private static void HeldInformationAndTargetAbsent()
+    private static void PersonBeliefAndTargetAbsent()
     {
         var config = LoadConfig();
         var random = new RandomStreamFactory(415);
@@ -308,17 +313,16 @@ internal static class Program
         var observer = Npc(1, new Position(1, 1), 5, 5, 5, 100);
         for (var index = 1; index <= 4; index++)
         {
-            perception.AddInformation(
-                observer, 2, InformationProperty.Combat, index, index == 4 ? 0.01 : 1,
-                observer.Id, index, InformationAcquisition.Observation);
+            perception.AddPersonField(observer, 2, PersonBeliefField.EstimatedCombat, index, null, null,
+                index == 4 ? 0.01 : 1, observer.Id, index, KnowledgeSourceType.DirectObservation,
+                $"combat-{index}");
         }
 
-        SequenceEqual(new[] { 2d, 3d, 4d }, observer.HeldInformation
-            .Where(item => item.SubjectId == 2 && item.Property == InformationProperty.Combat)
-            .Select(item => item.EstimatedValue));
-        Equal(1L, perception.EvictionCount);
+        Equal(1, observer.Knowledge.Persons.Count);
+        Equal(4, observer.Knowledge.Persons[2].Fields[PersonBeliefField.EstimatedCombat].Number!.Value, 0);
+        Equal(0.01 / 7, observer.Knowledge.Persons[2].AggregateConfidence, 1e-12);
 
-        observer.HeldInformation.AddRange(PerceivedPositionRecords(observer.Id, 2, new Position(2, 1), 5));
+        SetPerceivedPosition(observer, 2, new Position(2, 1), 5);
         var target = Npc(2, new Position(3, 1), 5, 5, 5, 100);
         var world = EmptyWorld(config);
         world.Npcs.Add(observer.Id, observer);
@@ -327,18 +331,59 @@ internal static class Program
         var events = ResolveRound(config, world, new[] { attack });
         True(events.Any(item => item.Type == SimulationEventType.Attack && item.Detail == "target-absent"));
         True(events.Any(item => item.Type == SimulationEventType.TargetPositionInvalidated));
-        True(observer.HeldInformation.Any(item => item.SubjectId == target.Id &&
-                                                  item.Property == InformationProperty.Alive),
+        True(observer.Knowledge.Persons[target.Id].Fields.ContainsKey(PersonBeliefField.AliveStatus),
             "TargetAbsent purged non-position information.");
-        True(observer.HeldInformation.All(item => item.SubjectId != target.Id ||
-                                                item.Property is not InformationProperty.PositionX and
-                                                    not InformationProperty.PositionY),
+        True(!observer.Knowledge.Persons[target.Id].Fields.ContainsKey(PersonBeliefField.Position),
             "TargetAbsent retained stale position information.");
 
         target.IsAlive = false;
         perception.RecordCombatOutcome(observer, target, 6);
-        True(observer.HeldInformation.All(item => item.SubjectId != target.Id),
+        True(!observer.Knowledge.Persons.ContainsKey(target.Id),
             "Directly confirmed disappearance did not purge the subject.");
+    }
+
+    private static void PersonBeliefPriorityCapacityAndTtl()
+    {
+        var owner = Npc(1, new Position(0, 0), 5, 5, 5, 100);
+        SetPersonNumber(owner, 2, PersonBeliefField.EstimatedCombat, 8, 0,
+            KnowledgeSourceType.DirectObservation, "direct");
+        SetPersonNumber(owner, 2, PersonBeliefField.EstimatedCombat, 1, 10,
+            KnowledgeSourceType.Communication, "hearsay");
+        Equal(8, owner.Knowledge.Persons[2].Fields[PersonBeliefField.EstimatedCombat].Number!.Value, 0);
+
+        SetPersonNumber(owner, 3, PersonBeliefField.EstimatedCombat, 3, 1,
+            KnowledgeSourceType.Communication, "three");
+        SetPersonNumber(owner, 4, PersonBeliefField.EstimatedCombat, 4, 2,
+            KnowledgeSourceType.Communication, "four");
+        owner.Knowledge.MaintainPersons(owner, 2, 365, 2);
+        True(owner.Knowledge.Persons.ContainsKey(2) && owner.Knowledge.Persons.ContainsKey(4) &&
+             !owner.Knowledge.Persons.ContainsKey(3),
+            "Capacity eviction did not protect the directly observed PersonBelief.");
+
+        owner.Knowledge.MaintainPersons(owner, 375, 365, 2);
+        Equal(0, owner.Knowledge.Persons.Count);
+        Equal(2L, owner.Knowledge.TtlRemovalCount);
+    }
+
+    private static void CommunicationCategoryPriority()
+    {
+        var config = LoadConfig();
+        var sender = Npc(1, new Position(0, 0), 5, 5, 3, 100);
+        var receiver = Npc(2, new Position(1, 0), 5, 5, 5, 100);
+        sender.Knowledge.UpsertEvent(new EventBelief(
+            "event", SimulationEventType.SettlementFormed, 0, null,
+            KnowledgeSourceType.ParticipantEvent, sender.Id, 1, 0, "test"));
+        sender.Knowledge.UpsertSettlement(7, SettlementBeliefField.ActiveStatus,
+            new BeliefValue("settlement", KnowledgeSourceType.DirectObservation, sender.Id, 1, 0, Number: 1));
+        SetPersonNumber(sender, 99, PersonBeliefField.EstimatedCombat, 7, 0,
+            KnowledgeSourceType.DirectObservation, "person");
+
+        var result = new CommunicationSystem(config, new RandomStreamFactory(991))
+            .Exchange(sender, receiver, 1, 1);
+        Equal(2, result.SentByInitiator);
+        Equal(1, receiver.Knowledge.Events.Count);
+        Equal(1, receiver.Knowledge.Settlements.Count);
+        Equal(0, receiver.Knowledge.Persons.Count);
     }
 
     private static void MoveConflictIsInputOrderIndependent()
@@ -378,10 +423,9 @@ internal static class Program
         var actor = Npc(1, new Position(1, 1), 5, 5, 5, 100);
         actor.AgeDays = config.Reproduction.MatureAgeDays;
         actor.Needs.Reproduction = 10;
-        actor.HeldInformation.AddRange(PerceivedPositionRecords(actor.Id, 2, new Position(2, 1), 0));
-        actor.HeldInformation.Add(new InformationRecord(
-            "mature", 2, InformationProperty.LifeStage, (double)PerceivedLifeStage.Mature, 1, actor.Id,
-            InformationAcquisition.Observation, 0));
+        SetPerceivedPosition(actor, 2, new Position(2, 1), 0);
+        SetPersonNumber(actor, 2, PersonBeliefField.LifeStage, (double)PerceivedLifeStage.Mature, 0,
+            KnowledgeSourceType.DirectObservation, "mature");
         var rules = new WorldDecisionRules(8, 8, new HashSet<Position>());
         var decision = new UtilityDecisionSystem(config, random);
         var candidate = decision.BuildCandidates(
@@ -534,7 +578,7 @@ internal static class Program
         var actor = Npc(1, new Position(0, 0), action: 0, combat: 0, communication: 5, hp: 100);
         actor.Needs.Activity = 5;
         actor.Needs.Communication = 10;
-        actor.HeldInformation.AddRange(PerceivedPositionRecords(actor.Id, 2, new Position(1, 0), 0));
+        SetPerceivedPosition(actor, 2, new Position(1, 0), 0);
         world.Npcs.Add(actor.Id, actor);
         world.NextNpcId = 2;
         var engine = SimulationEngine.CreateForTesting(config, 111, world);
@@ -637,8 +681,8 @@ internal static class Program
         var second = Npc(2, new Position(3, 2), action: 8, combat: 6, communication: 4, hp: 110);
         first.ConceptMarks.Add(ConceptKind.Struggle);
         first.ConceptExposure[ConceptKind.Struggle] = 500;
-        first.HeldInformation.Add(new InformationRecord("private", 99, InformationProperty.Combat, 9, 1, 1,
-            InformationAcquisition.Observation, 0));
+        SetPersonNumber(first, 99, PersonBeliefField.EstimatedCombat, 9, 0,
+            KnowledgeSourceType.DirectObservation, "private");
         var system = new ReproductionSystem(config, new RandomStreamFactory(88));
         var request = system.CreateRequest(first, second, 0, 1);
         var childGenes = system.CreateChildGenetics(request, 0);
@@ -654,7 +698,7 @@ internal static class Program
         var child = resolution.Child!;
         Equal(0, child.ConceptMarks.Count);
         Equal(0, child.ConceptExposure.Count);
-        Equal(0, child.HeldInformation.Count);
+        Equal(0, child.Knowledge.Persons.Count);
         Equal(0, child.ThreatMemory.Count);
         Equal(0, child.AgeDays);
     }
@@ -775,6 +819,24 @@ internal static class Program
         Equal(first.GetSnapshot().Npcs.Count, second.GetSnapshot().Npcs.Count);
     }
 
+    private static void RecentEventCapacityIsTerminal()
+    {
+        const long seed = 8147291;
+        var smallConfig = LoadConfig();
+        smallConfig.EventHistory.RecentEventCapacity = 1;
+        var largeConfig = LoadConfig();
+        largeConfig.EventHistory.RecentEventCapacity = 100_000;
+        var small = new SimulationEngine(smallConfig, seed);
+        var large = new SimulationEngine(largeConfig, seed);
+        small.AdvanceDays(3);
+        large.AdvanceDays(3);
+
+        SequenceEqual(small.EventFingerprints(), large.EventFingerprints());
+        Equal(small.DeterministicStateFingerprint(), large.DeterministicStateFingerprint());
+        Equal(1, small.GetSnapshot(100).RecentEvents.Count);
+        True(large.GetSnapshot(100).RecentEvents.Count > 1, "Large Recent Event buffer did not retain its observation window.");
+    }
+
     private static void NpcDetailProjectionExposesStableLineage()
     {
         var config = LoadConfig();
@@ -878,6 +940,10 @@ internal static class Program
         True(statistics.AverageAgeYears > 0, "Average age was not calculated.");
         True(statistics.RestDiagnostics.FatigueContributions.Count > 0,
             "Action-specific fatigue was not projected.");
+        Equal(statistics.EventLayers.TotalEvents, statistics.EventLayers.IncrementalStatisticsUpdates);
+        Equal(0L, statistics.EventLayers.FullHistoryRescans);
+        True(statistics.EventLayers.RecentEventCount <= LoadConfig().EventHistory.RecentEventCapacity,
+            "Recent Event buffer exceeded its configured capacity.");
         var daily = engine.GetDailyObservation();
         Equal(statistics.Tick, daily.Tick);
         Equal(statistics.Population, daily.Population);
@@ -1046,10 +1112,9 @@ internal static class Program
         var actor = Npc(1, new Position(3, 0), 5, 5, 5, 100);
         actor.AgeDays = config.Reproduction.MatureAgeDays;
         actor.Needs.Reproduction = 10;
-        actor.HeldInformation.AddRange(PerceivedPositionRecords(actor.Id, 2, new Position(4, 0), 0));
-        actor.HeldInformation.Add(new InformationRecord(
-            "mature-outside", 2, InformationProperty.LifeStage, (double)PerceivedLifeStage.Mature, 1, actor.Id,
-            InformationAcquisition.Observation, 0));
+        SetPerceivedPosition(actor, 2, new Position(4, 0), 0);
+        SetPersonNumber(actor, 2, PersonBeliefField.LifeStage, (double)PerceivedLifeStage.Mature, 0,
+            KnowledgeSourceType.DirectObservation, "mature-outside");
         var core = new[] { new SettlementCoreRule(1, new Position(0, 0), config.Settlement.CoreRadius) };
         var noPenaltyRules = new WorldDecisionRules(8, 8, new HashSet<Position>(), core,
             OutsideReproductionPenaltyEnabled: false);
@@ -1261,6 +1326,7 @@ internal static class Program
         participant.SettlementId = 1;
         participant.InvasionId = 1;
         participant.InvasionRole = InvasionRole.Attacker;
+        participant.InvasionParticipation = InvasionParticipationState.Advancing;
         participant.HasAdvanceBias = true;
         participant.Needs.Rest = 10;
         world.Npcs.Add(participant.Id, participant);
@@ -1279,7 +1345,7 @@ internal static class Program
         });
         var invasion = new InvasionSystem(config, new RandomStreamFactory(851));
         var enemyCore = invasion.MovementTarget(world, participant);
-        Equal(world.Settlements[2].Center, enemyCore!.Value);
+        Equal(new Position(6, 6), enemyCore!.Value);
         True(InvasionSystem.IsActiveParticipant(world, participant), "Active participation was not detected.");
 
         var rules = new WorldDecisionRules(
@@ -1325,6 +1391,7 @@ internal static class Program
         config.Settlement.SupportLowDaysForDissolution = 2;
         var world = SocialWorld(config);
         world.Settlements[1].FoundingResidentBaseline = 8;
+        world.Settlements[1].Support = 24;
         var random = new RandomStreamFactory(860);
         var maintenance = new SettlementMaintenanceCoordinator(config, random, new InvasionSystem(config, random));
         var events = new List<EventDraft>();
@@ -1333,6 +1400,7 @@ internal static class Program
         Equal(1, world.Settlements[1].LowSupportDays);
 
         world.Tick++;
+        world.Settlements[1].Support = 30;
         var reproductionEvents = Enumerable.Range(0, 3).Select(index => new SimulationEvent(
             $"r-{index}", world.Tick, 1, SimulationEventType.ReproductionSuccess,
             null, null, new Position(2, 2), true, "test")).ToArray();
@@ -1348,12 +1416,17 @@ internal static class Program
             resident.SettlementId = 1;
             world.Npcs[id] = resident;
         }
-        maintenance.RunEndOfDay(world, Array.Empty<SimulationEvent>(), Capture(events));
+        world.Settlements[1].Support = 35;
+        var socialEvents = Enumerable.Range(0, 2).Select(index => new SimulationEvent(
+            $"c-{index}", world.Tick, 1, SimulationEventType.Communication,
+            1, 2, new Position(2, 2), true, "test", 1, 1)).ToArray();
+        maintenance.RunEndOfDay(world, socialEvents, Capture(events));
         True(world.Settlements[1].Support >= 35, "Local resident support did not reach recovery threshold.");
         Equal(0, world.Settlements[1].LowSupportDays);
 
         var dissolution = SocialWorld(config);
         dissolution.Settlements[1].FoundingResidentBaseline = 8;
+        dissolution.Settlements[1].Support = 24;
         config.Settlement.SupportWindowDays = 1;
         var secondMaintenance = new SettlementMaintenanceCoordinator(
             config, random, new InvasionSystem(config, random));
@@ -1361,6 +1434,105 @@ internal static class Program
         dissolution.Tick++;
         secondMaintenance.RunEndOfDay(dissolution, Array.Empty<SimulationEvent>(), Capture(new List<EventDraft>()));
         Equal("low-support", dissolution.Settlements[1].DissolutionReason);
+    }
+
+    private static void SettlementSupportRenewal()
+    {
+        var config = LoadConfig();
+        config.Settlement.SupportWindowDays = 1;
+        config.Settlement.SupportRenewalConsecutiveDays = 2;
+        config.Settlement.SupportFoundingResidentFloor = 4;
+        var world = SocialWorld(config);
+        var settlement = world.Settlements[1];
+        settlement.FoundingResidentBaseline = 4;
+        settlement.Support = 100;
+        for (var id = 1L; id <= 4; id++)
+        {
+            var npc = Npc(id, new Position(2, 2), 5, 5, 5, 100);
+            npc.SettlementId = 1;
+            world.Npcs[id] = npc;
+        }
+        var events = new List<EventDraft>();
+        var maintenance = new SettlementMaintenanceCoordinator(
+            config, new RandomStreamFactory(865), new InvasionSystem(config, new RandomStreamFactory(865)));
+        for (var day = 0; day < 2; day++)
+        {
+            world.Tick = day;
+            var daily = Enumerable.Range(0, 3).Select(index => new SimulationEvent(
+                    $"r-{day}-{index}", day, 1, SimulationEventType.ReproductionSuccess,
+                    1, 2, new Position(2, 2), true, "test", 1, 1))
+                .Append(new SimulationEvent($"c-{day}", day, 1, SimulationEventType.Communication,
+                    1, 2, new Position(2, 2), true, "test", 1, 1))
+                .ToArray();
+            maintenance.RunEndOfDay(world, daily, Capture(events));
+        }
+        True(settlement.RenewalCount == 1,
+            $"Expected Renewal; potential={settlement.SupportPotential:R}, support={settlement.Support:R}, " +
+            $"saturated={settlement.SaturatedDays}, count={settlement.RenewalCount}.");
+        Equal(50, settlement.Support, 0);
+        Equal(0, settlement.LowSupportDays);
+        True(events.Any(item => item.Type == SimulationEventType.SettlementRenewed),
+            "Renewal event was not emitted.");
+    }
+
+    private static void SettlementFissionCreatesChild()
+    {
+        var config = LoadConfig();
+        var world = EmptyWorld(config);
+        world.Phase = WorldPhase.Order;
+        world.Tick = 29;
+        var parent = new SettlementState
+        {
+            Id = 1,
+            Center = new Position(10, 10),
+            FormedTick = 0,
+            EffectiveTick = 0,
+            FounderIds = Array.Empty<long>(),
+            FoundingResidentBaseline = 10,
+            Support = 50,
+            CrowdingPressure = config.Settlement.FissionPressureThreshold,
+            FissionPressureDays = config.Settlement.FissionPressureConsecutiveDays - 1
+        };
+        world.Settlements.Add(parent.Id, parent);
+        world.NextSettlementId = 2;
+        for (var id = 1L; id <= 10; id++)
+        {
+            var npc = Npc(id, new Position(10 + (int)(id % 2), 10), 5, 5, 5, 100);
+            npc.SettlementId = parent.Id;
+            world.Npcs.Add(id, npc);
+        }
+        for (var id = 11L; id <= 13; id++)
+        {
+            world.Npcs.Add(id, Npc(id, new Position(20, 20), 5, 5, 5, 100));
+        }
+        for (var tick = 0; tick < 29; tick++)
+        {
+            world.UnaffiliatedResidentHistory.Add(new DailyUnaffiliatedResidents(
+                tick, new Dictionary<Position, int> { [new Position(20, 20)] = 3 }));
+        }
+
+        var emitted = new List<EventDraft>();
+        var result = new SettlementFissionSystem(config, new RandomStreamFactory(866))
+            .Evaluate(world, Capture(emitted));
+        True(result.FormedFromSettlementIds.Contains(parent.Id), "Eligible parent did not fission.");
+        var child = world.Settlements[2];
+        Equal(parent.Id, child.ParentSettlementId!.Value);
+        True(parent.ChildSettlementIds.Contains(child.Id), "Parent-child relation was not stored symmetrically.");
+        var migrants = world.Npcs.Values.Where(item => item.SettlementId == child.Id).OrderBy(item => item.Id).ToArray();
+        Equal(4, migrants.Length);
+        True(migrants.All(item => item.FissionFounder && item.MigrationTargetSettlementId == child.Id),
+            "Migrant founder state was incomplete.");
+        world.Tick++;
+        var parentMember = world.Npcs.Values.First(item => item.SettlementId == parent.Id);
+        Equal(CollisionPolicy.ParentChildSuppressed,
+            SettlementQueries.Collision(world, parentMember, migrants[0], config));
+
+        migrants[0].Position = child.Center;
+        SettlementFissionSystem.CompleteMigrations(world, config, Capture(emitted), 1, "test", migrants[0]);
+        True(!migrants[0].MigrationTargetSettlementId.HasValue,
+            "Migration did not complete at child Influence arrival.");
+        True(emitted.Any(item => item.Type == SimulationEventType.MigrationCompleted && item.ActorId == migrants[0].Id),
+            "Migration completion event was not emitted.");
     }
 
     private static void ConceptAuraRules()
@@ -1453,6 +1625,7 @@ internal static class Program
         participant.SettlementId = 1;
         participant.InvasionId = 1;
         participant.InvasionRole = InvasionRole.Attacker;
+        participant.InvasionParticipation = InvasionParticipationState.Advancing;
         participant.HasAdvanceBias = true;
         world.Npcs.Add(participant.Id, participant);
         world.Invasions.Add(1, new InvasionState
@@ -1481,9 +1654,19 @@ internal static class Program
         var events = new List<EventDraft>();
         var invasion = new InvasionSystem(config, new RandomStreamFactory(73));
         invasion.WithdrawForRest(world, participant, Capture(events), 2);
-        True(!participant.InvasionId.HasValue && !participant.HasAdvanceBias,
-            "Rest did not withdraw the invasion participant.");
-        True(participant.WithdrawnInvasionIds.Contains(1), "Rest withdrawal did not prevent same-event rejoin.");
+        Equal(1, participant.InvasionId!.Value);
+        Equal(InvasionParticipationState.FieldRest, participant.InvasionParticipation!.Value);
+        True(!participant.HasAdvanceBias && !participant.WithdrawnInvasionIds.Contains(1),
+            "Non-severe Rest did not enter one-day FieldRest.");
+
+        participant.CurrentHp = 20;
+        participant.InvasionParticipation = InvasionParticipationState.Advancing;
+        participant.HasAdvanceBias = true;
+        invasion.WithdrawForRest(world, participant, Capture(events), 3);
+        Equal(InvasionParticipationState.Retreating, participant.InvasionParticipation!.Value);
+        True(participant.InvasionId.HasValue && !participant.HasAdvanceBias,
+            "Severe Rest did not retain the event state as Retreating.");
+        True(participant.WithdrawnInvasionIds.Contains(1), "Retreating did not prevent same-event rejoin.");
     }
 
     private static void InvasionStabilizationGuardrails()
@@ -1494,6 +1677,7 @@ internal static class Program
         attacker.SettlementId = 1;
         attacker.InvasionId = 1;
         attacker.InvasionRole = InvasionRole.Attacker;
+        attacker.InvasionParticipation = InvasionParticipationState.Advancing;
         attacker.HasAdvanceBias = true;
         world.Npcs.Add(attacker.Id, attacker);
         var aliveDefender = Npc(2, new Position(9, 8), 5, 5, 5, 100);
@@ -1533,6 +1717,13 @@ internal static class Program
             npc.SettlementId = 1;
             world.Npcs.Add(npc.Id, npc);
         }
+        world.Tick = 1;
+        system.ResolveVictories(world, Capture(events), 2);
+        Equal(InvasionOutcome.None, invasion.Outcome);
+        world.Tick = 2;
+        system.ResolveVictories(world, Capture(events), 2);
+        Equal(InvasionOutcome.None, invasion.Outcome);
+        world.Tick = 3;
         system.ResolveVictories(world, Capture(events), 2);
         Equal(InvasionOutcome.AttackVictory, invasion.Outcome);
         Equal(1, aliveDefender.SettlementId!.Value);
@@ -1544,7 +1735,7 @@ internal static class Program
         var startWorld = SocialWorld(config);
         startWorld.Settlements[1].CrowdingPressure = 0.9;
         startWorld.Settlements[1].CrowdingConsecutiveDays = config.Settlement.CrowdingConsecutiveDays;
-        for (var id = 1L; id <= 3; id++)
+        for (var id = 1L; id <= 7; id++)
         {
             var participant = Npc(id, new Position(2 + (int)id, 2), 5, 5, 5, 100);
             participant.SettlementId = 1;
@@ -1730,11 +1921,28 @@ internal static class Program
             view,
             rules);
 
-    private static IEnumerable<InformationRecord> PerceivedPositionRecords(long observerId, long subjectId, Position position, int tick)
+    private static void SetPerceivedPosition(NpcState observer, long subjectId, Position position, int tick)
     {
-        yield return new InformationRecord("px", subjectId, InformationProperty.PositionX, position.X, 1, observerId, InformationAcquisition.Observation, tick);
-        yield return new InformationRecord("py", subjectId, InformationProperty.PositionY, position.Y, 1, observerId, InformationAcquisition.Observation, tick);
-        yield return new InformationRecord("alive", subjectId, InformationProperty.Alive, 1, 1, observerId, InformationAcquisition.Observation, tick);
+        observer.Knowledge.UpsertPerson(subjectId, PersonBeliefField.Position,
+            new BeliefValue($"position-{subjectId}-{tick}", KnowledgeSourceType.DirectObservation,
+                observer.Id, 1, tick, Position: position), true);
+        SetPersonNumber(observer, subjectId, PersonBeliefField.AliveStatus, 1, tick,
+            KnowledgeSourceType.DirectObservation, $"alive-{subjectId}-{tick}");
+    }
+
+    private static void SetPersonNumber(
+        NpcState observer,
+        long subjectId,
+        PersonBeliefField field,
+        double value,
+        int tick,
+        KnowledgeSourceType source,
+        string id,
+        double confidence = 1)
+    {
+        observer.Knowledge.UpsertPerson(subjectId, field,
+            new BeliefValue(id, source, observer.Id, confidence, tick, Number: value),
+            source == KnowledgeSourceType.DirectObservation);
     }
 
     private static void ConfigureTinyWorld(SimulationConfig config)

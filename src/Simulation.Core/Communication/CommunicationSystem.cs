@@ -23,10 +23,8 @@ public sealed class CommunicationSystem
 
     public CommunicationResult Exchange(NpcState initiator, NpcState target, int tick, int microRound)
     {
-        var initiatorSelection = SelectForTransmission(initiator, tick, microRound, "forward");
-        var targetSelection = SelectForTransmission(target, tick, microRound, "return");
-        var sentByInitiator = Transmit(initiator, target, initiatorSelection, tick, microRound, "forward");
-        var sentByTarget = Transmit(target, initiator, targetSelection, tick, microRound, "return");
+        var sentByInitiator = Transmit(initiator, target, tick, microRound, "forward");
+        var sentByTarget = Transmit(target, initiator, tick, microRound, "return");
         return new CommunicationResult(sentByInitiator, sentByTarget);
     }
 
@@ -42,105 +40,211 @@ public sealed class CommunicationSystem
         return _config.Communication.SubjectSwapChanceBase * (1 - quality / 10);
     }
 
-    private int Transmit(
-        NpcState sender,
-        NpcState receiver,
-        IReadOnlyList<InformationRecord> selected,
-        int tick,
-        int microRound,
-        string direction)
+    private int Transmit(NpcState sender, NpcState receiver, int tick, int microRound, string direction)
     {
-        if (selected.Count == 0)
+        var senderCommunication = sender.EffectiveStats(_config).Communication;
+        var sendCount = 1 + (int)Math.Floor(senderCommunication / _config.Communication.SendCountAbilityDivisor);
+        var candidates = CreateDifferential(sender, receiver, tick, microRound, direction)
+            .Take(sendCount)
+            .ToArray();
+        if (candidates.Length == 0)
         {
             return 0;
         }
 
         var receiverCommunication = receiver.EffectiveStats(_config).Communication;
         var errorMaximum = ErrorMaximum(receiverCommunication);
-        var swapChance = SubjectSwapChance(receiverCommunication);
-        var knownSubjects = receiver.HeldInformation.OrderedSubjectIds();
-
-        foreach (var information in selected)
+        var knownSubjects = receiver.Knowledge.Persons.Keys.OrderBy(item => item).ToArray();
+        foreach (var item in candidates)
         {
-            var subjectId = information.SubjectId;
-            var swapStream = _random.Create(
-                "communication", tick, sender.Id, "subject-swap", $"{direction}:{microRound}:{information.InformationId}:{receiver.Id}");
-            if (knownSubjects.Length > 0 && swapStream.NextDouble() < swapChance)
+            switch (item.Category)
             {
-                var existingIndex = Array.BinarySearch(knownSubjects, subjectId);
-                var replacementCount = knownSubjects.Length - (existingIndex >= 0 ? 1 : 0);
-                if (replacementCount > 0)
-                {
-                    var replacementIndex = swapStream.NextInt(replacementCount);
-                    if (existingIndex >= 0 && replacementIndex >= existingIndex)
+                case KnowledgeCategory.Event:
+                    var eventBelief = item.Event!;
+                    receiver.Knowledge.UpsertEvent(eventBelief with
                     {
-                        replacementIndex++;
-                    }
-                    subjectId = knownSubjects[replacementIndex];
-                }
+                        SourceType = KnowledgeSourceType.Communication,
+                        SourceId = sender.Id,
+                        Confidence = PerceptionSystem.TransmissionConfidence(
+                            eventBelief.Confidence, receiverCommunication, _config.Communication),
+                        UpdatedTick = tick
+                    });
+                    break;
+                case KnowledgeCategory.Settlement:
+                    var settlement = item.Settlement!.Value;
+                    var settlementValue = Distort(settlement.Value, errorMaximum, sender, receiver, tick,
+                        microRound, direction, $"settlement:{settlement.SettlementId}:{settlement.Field}");
+                    _perception.AddSettlementField(
+                        receiver, settlement.SettlementId, settlement.Field,
+                        settlementValue.Number, settlementValue.Position, settlementValue.Text,
+                        PerceptionSystem.TransmissionConfidence(
+                            settlement.Value.Confidence, receiverCommunication, _config.Communication),
+                        sender.Id, tick, KnowledgeSourceType.Communication,
+                        $"{settlement.Value.InformationId}:{microRound}:{direction}");
+                    break;
+                case KnowledgeCategory.Person:
+                    var person = item.Person!.Value;
+                    var subjectId = MaybeSwapSubject(person.SubjectId, knownSubjects, sender, receiver, tick,
+                        microRound, direction, person.Value.InformationId, receiverCommunication);
+                    var personValue = Distort(person.Value, errorMaximum, sender, receiver, tick,
+                        microRound, direction, $"person:{person.SubjectId}:{person.Field}");
+                    _perception.AddPersonField(
+                        receiver, subjectId, person.Field,
+                        personValue.Number, personValue.Position, personValue.Concepts,
+                        PerceptionSystem.TransmissionConfidence(
+                            person.Value.Confidence, receiverCommunication, _config.Communication),
+                        sender.Id, tick, KnowledgeSourceType.Communication,
+                        $"{person.Value.InformationId}:{microRound}:{direction}");
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException();
             }
-
-            var value = information.EstimatedValue;
-            if (information.Property is InformationProperty.CurrentHp or InformationProperty.Combat)
-            {
-                var distortion = _random.Create(
-                    "communication", tick, sender.Id, "numeric-distortion", $"{direction}:{microRound}:{information.InformationId}:{receiver.Id}")
-                    .NextDouble(-errorMaximum, errorMaximum);
-                value *= 1 + distortion;
-            }
-
-            var confidence = PerceptionSystem.TransmissionConfidence(
-                information.Confidence,
-                receiverCommunication,
-                _config.Communication);
-            _perception.AddInformation(
-                receiver,
-                subjectId,
-                information.Property,
-                value,
-                confidence,
-                sender.Id,
-                tick,
-                InformationAcquisition.Communication,
-                $"{information.InformationId}:{microRound}:{direction}");
         }
 
-        return selected.Count;
+        receiver.Knowledge.MaintainPersons(receiver, tick, _config.Observation.PersonBeliefTtlDays,
+            _perception.PersonCapacity(receiver), _config.Observation.ThreatMemoryDays);
+        return candidates.Length;
     }
 
-    private InformationRecord[] SelectForTransmission(
+    private IEnumerable<Transmission> CreateDifferential(
         NpcState sender,
+        NpcState receiver,
         int tick,
         int microRound,
         string direction)
     {
-        if (sender.HeldInformation.Count == 0)
+        double Priority(string category, string id) => _random.StablePriority(
+            "communication", tick, sender.Id, $"{category}-selection", $"{direction}:{microRound}:{receiver.Id}:{id}");
+
+        foreach (var belief in sender.Knowledge.Events.Values
+                     .Where(item => !receiver.Knowledge.Events.ContainsKey(item.EventId))
+                     .OrderBy(item => Priority("event", item.EventId))
+                     .ThenBy(item => item.EventId, StringComparer.Ordinal))
         {
-            return Array.Empty<InformationRecord>();
+            yield return new Transmission(KnowledgeCategory.Event, belief, null, null);
         }
 
-        var senderCommunication = sender.EffectiveStats(_config).Communication;
-        var sendCount = 1 + (int)Math.Floor(senderCommunication / _config.Communication.SendCountAbilityDivisor);
-        sendCount = Math.Min(sendCount, sender.HeldInformation.Count);
-        var random = _random.Create(
-            "communication",
-            tick,
-            sender.Id,
-            "held-information-selection",
-            $"{direction}:{microRound}");
-        var selectedRanks = new HashSet<int>();
-        var selected = new List<InformationRecord>(sendCount);
-        while (selected.Count < sendCount)
+        foreach (var item in sender.Knowledge.Settlements.Values
+                     .SelectMany(belief => belief.Fields.Select(field =>
+                         (SettlementId: belief.SettlementId, Field: field.Key, Value: field.Value)))
+                     .Where(item => IsDifferentialSettlement(receiver, item.SettlementId, item.Field, item.Value, tick))
+                     .OrderBy(item => Priority("settlement", $"{item.SettlementId}:{item.Field}"))
+                     .ThenBy(item => item.SettlementId)
+                     .ThenBy(item => item.Field))
         {
-            var rank = random.NextInt(sender.HeldInformation.Count);
-            if (selectedRanks.Add(rank))
-            {
-                selected.Add(sender.HeldInformation.RecordAtSamplingIndex(rank));
-            }
+            yield return new Transmission(KnowledgeCategory.Settlement, null, item, null);
         }
 
-        return selected.ToArray();
+        foreach (var item in sender.Knowledge.Persons.Values
+                     .SelectMany(belief => belief.Fields.Select(field =>
+                         (SubjectId: belief.SubjectId, Field: field.Key, Value: field.Value)))
+                     .Where(item => IsDifferentialPerson(receiver, item.SubjectId, item.Field, item.Value, tick))
+                     .OrderBy(item => Priority("person", $"{item.SubjectId}:{item.Field}"))
+                     .ThenBy(item => item.SubjectId)
+                     .ThenBy(item => item.Field))
+        {
+            yield return new Transmission(KnowledgeCategory.Person, null, null, item);
+        }
     }
+
+    private static bool IsDifferentialPerson(
+        NpcState receiver,
+        long subjectId,
+        PersonBeliefField field,
+        BeliefValue source,
+        int tick)
+    {
+        if (!receiver.Knowledge.Persons.TryGetValue(subjectId, out var belief) ||
+            !belief.Fields.TryGetValue(field, out var existing))
+        {
+            return true;
+        }
+        return KnowledgeStore.ShouldReplace(existing, source with
+        {
+            InformationId = $"communication:{source.InformationId}",
+            SourceType = KnowledgeSourceType.Communication,
+            UpdatedTick = tick
+        });
+    }
+
+    private static bool IsDifferentialSettlement(
+        NpcState receiver,
+        int settlementId,
+        SettlementBeliefField field,
+        BeliefValue source,
+        int tick)
+    {
+        if (!receiver.Knowledge.Settlements.TryGetValue(settlementId, out var belief) ||
+            !belief.Fields.TryGetValue(field, out var existing))
+        {
+            return true;
+        }
+        return KnowledgeStore.ShouldReplace(existing, source with
+        {
+            InformationId = $"communication:{source.InformationId}",
+            SourceType = KnowledgeSourceType.Communication,
+            UpdatedTick = tick
+        });
+    }
+
+    private BeliefValue Distort(
+        BeliefValue value,
+        double errorMaximum,
+        NpcState sender,
+        NpcState receiver,
+        int tick,
+        int microRound,
+        string direction,
+        string scope)
+    {
+        var distortible = scope.Contains(PersonBeliefField.EstimatedHp.ToString(), StringComparison.Ordinal) ||
+                          scope.Contains(PersonBeliefField.EstimatedCombat.ToString(), StringComparison.Ordinal) ||
+                          scope.Contains(SettlementBeliefField.PopulationEstimate.ToString(), StringComparison.Ordinal);
+        if (!value.Number.HasValue || !distortible)
+        {
+            return value;
+        }
+        var distortion = _random.Create("communication", tick, sender.Id, "numeric-distortion",
+                $"{direction}:{microRound}:{value.InformationId}:{receiver.Id}:{scope}")
+            .NextDouble(-errorMaximum, errorMaximum);
+        return value with { Number = value.Number.Value * (1 + distortion) };
+    }
+
+    private long MaybeSwapSubject(
+        long subjectId,
+        IReadOnlyList<long> knownSubjects,
+        NpcState sender,
+        NpcState receiver,
+        int tick,
+        int microRound,
+        string direction,
+        string informationId,
+        double receiverCommunication)
+    {
+        var alternatives = knownSubjects.Where(item => item != subjectId).ToArray();
+        if (alternatives.Length == 0)
+        {
+            return subjectId;
+        }
+        var stream = _random.Create("communication", tick, sender.Id, "subject-swap",
+            $"{direction}:{microRound}:{informationId}:{receiver.Id}");
+        return stream.NextDouble() < SubjectSwapChance(receiverCommunication)
+            ? alternatives[stream.NextInt(alternatives.Length)]
+            : subjectId;
+    }
+
+    private enum KnowledgeCategory
+    {
+        Event,
+        Settlement,
+        Person
+    }
+
+    private sealed record Transmission(
+        KnowledgeCategory Category,
+        EventBelief? Event,
+        (int SettlementId, SettlementBeliefField Field, BeliefValue Value)? Settlement,
+        (long SubjectId, PersonBeliefField Field, BeliefValue Value)? Person);
 }
 
 public sealed record CommunicationResult(int SentByInitiator, int SentByTarget);

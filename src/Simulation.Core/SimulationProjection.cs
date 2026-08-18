@@ -24,9 +24,12 @@ public sealed record NpcStatusProjection(
     int? SettlementId,
     int? InvasionId,
     InvasionRole? InvasionRole,
-    int HeldInformationCount)
+    int HeldInformationCount,
+    int EventBeliefCount,
+    int SettlementBeliefCount)
 {
     public double AgeYears => (double)AgeDays / DaysPerYear;
+    public int PersonBeliefCount => HeldInformationCount;
 }
 
 public sealed record LandmarkProjection(ConceptKind Concept, Position Position);
@@ -87,9 +90,12 @@ public sealed record NpcDetailsProjection(
     InvasionRole? InvasionRole,
     long KillCount,
     int HeldInformationCount,
+    int EventBeliefCount,
+    int SettlementBeliefCount,
     IReadOnlyList<NpcActionRecord> ActionHistory)
 {
     public double AgeYears => (double)AgeDays / DaysPerYear;
+    public int PersonBeliefCount => HeldInformationCount;
 }
 
 public sealed record SettlementAffinityProjection(int SettlementId, double Affinity, bool IsActiveMembership);
@@ -132,7 +138,18 @@ public sealed record PerceptionStatistics(
     long HeldInformationEvictions,
     int HeldInformationTotal,
     double HeldInformationAverage,
-    int HeldInformationMaximum);
+    int HeldInformationMaximum,
+    int EventBeliefTotal,
+    int SettlementBeliefTotal,
+    double AveragePersonBeliefCapacity,
+    long PersonBeliefTtlRemovals,
+    long PersonBeliefDeathRemovals)
+{
+    public long PersonBeliefCapacityEvictions => HeldInformationEvictions;
+    public int PersonBeliefTotal => HeldInformationTotal;
+    public double PersonBeliefAverage => HeldInformationAverage;
+    public int PersonBeliefMaximum => HeldInformationMaximum;
+}
 
 public sealed record ConceptMarkStatistics(
     ConceptKind Concept,
@@ -163,15 +180,28 @@ public sealed record SettlementStatistics(
     double WorldPopulationRatio,
     double CoreOccupancy,
     double CrowdingPressure,
+    int UsableInfluenceCells,
+    int NominalResidentialCapacity,
+    double ResidentLoad,
+    double MovementCongestion,
+    double ReturnFailure,
     int CrowdingConsecutiveDays,
     bool CrowdingInvasionArmed,
     int CrowdingRearmConsecutiveDays,
     int CrowdingRearmCount,
+    double SupportPotential,
+    double DailySupportDelta,
     double Support,
     double SupportPopulationComponent,
     double SupportReproductionComponent,
     double SupportSocialComponent,
     int LowSupportDays,
+    int SaturatedDays,
+    int RenewalCount,
+    int? LastRenewalTick,
+    int FissionPressureDays,
+    int? ParentSettlementId,
+    IReadOnlyList<int> ChildSettlementIds,
     int SupportWindowDays,
     int FoundingResidentBaseline,
     double AverageAffiliatedResidentsInInfluence,
@@ -272,7 +302,14 @@ public sealed record InvasionStatistics(
     bool CenterOccupied,
     int TotalUsableCoreCells,
     int AttackOccupiedUsableCoreCells,
-    int FleeingParticipants);
+    int FleeingParticipants,
+    int AdvancingParticipants,
+    int DefendingParticipants,
+    int FieldRestParticipants,
+    int RetreatingParticipants,
+    int AttackOccupationDays,
+    int AttackCollapseDays,
+    int InfluenceClearDays);
 
 public sealed record AuraStatistics(
     long Applied,
@@ -310,6 +347,12 @@ public sealed record PhaseEcologyStatistics(
     double CollisionDamage,
     double ExplicitAttackDamage);
 
+public sealed record EventLayerStatistics(
+    int RecentEventCount,
+    long IncrementalStatisticsUpdates,
+    long TotalEvents,
+    long FullHistoryRescans);
+
 public sealed record WorldStatisticsProjection(
     int Tick,
     int Population,
@@ -335,6 +378,7 @@ public sealed record WorldStatisticsProjection(
     AuraStatistics Auras,
     IReadOnlyList<PhaseWindowStatistics> OrderTransitionWindows,
     IReadOnlyList<PhaseEcologyStatistics> PhaseEcology,
+    EventLayerStatistics EventLayers,
     long HotspotCandidates,
     long HotspotConflicts,
     long HotspotRejections,

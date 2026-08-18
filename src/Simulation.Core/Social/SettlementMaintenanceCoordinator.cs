@@ -9,6 +9,7 @@ public sealed class SettlementMaintenanceCoordinator
 {
     private readonly SimulationConfig _config;
     private readonly SettlementFormationSystem _formation;
+    private readonly SettlementFissionSystem _fission;
     private readonly InvasionSystem _invasion;
 
     public SettlementMaintenanceCoordinator(
@@ -18,6 +19,7 @@ public sealed class SettlementMaintenanceCoordinator
     {
         _config = config;
         _formation = new SettlementFormationSystem(config, random);
+        _fission = new SettlementFissionSystem(config, random);
         _invasion = invasion;
     }
 
@@ -59,10 +61,11 @@ public sealed class SettlementMaintenanceCoordinator
         emit(0, SimulationEventType.SettlementMaintenance, null, null, null, true,
             $"phase=9;order=evaluated;stabilityDays={world.StabilityConsecutiveDays}");
         UpdateCrowding(world, dayEvents, emit);
+        var fission = _fission.Evaluate(world, emit);
         var resting = dayEvents.Where(item => item.Type == SimulationEventType.Rest && item.Success && item.ActorId.HasValue)
             .Select(item => item.ActorId!.Value)
             .ToHashSet();
-        _invasion.StartEligibleInvasions(world, resting, emit);
+        _invasion.StartEligibleInvasions(world, resting, emit, fission.InvasionFallbackSettlementIds);
         emit(0, SimulationEventType.SettlementMaintenance, null, null, null, true, "phase=11;invasion=evaluated");
         emit(0, SimulationEventType.SettlementMaintenance, null, null, null, true,
             $"phase=12;worldPhase={world.Phase};pendingPhase={world.PendingPhase?.ToString() ?? "-"};" +
@@ -389,10 +392,12 @@ public sealed class SettlementMaintenanceCoordinator
             settlement.SupportSocialComponent = socialTarget <= 0
                 ? 0
                 : Math.Clamp(socialCount / socialTarget, 0, 1);
-            settlement.Support =
+            settlement.SupportPotential =
                 _config.Settlement.SupportPopulationWeight * settlement.SupportPopulationComponent +
                 _config.Settlement.SupportReproductionWeight * settlement.SupportReproductionComponent +
                 _config.Settlement.SupportSocialWeight * settlement.SupportSocialComponent;
+            settlement.DailySupportDelta = Math.Clamp((settlement.SupportPotential - 50) / 50, -1, 1);
+            settlement.Support = Math.Clamp(settlement.Support + settlement.DailySupportDelta, 0, 100);
             if (settlement.Support < _config.Settlement.SupportLowThreshold)
             {
                 settlement.LowSupportDays++;
@@ -401,10 +406,34 @@ public sealed class SettlementMaintenanceCoordinator
             {
                 settlement.LowSupportDays = 0;
             }
+            if (settlement.Support >= 100 &&
+                settlement.SupportPotential >= _config.Settlement.SupportRenewalPotentialThreshold)
+            {
+                settlement.SaturatedDays++;
+            }
+            else
+            {
+                settlement.SaturatedDays = 0;
+            }
+
+            if (settlement.SaturatedDays >= _config.Settlement.SupportRenewalConsecutiveDays)
+            {
+                settlement.Support = 50;
+                settlement.DailySupportDelta = 0;
+                settlement.SaturatedDays = 0;
+                settlement.LowSupportDays = 0;
+                settlement.RenewalCount++;
+                settlement.LastRenewalTick = world.Tick;
+                emit(0, SimulationEventType.SettlementRenewed, null, null, settlement.Center, true,
+                    $"settlement={settlement.Id};potential={settlement.SupportPotential:R};" +
+                    $"renewalCount={settlement.RenewalCount}");
+            }
             emit(0, SimulationEventType.SettlementSupportEvaluated, null, null, settlement.Center, true,
-                $"settlement={settlement.Id};support={settlement.Support:R};" +
+                $"settlement={settlement.Id};potential={settlement.SupportPotential:R};" +
+                $"support={settlement.Support:R};delta={settlement.DailySupportDelta:R};" +
                 $"p={settlement.SupportPopulationComponent:R};r={settlement.SupportReproductionComponent:R};" +
                 $"s={settlement.SupportSocialComponent:R};lowDays={settlement.LowSupportDays};" +
+                $"saturatedDays={settlement.SaturatedDays};renewals={settlement.RenewalCount};" +
                 $"window={history.Count};averageResidents={averageResidents:R};baseline={baseline};" +
                 $"reproductions={reproductionCount};formationThreshold={_config.Settlement.HotspotSuccessThreshold};" +
                 $"socialActions={socialCount};socialTarget={socialTarget:R};memberDays={memberDays}");
@@ -430,13 +459,53 @@ public sealed class SettlementMaintenanceCoordinator
             var moveEvents = dayEvents.Where(item => item.ActorId.HasValue && memberIds.Contains(item.ActorId.Value) &&
                 item.Type is SimulationEventType.Move or SimulationEventType.Flee or SimulationEventType.MoveFailed or
                     SimulationEventType.CollisionAttack or SimulationEventType.CollisionSuppressed).ToArray();
-            var blocked = moveEvents.Count(item => item.Type is SimulationEventType.MoveFailed or
-                SimulationEventType.CollisionAttack or SimulationEventType.CollisionSuppressed);
+            var blocked = moveEvents.Count(item => item.Type is SimulationEventType.CollisionAttack or
+                SimulationEventType.CollisionSuppressed ||
+                item.Type == SimulationEventType.MoveFailed &&
+                !item.Detail.Contains("invalid", StringComparison.OrdinalIgnoreCase));
+            var strongHome = dayEvents.Where(item => item.Type == SimulationEventType.MovementBiasApplied &&
+                item.ActorId.HasValue && memberIds.Contains(item.ActorId.Value) &&
+                item.Detail.Contains("strong=1", StringComparison.Ordinal)).ToArray();
+            var failedStrong = strongHome.Count(item =>
+                DetailDouble(item.Detail, "homeDelta") <= 0 ||
+                moveEvents.Any(move => move.ActorId == item.ActorId && move.MicroRound == item.MicroRound &&
+                    move.Type is SimulationEventType.MoveFailed or SimulationEventType.CollisionAttack or
+                        SimulationEventType.CollisionSuppressed));
             settlement.CoreOccupancy = usable.Count == 0 ? 0 : (double)occupied / usable.Count;
             settlement.BlockedMovementRate = moveEvents.Length == 0 ? 0 : (double)blocked / moveEvents.Length;
+            var usableInfluence = SettlementQueries.UsableInfluenceCells(world, settlement, _config);
+            settlement.UsableInfluenceCells = usableInfluence.Count;
+            settlement.NominalResidentialCapacity = Math.Max(1, (int)Math.Floor(usableInfluence.Count * 0.70));
+            settlement.PressureHistory.Add(new SettlementPressureDailyRecord(
+                world.Tick,
+                memberIds.Count,
+                moveEvents.Length,
+                blocked,
+                strongHome.Length,
+                failedStrong));
+            if (settlement.PressureHistory.Count > _config.Settlement.CrowdingWindowDays)
+            {
+                settlement.PressureHistory.RemoveRange(
+                    0, settlement.PressureHistory.Count - _config.Settlement.CrowdingWindowDays);
+            }
+
+            settlement.ResidentLoad = Math.Clamp(
+                settlement.PressureHistory.Average(item => item.AffiliatedPopulation) /
+                settlement.NominalResidentialCapacity,
+                0,
+                1);
+            var moveAttempts = settlement.PressureHistory.Sum(item => item.MoveAttempts);
+            settlement.MovementCongestion = moveAttempts == 0
+                ? 0
+                : Math.Clamp((double)settlement.PressureHistory.Sum(item => item.CongestionBlocks) / moveAttempts, 0, 1);
+            var strongAttempts = settlement.PressureHistory.Sum(item => item.StrongHomeAttempts);
+            settlement.ReturnFailure = strongAttempts == 0
+                ? 0
+                : Math.Clamp((double)settlement.PressureHistory.Sum(item => item.FailedStrongHomeMoves) / strongAttempts, 0, 1);
             settlement.CrowdingPressure = Math.Clamp(
-                _config.Settlement.CrowdingOccupancyWeight * settlement.CoreOccupancy +
-                _config.Settlement.CrowdingBlockedMovementWeight * settlement.BlockedMovementRate, 0, 1);
+                _config.Settlement.PressureResidentLoadWeight * settlement.ResidentLoad +
+                _config.Settlement.PressureMovementCongestionWeight * settlement.MovementCongestion +
+                _config.Settlement.PressureReturnFailureWeight * settlement.ReturnFailure, 0, 1);
             settlement.CrowdingHistory.Add(settlement.CrowdingPressure);
             if (settlement.CrowdingHistory.Count > _config.Settlement.CrowdingWindowDays)
             {
@@ -444,13 +513,12 @@ public sealed class SettlementMaintenanceCoordinator
                     0, settlement.CrowdingHistory.Count - _config.Settlement.CrowdingWindowDays);
             }
 
-            var rollingEligible = settlement.CrowdingHistory.Count == _config.Settlement.CrowdingWindowDays &&
-                                  settlement.CrowdingHistory.Average() >= _config.Settlement.CrowdingThreshold;
+            var rollingEligible = settlement.CrowdingPressure >= _config.Settlement.CrowdingThreshold;
             settlement.CrowdingConsecutiveDays = rollingEligible ? settlement.CrowdingConsecutiveDays + 1 : 0;
             if (!settlement.CrowdingInvasionArmed)
             {
                 settlement.CrowdingRearmConsecutiveDays =
-                    settlement.CrowdingPressure < _config.Invasion.CrowdingRearmPressureThreshold
+                    settlement.CrowdingPressure <= _config.Invasion.CrowdingRearmPressureThreshold
                         ? settlement.CrowdingRearmConsecutiveDays + 1
                         : 0;
                 if (settlement.CrowdingRearmConsecutiveDays >= _config.Invasion.CrowdingRearmConsecutiveDays)
@@ -469,5 +537,20 @@ public sealed class SettlementMaintenanceCoordinator
         }
 
         emit(0, SimulationEventType.SettlementMaintenance, null, null, null, true, "phase=10;crowding=updated");
+    }
+
+    private static double DetailDouble(string detail, string key)
+    {
+        foreach (var part in detail.Split(';', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var separator = part.IndexOf('=');
+            if (separator > 0 && string.Equals(part[..separator], key, StringComparison.Ordinal) &&
+                double.TryParse(part[(separator + 1)..], NumberStyles.Float,
+                    CultureInfo.InvariantCulture, out var value))
+            {
+                return value;
+            }
+        }
+        return 0;
     }
 }

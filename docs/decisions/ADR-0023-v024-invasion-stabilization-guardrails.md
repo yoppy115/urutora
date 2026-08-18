@@ -1,6 +1,6 @@
 # ADR-0023: stabilize invasion episodes before redesigning warfare
 
-- **Status:** Accepted
+- **Status:** Superseded by ADR-0024
 - **Date:** 2026-08-18
 
 ## Context
@@ -15,6 +15,10 @@
 - Frictionを0～100へClampする。
 - RestによるInvasion離脱はRest v2の効果を観測するため維持する。
 
-## Consequences
+## Consequences at acceptance
 
-明白な異常を抑えつつ、Invasion Trigger、SettlementPressure、Crowding、Friction新モデル、Mobilization、Rest再参加、Center保持Victoryは後続ADRまで確定しない。
+当時は明白な異常だけを抑え、Invasion Trigger、SettlementPressure、Crowding、Friction新モデル、Mobilization、Rest再参加、Center保持Victoryを後続ADRへ保留した。これらのうち現行採用分はADR-0024が置換する。
+
+## Supersession
+
+ADR-0024がPressure trigger `0.65`、re-arm `0.45`、正規化Friction、Mobilization、Rest同一Event再参加禁止、Center非勝利を確定した。Alive-only conquestとUsable Core 50%勝利はADR-0024でも維持する。旧Pressure `0.70`未満30日のre-armと、FrictionをClampするだけの暫定状態は現行仕様ではない。

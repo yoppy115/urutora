@@ -96,8 +96,8 @@ internal static class Program
             using (var first = store.CreateNextWorld(simulationConfig, SimulationConfigPath(), 9000))
             {
                 Equal(1, first.Info.WorldNumber);
-                Equal("v0.2.4", first.Info.ReleaseVersion);
-                Equal("v0.2.4", Directory.GetParent(first.Info.DirectoryPath)!.Name);
+                Equal("v0.2.5", first.Info.ReleaseVersion);
+                Equal("v0.2.5", Directory.GetParent(first.Info.DirectoryPath)!.Name);
                 Equal(9000L, first.Info.Seed);
                 tick = first.AdvanceOneDay();
                 firstInfo = first.Info;
@@ -127,7 +127,7 @@ internal static class Program
             Equal(2, diagnosticLines.Length);
             using (var diagnostics = JsonDocument.Parse(diagnosticLines[^1]))
             {
-                Equal(5, diagnostics.RootElement.GetProperty("schemaVersion").GetInt32());
+                Equal(6, diagnostics.RootElement.GetProperty("schemaVersion").GetInt32());
                 Equal(firstInfo.WorldId, diagnostics.RootElement.GetProperty("worldId").GetString());
                 Equal(firstInfo.ReleaseVersion, diagnostics.RootElement.GetProperty("releaseVersion").GetString());
                 True(diagnostics.RootElement.GetProperty("statistics").TryGetProperty("targetedActions", out _));

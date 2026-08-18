@@ -14,6 +14,7 @@ internal sealed class WorldStatisticsProjector
     private readonly IReadOnlyList<SimulationEvent> _events;
     private readonly IReadOnlyDictionary<ActionKind, long> _selectedActionCounts;
     private readonly PerceptionSystem _perception;
+    private readonly IncrementalEventStatistics _incrementalEvents;
     private readonly int _minimumPopulation;
 
     public WorldStatisticsProjector(
@@ -22,6 +23,7 @@ internal sealed class WorldStatisticsProjector
         IReadOnlyList<SimulationEvent> events,
         IReadOnlyDictionary<ActionKind, long> selectedActionCounts,
         PerceptionSystem perception,
+        IncrementalEventStatistics incrementalEvents,
         int minimumPopulation)
     {
         _config = config;
@@ -29,6 +31,7 @@ internal sealed class WorldStatisticsProjector
         _events = events;
         _selectedActionCounts = selectedActionCounts;
         _perception = perception;
+        _incrementalEvents = incrementalEvents;
         _minimumPopulation = minimumPopulation;
     }
 
@@ -97,14 +100,28 @@ internal sealed class WorldStatisticsProjector
                         damage.Length == 0 ? 0 : damage.Average());
                 })
                 .ToArray();
-            var heldCounts = alive.Select(item => item.HeldInformation.Count).ToArray();
+            var heldCounts = alive.Select(item => item.Knowledge.Persons.Count).ToArray();
             var perception = new PerceptionStatistics(
                 _perception.PositionInvalidationCount,
                 _perception.SubjectPurgeCount,
                 _perception.EvictionCount,
                 heldCounts.Sum(),
                 heldCounts.Length == 0 ? 0 : heldCounts.Average(),
-                heldCounts.Length == 0 ? 0 : heldCounts.Max());
+                heldCounts.Length == 0 ? 0 : heldCounts.Max(),
+                alive.Sum(item => item.Knowledge.Events.Count),
+                alive.Sum(item => item.Knowledge.Settlements.Count),
+                alive.Length == 0 ? 0 : alive.Average(item =>
+                {
+                    var stable = item.BaseStats.Communication *
+                                 (item.ConceptMarks.Contains(ConceptKind.Communication)
+                                     ? _config.Concept.EffectiveMultiplier
+                                     : 1);
+                    return Math.Round(_config.Observation.PersonBeliefBaseCapacity +
+                                      _config.Observation.PersonBeliefCapacityPerStableCommunication * stable,
+                        MidpointRounding.AwayFromZero);
+                }),
+                alive.Sum(item => item.Knowledge.TtlRemovalCount),
+                alive.Sum(item => item.Knowledge.DeathRecognitionRemovalCount));
             var conceptMarks = Enum.GetValues<ConceptKind>()
                 .Select(concept =>
                 {
@@ -156,15 +173,28 @@ internal sealed class WorldStatisticsProjector
                         alive.Length == 0 ? 0 : (double)population / alive.Length,
                         item.CoreOccupancy,
                         item.CrowdingPressure,
+                        item.UsableInfluenceCells,
+                        item.NominalResidentialCapacity,
+                        item.ResidentLoad,
+                        item.MovementCongestion,
+                        item.ReturnFailure,
                         item.CrowdingConsecutiveDays,
                         item.CrowdingInvasionArmed,
                         item.CrowdingRearmConsecutiveDays,
                         item.CrowdingRearmCount,
+                        item.SupportPotential,
+                        item.DailySupportDelta,
                         item.Support,
                         item.SupportPopulationComponent,
                         item.SupportReproductionComponent,
                         item.SupportSocialComponent,
                         item.LowSupportDays,
+                        item.SaturatedDays,
+                        item.RenewalCount,
+                        item.LastRenewalTick,
+                        item.FissionPressureDays,
+                        item.ParentSettlementId,
+                        item.ChildSettlementIds.OrderBy(value => value).ToArray(),
                         item.SupportHistory.Count,
                         Math.Max(item.FoundingResidentBaseline, _config.Settlement.SupportFoundingResidentFloor),
                         averageResidents,
@@ -304,7 +334,18 @@ internal sealed class WorldStatisticsProjector
                         item.CenterOccupied,
                         usable.Count,
                         occupied,
-                        fleeing);
+                        fleeing,
+                        _state.Npcs.Values.Count(npc => npc.IsAlive && npc.InvasionId == item.Id &&
+                            npc.InvasionParticipation == InvasionParticipationState.Advancing),
+                        _state.Npcs.Values.Count(npc => npc.IsAlive && npc.InvasionId == item.Id &&
+                            npc.InvasionParticipation == InvasionParticipationState.Defending),
+                        _state.Npcs.Values.Count(npc => npc.IsAlive && npc.InvasionId == item.Id &&
+                            npc.InvasionParticipation == InvasionParticipationState.FieldRest),
+                        _state.Npcs.Values.Count(npc => npc.IsAlive && npc.InvasionId == item.Id &&
+                            npc.InvasionParticipation == InvasionParticipationState.Retreating),
+                        item.AttackOccupationDays,
+                        item.AttackCollapseDays,
+                        item.InfluenceClearDays);
                 })
                 .ToArray();
             var auras = new AuraStatistics(
@@ -384,6 +425,11 @@ internal sealed class WorldStatisticsProjector
                 auras,
                 transitionWindows,
                 phaseEcology,
+                new EventLayerStatistics(
+                    _events.Count,
+                    _incrementalEvents.UpdateCount,
+                    _incrementalEvents.UpdateCount,
+                    0),
                 _state.SettlementCandidateCount,
                 _state.SettlementCandidateConflictCount,
                 _state.SettlementCandidateRejectionCount,

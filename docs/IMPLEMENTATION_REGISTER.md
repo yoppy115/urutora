@@ -19,7 +19,7 @@ DraftやTBDをこの台帳だけで確定仕様に変えてはならない。
 | NPC行動履歴 | Headless projection only | `PLAYER_OBSERVATION.md` | Coreの既存read-only projectionは保持するが、Desktop Appから履歴・系譜・Affinity・キル数表示を外した。EventとWorldログは削除しない |
 | 世界統計graph / table | Lightweight desktop / full headless | `PLAYER_OBSERVATION.md`, `V0_15_ECOLOGY.md`, `STATISTICS.md` | Desktop Appは人口・所属率・平均年齢graph、現在Phase/人口/所属/Settlement/平均年齢、累積Action選択だけを表示。死因・年齢分布・社会・戦闘・繁殖・Rest診断はheadless projectionとWorldログに保持 |
 | 現在年齢分布の表示bin | Removed from Desktop | `simulation/configs/observation-app.json` | Coreの年齢分布projectionは保持するが、毎描画の生存NPC再集計を避けるためDesktop Appから除外 |
-| App観測設定 | Implemented | `simulation/configs/observation-app.json` | schema 7。完了World圧縮、旧release log削除、Worldログflush間隔、全履歴diagnostics間隔、automatic advanceのwork slice / cooldown、軽量UIのEvent / graph保持上限を管理。廃止した履歴・年齢bin表示設定を削除 |
+| App観測設定 | Implemented | `simulation/configs/observation-app.json` | schema 7。完了World圧縮、旧release log削除、Worldログflush間隔、diagnostics間隔、automatic advanceのwork slice / cooldown、軽量UIのEvent / graph保持上限を管理。廃止した履歴・年齢bin表示設定を削除 |
 | World完了command | Implemented | `LOGGING.md`, `observation-app.json` | `世界完了`で現在runのstreamを閉じ、`completion.json`を最後に確定して検証済みZIPへ圧縮。通常のApp終了・強制終了は未完了のまま保持し、次回起動時に誤圧縮しない |
 | 指定年数反復実行 | Implemented | `observation-app.json` | Appで整数年数とWorld回数を指定。各Worldを`years * daysPerYear` tickで完了・圧縮し、release内の次番号・次seedで反復。最後のWorldは完了状態のread-only表示で停止。Core規則とtick順は変更しない |
 | 旧BIOS向け負荷抑制 | Conservative technical default | `v0-default.json`, `observation-app.json` | CPU並列度defaultを全24論理CPU自動から8へ制限し、自動進行を2日slice + 15ms cooldownで実行。Simulation結果は直列・並列同値を維持し、wall-clock負荷だけを抑える。firmware起因BSODの絶対保証ではない |
@@ -35,7 +35,13 @@ DraftやTBDをこの台帳だけで確定仕様に変えてはならない。
 | Git build provenance | Implemented | `ARCHITECTURE.md`, `ADR-0019` | commit/tree stateをassemblyとrun metadataへ埋め込み、clean treeだけをrelease publishの既定とする。成果物hashはrelease manifestへ保存。所有者が異なる限定作業cloneでも対象repositoryだけを`safe.directory`指定し、global Git設定は変更しない |
 | Repository hygiene | Implemented | `tools/` | 生成物の誤追跡、不要な`.gitkeep`、Markdown local linkをCIとbaseline確定前に検査。finalizerはbranch/commit/tag/clean確認を行いpushしない |
 | Git ACL用管理者finalizer | Implemented | `AGENTS.md`, `tools/` | 通常processが`.git`をOSに拒否された場合だけ使うWindows PowerShell 5.1対応wrapperとCMD入口。対象をurutoraのbranch/index/commit/tagへ限定し、OS設定変更やpushは行わない。同一version追補は`-NoTag`で既存tagを移動しない |
-| v0.2.4 Config schema | Implemented | `V0_2_4_SETTLEMENT_STABILIZATION.md`, `simulation/configs/v0-default.json` | schema 3 / `v0.2.4-default-2`。Action別疲労、Move Bias、Proto-Order、Support、Invasion guardrailと同版追補Advance defaultを型付き設定へ分離 |
+| v0.2.5 Config schema | Implemented | `V0_2_5_KNOWLEDGE_FISSION_INVASION.md`, `simulation/configs/v0-default.json` | schema 4 / `v0.2.5-default-1`。PersonBelief capacity / TTL、Recent Event容量、累積Support / Renewal、Fission、Migration、Invasion継続counterを型付き設定へ分離 |
+| v0.2.5 Knowledge store | Implemented | `KNOWLEDGE_MEMORY.md`, `ADR-0025`, `ADR-0029` | 旧Subject + Property 3件FIFOを削除し、1 Subject 1 PersonBeliefの7 field、EventBelief、SettlementBeliefを別辞書で保持。field優先度、Unknown、365日TTL、capacity evictionはCore内の決定論的順序で処理 |
+| v0.2.5 Recent Event buffer | Conservative implementation detail | `EVENT_HISTORY.md`, `ADR-0026`, `v0-default.json` | live Coreの構造化Eventはdefault 20,000件の有限窓。Replay用fingerprint列とSHA-256 chain、日次集計、Milestone / Knowledgeは別保持し、buffer容量は権威的state fingerprintとEvent列へ影響させない |
+| v0.2.5 Incremental event counters | Conservative implementation detail | `EVENT_HISTORY.md`, `ADR-0026` | Event発行時にLifetime件数と更新回数を増分更新し、Recent Buffer外のEvent総数をUI / diagnosticsのために再走査しない。NPCのcombat kill数も個体へ累積し、Recent Bufferの切詰めで欠落させない。どちらも意思決定へ入力しない |
+| v0.2.5 Fission implementation | Implemented | `SETTLEMENT_FISSION.md`, `ADR-0027`, `ADR-0029` | 30日Cell Resident-Daysを日別疎Dictionaryで保持。5×5候補とCenterをimmutable日末stateから順位付けし、migrantはnamed seed priorityによる一様抽選。Migration完了は最終Move / Flee後とtick末fallbackで一度だけ判定 |
+| v0.2.5 Invasion state implementation | Implemented | `INVASION_V025.md`, `ADR-0028` | NPCへAdvancing / Defending / FieldRest / Retreating / Deadを明示。usable enemy Coreへの前進、侵入者優先防衛、3 / 7 / 90日の勝敗counterを日末に一度だけ更新 |
+| v0.2.5長期実行性能確認 | Verification record | `Simulation.Core`, `v0-default.json` | Release build、seed 8147291、default Configのheadless 1460日を29.858秒で完走。終了時は人口392、Active Settlement 5、所属373。測定中にUI描画とWorldログは使用していないためCore回帰の基準値として扱う |
 | Settlement domain分割 | Implemented | `MODULES.md`, `ADR-0016`–`ADR-0018` | `SettlementQueries`、Formation、Maintenance、Invasion、ConceptAuraをCore内の別責務にし、Appはprojectionだけを読む |
 | Advance / Defense / Cohesion weight | Configurable detail | `V0_2_SETTLEMENT_ORDER.md`, `v0-default.json` | `ln(5)` / 2.0 / 0.75。Advanceは距離差に指数適用し、敵Coreへ1 Cell接近×5 / 不変×1 / 離脱×0.2。Active参加者のHome / Foreignを無効化し、AdvanceがCohesionより常に強いvalidationを持つ |
 | Aura更新境界 | Implementation detail | `ADR-0018`, `SIMULATION_TICK.md` | Tick開始・各Micro Round前後・Concept Exposure後に決定論的snapshotを再計算。一時MaxHP解除ClampはDamage portを通さない |
@@ -58,10 +64,12 @@ DraftやTBDをこの台帳だけで確定仕様に変えてはならない。
 | v0.2.4観測projection | Headless / log implemented | `STATISTICS.md`, `LOGGING.md` | CoreとWorldログはCore / Influence / 外部人数、Support P/R/S、LowSupportDays、Home / Foreign移動、Rest、疲労、Invasion診断を保持。Desktop Appはこれらの全履歴projectionを描画経路から外す |
 | v0.2.4軽量観測UI | Conservative implementation detail | `Simulation.App`, `observation-app.json` | 描画ごとの`GetWorldStatistics`、年齢分布、NPC Event履歴、Settlement Friction集計を廃止し、WorldSessionの日次cacheと現在snapshotだけを使用。最近Eventは80件、graphは730日を保持。Simulation Coreのtick、Event、乱数、ログ、replayは変更しない |
 | v0.2.4同版Hotspot追補 | Implemented | `V0_2_SETTLEMENT_ORDER.md` | Reproduction Success時点の両親のActive所属IDを固定し、一方でも所属なら場所にかかわらず新規Formation集計から除外。既存Settlement Support集計は変更しない |
-| v0.2.4長期実行最適化 | Conservative implementation detail | `ENGINEERING_REPRODUCIBILITY.md`, `LOGGING.md`, `observation-app.json` | Held InformationをFIFO・代表値・近傍・一様抽選索引化し、知覚view cache、移動occupancy、Threat対象だけの保護判定を採用。日次CSV / graphは軽量な正確集計、全履歴diagnosticsはdefault 30日間隔＋完了時。Core / Event順は直列・並列一致testで固定 |
+| v0.2.4長期実行最適化 | Superseded in part by v0.2.5 | `ENGINEERING_REPRODUCIBILITY.md`, `LOGGING.md`, `observation-app.json` | 知覚view cache、移動occupancy、日次CSV / graph軽量化は継続。旧Held Information FIFO索引はv0.2.5 structured Knowledge storeへ置換 |
 | v0.2.4長期実行性能確認 | Verification record | `Simulation.Core`, `Simulation.App` | seed 8147291のheadless実測で現行default-2は365日10.865秒、1460日80.611秒で完走。変更前default-1は365日22.066秒、1460日は90秒の計測枠内に完了しなかった。ConfigとCommunication抽選実装が変わるため同一世界軌跡の厳密比較ではなく、wall-clock回帰の参考値 |
 
 ## Open non-canon implementation items
 
 - World snapshotの保存・再開、削除、名前変更、比較画面は未実装であり、この台帳から仕様を推測しない。
 - graphの長期downsampling、ログschema migrationは未決。現在のUI保持上限を超えた点は画面から落ちるが、CSVログには全日分を保持する。
+
+v0.2.5の正史更新はCore、Config、headless projection、Desktop観測表示、World diagnostics、Replayへ反映済み。Struggle Phase、汎用Importance算出、Event / Settlement Belief容量、snapshot保存・再開は正史どおり先取りしない。

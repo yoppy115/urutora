@@ -292,6 +292,10 @@ public sealed class UtilityDecisionSystem
     private void AddRest(DecisionContext context, ICollection<ActionCandidate> output)
     {
         var restPressure = RestPressure(context.Needs.Rest);
+        if (restPressure <= 0)
+        {
+            return;
+        }
         var utility = restPressure - _config.Action.RestPressure.ActivityPenalty * context.Needs.Activity;
         output.Add(Candidate(ActionKind.Rest, null, null, utility,
             new Dictionary<string, double>

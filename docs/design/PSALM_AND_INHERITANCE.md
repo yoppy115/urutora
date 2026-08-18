@@ -8,7 +8,7 @@
 Reality -> Perception -> History -> Psalm
 ```
 
-HistoryはRealityそのものではない。世界の住人が出来事をどう理解し、語ったかを含む。Psalm / 詩篇は、その歴史と重要なピンから生成され、次世界へ物語として渡る。
+HistoryはRealityそのものではない。世界の住人が出来事をどう理解し、語ったかを含む。Psalm / 詩篇は、その歴史と重要なピンから生成され、次世界へ物語として渡る。v0.2.5のHistorical Milestones / PinsとEventBeliefは将来の入力候補だが、Recent Event Bufferや全Raw EventをそのままPsalmへ渡す契約ではない。
 
 ## Baseline: dual inheritance
 

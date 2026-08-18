@@ -2,6 +2,7 @@
 
 - **Status:** Accepted
 - **Date:** 2026-08-18
+- **Amended by:** ADR-0027
 
 ## Context
 
@@ -16,3 +17,5 @@ World Population比による自然消滅は、Settlement自身が維持されて
 ## Consequences
 
 形成と維持が局所生活活動で連続する。Support成分・閾値はConfig調整可能だが、局所性とHysteresisの境界を単純比率へ戻さない。
+
+v0.2.5では本ADRの`50P + 30R + 20S`を`SupportPotential`へ改名し、別stateの累積`SettlementSupport`を導入した。Hysteresisは累積値へ適用する。詳細は [`ADR-0027`](ADR-0027-accumulated-support-renewal-and-fission.md) を正本とする。

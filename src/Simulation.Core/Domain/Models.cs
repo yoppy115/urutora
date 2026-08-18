@@ -48,6 +48,15 @@ public enum InvasionRole
     Defender
 }
 
+public enum InvasionParticipationState
+{
+    Advancing,
+    Defending,
+    FieldRest,
+    Retreating,
+    Dead
+}
+
 public enum InvasionOutcome
 {
     None,
@@ -111,41 +120,11 @@ public readonly record struct NeedsSnapshot(
     double Communication,
     double Reproduction);
 
-public enum InformationProperty
-{
-    PositionX,
-    PositionY,
-    Alive,
-    CurrentHp,
-    Combat,
-    LifeStage,
-    MarkStruggle,
-    MarkSurvival,
-    MarkCommunication
-}
-
 public enum PerceivedLifeStage
 {
     Child = 0,
     Mature = 1
 }
-
-public enum InformationAcquisition
-{
-    Observation,
-    Communication,
-    DirectOutcome
-}
-
-public sealed record InformationRecord(
-    string InformationId,
-    long SubjectId,
-    InformationProperty Property,
-    double EstimatedValue,
-    double Confidence,
-    long SourceId,
-    InformationAcquisition AcquiredBy,
-    int AcquiredTick);
 
 public sealed record ThreatMemory(long SubjectId, int LastThreatTick);
 
@@ -162,20 +141,26 @@ public sealed class NpcState
     public NeedsState Needs { get; } = new();
     public HashSet<ConceptKind> ConceptMarks { get; } = new();
     public Dictionary<ConceptKind, double> ConceptExposure { get; } = new();
-    public HeldInformationStore HeldInformation { get; } = new();
+    public KnowledgeStore Knowledge { get; } = new();
     public long NextInformationSequence { get; set; }
     public Dictionary<long, ThreatMemory> ThreatMemory { get; } = new();
     public Dictionary<int, double> SettlementAffinity { get; } = new();
     public int? SettlementId { get; set; }
     public int? InvasionId { get; set; }
     public InvasionRole? InvasionRole { get; set; }
+    public InvasionParticipationState? InvasionParticipation { get; set; }
+    public int? FieldRestUntilTick { get; set; }
     public bool HasAdvanceBias { get; set; }
     public bool HasDefenseBias { get; set; }
     public HashSet<int> WithdrawnInvasionIds { get; } = new();
     public HashSet<ConceptKind> ActiveAuras { get; } = new();
+    public int? MigrationTargetSettlementId { get; set; }
+    public int? MigrationStartedTick { get; set; }
+    public bool FissionFounder { get; set; }
     public int? SettlementAtDeathId { get; set; }
     public int? DeathAgeDays { get; set; }
     public string? DeathCause { get; set; }
+    public long KillCount { get; set; }
     public long? ParentAId { get; init; }
     public long? ParentBId { get; init; }
 
@@ -227,7 +212,12 @@ public sealed class WorldState
     public long AttackCandidateSuppressionCount { get; set; }
     public long UnaffiliatedThreatExceptionAttackCount { get; set; }
     public long InvasionStartPreventedCount { get; set; }
+    public List<DailyUnaffiliatedResidents> UnaffiliatedResidentHistory { get; } = new();
 }
+
+public sealed record DailyUnaffiliatedResidents(
+    int Tick,
+    IReadOnlyDictionary<Position, int> ResidentCounts);
 
 public sealed class SettlementState
 {
@@ -242,6 +232,12 @@ public sealed class SettlementState
     public double CoreOccupancy { get; set; }
     public double BlockedMovementRate { get; set; }
     public double CrowdingPressure { get; set; }
+    public int UsableInfluenceCells { get; set; }
+    public int NominalResidentialCapacity { get; set; }
+    public double ResidentLoad { get; set; }
+    public double MovementCongestion { get; set; }
+    public double ReturnFailure { get; set; }
+    public List<SettlementPressureDailyRecord> PressureHistory { get; } = new();
     public List<double> CrowdingHistory { get; } = new();
     public int CrowdingConsecutiveDays { get; set; }
     public bool CrowdingInvasionArmed { get; set; } = true;
@@ -252,8 +248,16 @@ public sealed class SettlementState
     public double SupportPopulationComponent { get; set; }
     public double SupportReproductionComponent { get; set; }
     public double SupportSocialComponent { get; set; }
-    public double Support { get; set; }
+    public double SupportPotential { get; set; }
+    public double DailySupportDelta { get; set; }
+    public double Support { get; set; } = 50;
     public int LowSupportDays { get; set; }
+    public int SaturatedDays { get; set; }
+    public int RenewalCount { get; set; }
+    public int? LastRenewalTick { get; set; }
+    public int FissionPressureDays { get; set; }
+    public int? ParentSettlementId { get; set; }
+    public List<int> ChildSettlementIds { get; } = new();
 
     public bool IsActive(int tick) => DissolvedTick is null && tick >= EffectiveTick;
 }
@@ -264,6 +268,14 @@ public sealed record SettlementSupportDailyRecord(
     int ReproductionSuccessesInInfluence,
     int SocialActionsByMembersInInfluence,
     int MemberDaysInInfluence);
+
+public sealed record SettlementPressureDailyRecord(
+    int Tick,
+    int AffiliatedPopulation,
+    int MoveAttempts,
+    int CongestionBlocks,
+    int StrongHomeAttempts,
+    int FailedStrongHomeMoves);
 
 public readonly record struct SettlementPair(int FirstId, int SecondId)
 {
@@ -310,6 +322,11 @@ public sealed class InvasionState
     public bool CenterOccupied { get; set; }
     public int RestWithdrawals { get; set; }
     public int DeathWithdrawals { get; set; }
+    public int InitialAttackForce { get; set; }
+    public int AttackOccupationDays { get; set; }
+    public int AttackCollapseDays { get; set; }
+    public int InfluenceClearDays { get; set; }
+    public int LastVictoryEvaluationTick { get; set; } = -1;
 
     public bool IsPending(int tick) => EndTick is null && tick < EffectiveTick;
     public bool IsActive(int tick) => EndTick is null && tick >= EffectiveTick;
@@ -417,6 +434,12 @@ public enum SimulationEventType
     SettlementSupportEvaluated,
     InvasionCrowdingRearmed,
     InvasionStartPrevented,
+    SettlementRenewed,
+    SettlementFission,
+    MigrationStarted,
+    MigrationCompleted,
+    MigrationInterrupted,
+    InvasionParticipantStateChanged,
     AuraApplied,
     AuraExpired,
     TemporaryMaxHpNormalized,

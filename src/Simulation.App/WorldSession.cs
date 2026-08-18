@@ -432,7 +432,7 @@ internal sealed class WorldLogWriter : IDisposable
     private void WriteDiagnostics(WorldStatisticsProjection statistics)
     {
         var entry = new WorldStatisticsLogEntry(
-            5, _info.ReleaseVersion, _info.WorldNumber, _info.WorldId, _info.Seed, statistics);
+            6, _info.ReleaseVersion, _info.WorldNumber, _info.WorldId, _info.Seed, statistics);
         _diagnosticsWriter.WriteLine(JsonSerializer.Serialize(entry, EventJsonOptions));
         _lastDiagnosticsTick = statistics.Tick;
     }

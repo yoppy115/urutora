@@ -20,7 +20,7 @@ ADRは、重要で後戻りしづらい判断について「なぜそうした�
 | [`ADR-0012`](ADR-0012-concept-landmarks-and-selection.md) | Accepted | LandmarkがMarkを介して淘汰を間接的に歪める |
 | [`ADR-0013`](ADR-0013-targeted-actions-and-interrupts.md) | Accepted | Attack→Reproduction→Communication、上限付きInterrupt、phase非巻戻し |
 | [`ADR-0014`](ADR-0014-short-life-vitality-and-combat-scale.md) | Accepted | 約3年のcubic Vitality、Config初期値制約、HP/Damage同時再scale |
-| [`ADR-0015`](ADR-0015-bounded-held-information.md) | Accepted | Held Informationを3件へ制限し、FIFO evictionと直接消滅確認purgeを採用 |
+| [`ADR-0015`](ADR-0015-bounded-held-information.md) | Superseded | 旧Subject + Property 3件FIFO。ADR-0025が置換 |
 | [`ADR-0016`](ADR-0016-generation-settlement-and-order.md) | Accepted | Generation中形成、日末Maintenance、決定論的Hotspot arbitration、人口安定Order |
 | [`ADR-0017`](ADR-0017-settlement-conflict-and-invasion.md) | Accepted | Friction、Unaffiliated保護、同一Core繁殖、Crowding由来Invasionと占領・離脱 |
 | [`ADR-0018`](ADR-0018-concept-aura-social-transmission.md) | Accepted | Concept Auraの社会伝播、同種抑制、一時MaxHP normalization |
@@ -28,7 +28,13 @@ ADRは、重要で後戻りしづらい判断について「なぜそうした�
 | [`ADR-0020`](ADR-0020-deterministic-parallel-read-phases.md) | Accepted | Observer / NPC単位の分離可能な読取・計画phaseだけを並列化し、NPC ID順へ決定論的mergeする |
 | [`ADR-0021`](ADR-0021-action-specific-fatigue-and-home-bias.md) | Accepted | Action別疲労、Home Bias、Generation Proto-Orderを採用する |
 | [`ADR-0022`](ADR-0022-local-settlement-support-and-hysteresis.md) | Accepted | 局所SettlementSupportとHysteresisで自然消滅を判定する |
-| [`ADR-0023`](ADR-0023-v024-invasion-stabilization-guardrails.md) | Accepted | Invasion再arm、Alive征服、Core勝利、Friction上限を暫定固定する |
+| [`ADR-0023`](ADR-0023-v024-invasion-stabilization-guardrails.md) | Superseded | v0.2.4の暫定Invasion guardrail。ADR-0024が置換 |
+| [`ADR-0024`](ADR-0024-settlement-pressure-and-invasion-closure.md) | Accepted | SettlementPressure、Invasion hysteresis、正規化Friction、Mobilization、Center非勝利を確定 |
+| [`ADR-0025`](ADR-0025-structured-knowledge-and-person-memory.md) | Accepted | Person / Event / Settlement知識分離、人物capacity / TTL、差分Communication |
+| [`ADR-0026`](ADR-0026-event-retention-and-incremental-statistics.md) | Accepted | Recent Event、増分統計、Milestone、optional archiveを分離 |
+| [`ADR-0027`](ADR-0027-accumulated-support-renewal-and-fission.md) | Accepted | 累積Support、Renewal、Fission先行、直接親子の平時非侵略 |
+| [`ADR-0028`](ADR-0028-invasion-field-rest-and-sustained-victory.md) | Accepted | FieldRest / Retreating、Core前線、継続占領・防衛Victory |
+| [`ADR-0029`](ADR-0029-v025-unresolved-contracts-closure.md) | Accepted | Memorable / Settlement知識、Person eviction、Fission Center、Migration完了、Struggle延期を確定 |
 
 ## Future decisions
 

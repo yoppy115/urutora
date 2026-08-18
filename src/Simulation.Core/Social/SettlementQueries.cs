@@ -7,6 +7,7 @@ public enum CollisionPolicy
 {
     Combat,
     SameSettlementSuppressed,
+    ParentChildSuppressed,
     UnaffiliatedProtected,
     OtherSettlementFriction
 }
@@ -59,15 +60,22 @@ public static class SettlementQueries
 
     public static bool AreInvasionOpponents(WorldState world, NpcState first, NpcState second)
     {
-        if (!first.SettlementId.HasValue || !second.SettlementId.HasValue)
+        if (!first.InvasionId.HasValue || first.InvasionId != second.InvasionId ||
+            first.InvasionRole == second.InvasionRole ||
+            first.InvasionParticipation is InvasionParticipationState.Retreating or InvasionParticipationState.Dead ||
+            second.InvasionParticipation is InvasionParticipationState.Retreating or InvasionParticipationState.Dead)
         {
             return false;
         }
 
-        return world.Invasions.Values.Any(item => item.IsActive(world.Tick) &&
-            ((item.AttackSettlementId == first.SettlementId && item.DefenseSettlementId == second.SettlementId) ||
-             (item.AttackSettlementId == second.SettlementId && item.DefenseSettlementId == first.SettlementId)));
+        return world.Invasions.TryGetValue(first.InvasionId.Value, out var invasion) && invasion.IsActive(world.Tick);
     }
+
+    public static bool AreDirectParentChild(WorldState world, int firstId, int secondId) =>
+        world.Settlements.TryGetValue(firstId, out var first) &&
+        world.Settlements.TryGetValue(secondId, out var second) &&
+        first.DissolvedTick is null && second.DissolvedTick is null &&
+        (first.ParentSettlementId == secondId || second.ParentSettlementId == firstId);
 
     public static CollisionPolicy Collision(
         WorldState world,
@@ -98,6 +106,10 @@ public static class SettlementQueries
             ActiveSettlement(world, mover.SettlementId) is not null &&
             ActiveSettlement(world, occupant.SettlementId) is not null)
         {
+            if (AreDirectParentChild(world, mover.SettlementId.Value, occupant.SettlementId.Value))
+            {
+                return CollisionPolicy.ParentChildSuppressed;
+            }
             return CollisionPolicy.OtherSettlementFriction;
         }
 
@@ -119,6 +131,13 @@ public static class SettlementQueries
             ActiveSettlement(world, attacker.SettlementId) is not null)
         {
             return "same-settlement";
+        }
+
+        if (attacker.SettlementId.HasValue && target.SettlementId.HasValue &&
+            AreDirectParentChild(world, attacker.SettlementId.Value, target.SettlementId.Value) &&
+            !HasActiveThreat(attacker, target.Id, world.Tick, config))
+        {
+            return "parent-child-nonaggression";
         }
 
         if (attacker.SettlementId.HasValue && !target.SettlementId.HasValue &&
@@ -220,6 +239,33 @@ public static class SettlementQueries
             }
         }
 
+        result.Sort();
+        return result;
+    }
+
+    public static IReadOnlyList<Position> UsableInfluenceCells(
+        WorldState world,
+        SettlementState settlement,
+        SimulationConfig config)
+    {
+        var landmarks = world.Landmarks.Select(item => item.Position).ToHashSet();
+        var result = new List<Position>();
+        for (var y = settlement.Center.Y - config.Settlement.InfluenceRadius;
+             y <= settlement.Center.Y + config.Settlement.InfluenceRadius;
+             y++)
+        {
+            for (var x = settlement.Center.X - config.Settlement.InfluenceRadius;
+                 x <= settlement.Center.X + config.Settlement.InfluenceRadius;
+                 x++)
+            {
+                var position = new Position(x, y);
+                if (x >= 0 && x < config.World.Width && y >= 0 && y < config.World.Height &&
+                    !landmarks.Contains(position))
+                {
+                    result.Add(position);
+                }
+            }
+        }
         result.Sort();
         return result;
     }

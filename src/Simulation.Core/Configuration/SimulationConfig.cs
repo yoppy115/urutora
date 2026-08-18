@@ -22,11 +22,12 @@ public sealed class SimulationConfig
     public SettlementConfig Settlement { get; set; } = new();
     public InvasionConfig Invasion { get; set; } = new();
     public AuraConfig Aura { get; set; } = new();
+    public EventHistoryConfig EventHistory { get; set; } = new();
 
     public void Validate()
     {
         var errors = new List<string>();
-        Require(SchemaVersion == 3, "schemaVersion must be 3.", errors);
+        Require(SchemaVersion == 4, "schemaVersion must be 4.", errors);
         Require(!string.IsNullOrWhiteSpace(Id), "id is required.", errors);
         Require(World.Width > 2 && World.Height > 2, "world dimensions must be greater than 2.", errors);
         Require(World.DaysPerYear > 0, "world.daysPerYear must be positive.", errors);
@@ -89,8 +90,10 @@ public sealed class SimulationConfig
         Require(Observation.ConfidenceByDistance.All(value => value is >= 0 and <= 1),
             "observation confidence must be within 0..1.", errors);
         Require(Observation.ThreatMemoryDays > 0, "observation.threatMemoryDays must be positive.", errors);
-        Require(Observation.HeldInformationCapacityPerSubjectProperty == 3,
-            "v0.15 observation.heldInformationCapacityPerSubjectProperty must be 3.", errors);
+        Require(Observation.PersonBeliefBaseCapacity > 0 &&
+                Observation.PersonBeliefCapacityPerStableCommunication >= 0 &&
+                Observation.PersonBeliefTtlDays > 0,
+            "v0.2.5 PersonBelief capacity or TTL values are invalid.", errors);
         Require(Performance.MaximumDegreeOfParallelism is >= 0 and <= 128,
             "performance.maximumDegreeOfParallelism must be within 0..128.", errors);
         Require(Performance.MinimumPopulationForParallelism > 0,
@@ -136,6 +139,8 @@ public sealed class SimulationConfig
             "aura.restNeedDailyReduction must be finite and non-negative.", errors);
         Require(double.IsFinite(Aura.EffectiveMultiplier) && Aura.EffectiveMultiplier >= 1,
             "aura.effectiveMultiplier must be finite and at least 1.", errors);
+        Require(EventHistory.RecentEventCapacity > 0,
+            "eventHistory.recentEventCapacity must be positive.", errors);
 
         if (errors.Count > 0)
         {
@@ -258,8 +263,9 @@ public sealed class SimulationConfig
             Settlement.FrictionCollisionIncrease,
             Settlement.FrictionExplicitThreatIncrease,
             Settlement.FrictionDecayAmount,
-            Settlement.CrowdingOccupancyWeight,
-            Settlement.CrowdingBlockedMovementWeight,
+            Settlement.PressureResidentLoadWeight,
+            Settlement.PressureMovementCongestionWeight,
+            Settlement.PressureReturnFailureWeight,
             Settlement.CrowdingThreshold,
             Settlement.FrictionMaximum,
             Settlement.MoveFatigueInfluenceMultiplier,
@@ -281,7 +287,13 @@ public sealed class SimulationConfig
             Settlement.SupportSocialWeight,
             Settlement.SupportSocialActionsPerMemberDay,
             Settlement.SupportLowThreshold,
-            Settlement.SupportRecoveryThreshold
+            Settlement.SupportRecoveryThreshold,
+            Settlement.SupportRenewalPotentialThreshold,
+            Settlement.FissionPressureThreshold,
+            Settlement.FissionMigrantRatio,
+            Settlement.FissionFounderAffinity,
+            Settlement.FissionCoreResidentAffinity,
+            Settlement.MigrationBiasWeight
         }.All(double.IsFinite), "settlement numeric values must be finite.", errors);
         Require(Settlement.StayAffinityDaily >= 0 && Settlement.RestAffinity >= 0 &&
                 Settlement.CommunicationAffinity >= 0 && Settlement.ReproductionSuccessAffinity >= 0,
@@ -301,9 +313,13 @@ public sealed class SimulationConfig
                 Settlement.FrictionDecayIntervalDays > 0 && Settlement.FrictionDecayAmount >= 0 &&
                 Settlement.FrictionMaximum > 0,
             "settlement friction values are invalid.", errors);
-        Require(Settlement.CrowdingOccupancyWeight >= 0 && Settlement.CrowdingBlockedMovementWeight >= 0 &&
-                Math.Abs(Settlement.CrowdingOccupancyWeight + Settlement.CrowdingBlockedMovementWeight - 1) < 1e-9,
-            "settlement crowding weights must sum to 1.", errors);
+        Require(Settlement.PressureResidentLoadWeight >= 0 &&
+                Settlement.PressureMovementCongestionWeight >= 0 &&
+                Settlement.PressureReturnFailureWeight >= 0 &&
+                Math.Abs(Settlement.PressureResidentLoadWeight +
+                         Settlement.PressureMovementCongestionWeight +
+                         Settlement.PressureReturnFailureWeight - 1) < 1e-9,
+            "settlement pressure weights must sum to 1.", errors);
         Require(Settlement.CrowdingThreshold is >= 0 and <= 1 && Settlement.CrowdingWindowDays > 0 &&
                 Settlement.CrowdingConsecutiveDays > 0,
             "settlement crowding thresholds are invalid.", errors);
@@ -329,8 +345,23 @@ public sealed class SimulationConfig
                 Settlement.SupportSocialActionsPerMemberDay > 0 &&
                 Settlement.SupportLowThreshold >= 0 &&
                 Settlement.SupportRecoveryThreshold > Settlement.SupportLowThreshold &&
-                Settlement.SupportLowDaysForDissolution > 0,
+                Settlement.SupportLowDaysForDissolution > 0 &&
+                Settlement.SupportRenewalPotentialThreshold is >= 0 and <= 100 &&
+                Settlement.SupportRenewalConsecutiveDays > 0,
             "settlement Support or hysteresis values are invalid.", errors);
+        Require(Settlement.FissionPressureThreshold is >= 0 and <= 1 &&
+                Settlement.FissionPressureConsecutiveDays > 0 &&
+                Settlement.FissionResidentWindowDays > 0 &&
+                Settlement.FissionResidentDaysThreshold > 0 &&
+                Settlement.FissionCurrentResidentsMinimum > 0 &&
+                Settlement.FissionMinimumDistance > Settlement.InfluenceRadius &&
+                Settlement.FissionMaximumDistance >= Settlement.FissionMinimumDistance &&
+                Settlement.FissionMigrantRatio is > 0 and <= 1 &&
+                Settlement.FissionMinimumMigrants > 0 &&
+                Settlement.FissionFounderAffinity >= Settlement.MembershipThreshold &&
+                Settlement.FissionCoreResidentAffinity >= 0 &&
+                Settlement.MigrationBiasWeight > 0,
+            "settlement Fission values are invalid.", errors);
     }
 
     private void ValidateInvasion(ICollection<string> errors)
@@ -346,7 +377,9 @@ public sealed class SimulationConfig
             Invasion.AdvanceBiasWeight,
             Invasion.DefenseBiasWeight,
             Invasion.AuraCohesionWeight,
-            Invasion.CrowdingRearmPressureThreshold
+            Invasion.CrowdingRearmPressureThreshold,
+            Invasion.SevereInjuryHpRatio,
+            Invasion.AttackCollapseRatio
         }.All(double.IsFinite), "invasion numeric values must be finite.", errors);
         Require(Invasion.MobilizationMinimum is >= 0 and <= 1 &&
                 Invasion.MobilizationMaximum is >= 0 and <= 1 &&
@@ -360,6 +393,14 @@ public sealed class SimulationConfig
         Require(Invasion.CrowdingRearmPressureThreshold is >= 0 and <= 1 &&
                 Invasion.CrowdingRearmConsecutiveDays > 0,
             "invasion crowding re-arm values are invalid.", errors);
+        Require(Invasion.SevereInjuryHpRatio is > 0 and < 1 &&
+                Invasion.AttackOccupationConsecutiveDays > 0 &&
+                Invasion.AttackCollapseRatio is > 0 and < 1 &&
+                Invasion.AttackCollapseConsecutiveDays > 0 &&
+                Invasion.InfluenceClearConsecutiveDays > 0 &&
+                Invasion.StalemateDays > 0 &&
+                Invasion.MinimumForceSize > 0,
+            "v0.2.5 invasion state or victory values are invalid.", errors);
     }
 }
 
@@ -442,7 +483,9 @@ public sealed class ObservationConfig
     public double ErrorFactor { get; set; }
     public List<double> ConfidenceByDistance { get; set; } = new();
     public int ThreatMemoryDays { get; set; }
-    public int HeldInformationCapacityPerSubjectProperty { get; set; }
+    public int PersonBeliefBaseCapacity { get; set; }
+    public double PersonBeliefCapacityPerStableCommunication { get; set; }
+    public int PersonBeliefTtlDays { get; set; }
 }
 
 public sealed class PerformanceConfig
@@ -559,8 +602,9 @@ public sealed class SettlementConfig
     public int FrictionDecayIntervalDays { get; set; }
     public double FrictionDecayAmount { get; set; }
     public double FrictionMaximum { get; set; }
-    public double CrowdingOccupancyWeight { get; set; }
-    public double CrowdingBlockedMovementWeight { get; set; }
+    public double PressureResidentLoadWeight { get; set; }
+    public double PressureMovementCongestionWeight { get; set; }
+    public double PressureReturnFailureWeight { get; set; }
     public double CrowdingThreshold { get; set; }
     public int CrowdingWindowDays { get; set; }
     public int CrowdingConsecutiveDays { get; set; }
@@ -587,6 +631,20 @@ public sealed class SettlementConfig
     public double SupportLowThreshold { get; set; }
     public double SupportRecoveryThreshold { get; set; }
     public int SupportLowDaysForDissolution { get; set; }
+    public double SupportRenewalPotentialThreshold { get; set; }
+    public int SupportRenewalConsecutiveDays { get; set; }
+    public double FissionPressureThreshold { get; set; }
+    public int FissionPressureConsecutiveDays { get; set; }
+    public int FissionResidentWindowDays { get; set; }
+    public int FissionResidentDaysThreshold { get; set; }
+    public int FissionCurrentResidentsMinimum { get; set; }
+    public int FissionMinimumDistance { get; set; }
+    public int FissionMaximumDistance { get; set; }
+    public double FissionMigrantRatio { get; set; }
+    public int FissionMinimumMigrants { get; set; }
+    public double FissionFounderAffinity { get; set; }
+    public double FissionCoreResidentAffinity { get; set; }
+    public double MigrationBiasWeight { get; set; }
 }
 
 public sealed class InvasionConfig
@@ -602,6 +660,13 @@ public sealed class InvasionConfig
     public double AuraCohesionWeight { get; set; }
     public double CrowdingRearmPressureThreshold { get; set; }
     public int CrowdingRearmConsecutiveDays { get; set; }
+    public double SevereInjuryHpRatio { get; set; }
+    public int AttackOccupationConsecutiveDays { get; set; }
+    public double AttackCollapseRatio { get; set; }
+    public int AttackCollapseConsecutiveDays { get; set; }
+    public int InfluenceClearConsecutiveDays { get; set; }
+    public int StalemateDays { get; set; }
+    public int MinimumForceSize { get; set; }
 }
 
 public sealed class AuraConfig
@@ -609,6 +674,11 @@ public sealed class AuraConfig
     public int Radius { get; set; }
     public double RestNeedDailyReduction { get; set; }
     public double EffectiveMultiplier { get; set; }
+}
+
+public sealed class EventHistoryConfig
+{
+    public int RecentEventCapacity { get; set; }
 }
 
 public static class SimulationConfigLoader

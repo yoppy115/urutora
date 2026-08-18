@@ -17,6 +17,21 @@ public sealed class InvasionSystem
 
     public void ActivatePending(WorldState world, DomainEventEmitter emit)
     {
+        foreach (var npc in world.Npcs.Values
+                     .Where(item => item.IsAlive && item.InvasionParticipation == InvasionParticipationState.FieldRest &&
+                                    item.FieldRestUntilTick <= world.Tick)
+                     .OrderBy(item => item.Id))
+        {
+            npc.InvasionParticipation = npc.InvasionRole == InvasionRole.Attacker
+                ? InvasionParticipationState.Advancing
+                : InvasionParticipationState.Defending;
+            npc.FieldRestUntilTick = null;
+            npc.HasAdvanceBias = npc.InvasionRole == InvasionRole.Attacker;
+            npc.HasDefenseBias = npc.InvasionRole == InvasionRole.Defender;
+            emit(0, SimulationEventType.InvasionParticipantStateChanged, npc.Id, null, npc.Position, true,
+                $"invasion={npc.InvasionId};state={npc.InvasionParticipation};reason=field-rest-complete");
+        }
+
         foreach (var invasion in world.Invasions.Values
                      .Where(item => item.EffectiveTick == world.Tick && item.EndTick is null)
                      .OrderBy(item => item.Id))
@@ -38,6 +53,7 @@ public sealed class InvasionSystem
 
                 npc.InvasionId = invasion.Id;
                 npc.InvasionRole = InvasionRole.Attacker;
+                npc.InvasionParticipation = InvasionParticipationState.Advancing;
                 npc.HasAdvanceBias = true;
                 emit(0, SimulationEventType.InvasionParticipantJoined, npc.Id, null, npc.Position, true,
                     $"invasion={invasion.Id};role=attacker");
@@ -53,6 +69,7 @@ public sealed class InvasionSystem
             {
                 npc.InvasionId = invasion.Id;
                 npc.InvasionRole = InvasionRole.Defender;
+                npc.InvasionParticipation = InvasionParticipationState.Defending;
                 npc.HasDefenseBias = true;
                 invasion.DefenseParticipantIds.Add(npc.Id);
                 emit(0, SimulationEventType.InvasionParticipantJoined, npc.Id, null, npc.Position, true,
@@ -66,10 +83,17 @@ public sealed class InvasionSystem
         }
     }
 
-    public void StartEligibleInvasions(WorldState world, IReadOnlySet<long> restingNpcIds, DomainEventEmitter emit)
+    public void StartEligibleInvasions(
+        WorldState world,
+        IReadOnlySet<long> restingNpcIds,
+        DomainEventEmitter emit,
+        IReadOnlySet<int>? permittedSourceIds = null)
     {
         foreach (var source in SettlementQueries.ActiveSettlements(world)
                      .Where(item => item.CrowdingConsecutiveDays >= _config.Settlement.CrowdingConsecutiveDays)
+                     .Where(item => permittedSourceIds is null || permittedSourceIds.Contains(item.Id))
+                     .Where(item => world.Phase == WorldPhase.Order &&
+                                    item.Support >= _config.Settlement.SupportRecoveryThreshold)
                      .OrderBy(item => item.Id))
         {
             if (IsSettlementEngaged(world, source.Id))
@@ -98,7 +122,7 @@ public sealed class InvasionSystem
                 _config.Invasion.MobilizationMinimum,
                 _config.Invasion.MobilizationMaximum);
             var forceSize = (int)Math.Round(population * rate, MidpointRounding.AwayFromZero);
-            if (forceSize <= 0)
+            if (forceSize < _config.Invasion.MinimumForceSize)
             {
                 continue;
             }
@@ -136,7 +160,7 @@ public sealed class InvasionSystem
             }
 
             var participants = core.Concat(frontier).Select(item => item.Id).Distinct().OrderBy(item => item).ToArray();
-            if (participants.Length == 0)
+            if (participants.Length < _config.Invasion.MinimumForceSize)
             {
                 continue;
             }
@@ -154,6 +178,7 @@ public sealed class InvasionSystem
                 CoreCohortIds = core.Select(item => item.Id).OrderBy(item => item).ToArray(),
                 FrontierCohortIds = frontier.Select(item => item.Id).OrderBy(item => item).ToArray()
             };
+            invasion.InitialAttackForce = participants.Length;
             world.Invasions.Add(invasion.Id, invasion);
             source.CrowdingInvasionArmed = false;
             source.CrowdingRearmConsecutiveDays = 0;
@@ -164,20 +189,51 @@ public sealed class InvasionSystem
 
     public Position? MovementTarget(WorldState world, NpcState npc)
     {
-        if (!IsActiveParticipant(world, npc) ||
-            !world.Invasions.TryGetValue(npc.InvasionId!.Value, out var invasion))
+        if (!npc.InvasionId.HasValue ||
+            !world.Invasions.TryGetValue(npc.InvasionId.Value, out var invasion) ||
+            !invasion.IsActive(world.Tick) ||
+            npc.InvasionParticipation is InvasionParticipationState.FieldRest or InvasionParticipationState.Dead)
         {
             return null;
         }
 
-        if (npc.HasAdvanceBias && world.Settlements.TryGetValue(invasion.DefenseSettlementId, out var defense))
+        if (npc.InvasionParticipation == InvasionParticipationState.Retreating &&
+            world.Settlements.TryGetValue(
+                npc.InvasionRole == InvasionRole.Attacker
+                    ? invasion.AttackSettlementId
+                    : invasion.DefenseSettlementId,
+                out var home))
         {
-            return defense.Center;
+            return home.Center;
         }
 
-        if (npc.HasDefenseBias && world.Settlements.TryGetValue(invasion.DefenseSettlementId, out var defended) &&
-            world.Settlements.TryGetValue(invasion.AttackSettlementId, out var attacker))
+        if (npc.HasAdvanceBias && world.Settlements.TryGetValue(invasion.DefenseSettlementId, out var defense))
         {
+            return SettlementQueries.UsableCoreCells(world, defense, _config)
+                .OrderBy(item => item.ChebyshevDistance(npc.Position))
+                .ThenBy(item => _random.StablePriority(
+                    "invasion", world.Tick, npc.Id, "advance-core-target", item.ToString()))
+                .ThenBy(item => item)
+                .Cast<Position?>()
+                .FirstOrDefault();
+        }
+
+        if (npc.HasDefenseBias && world.Settlements.TryGetValue(invasion.DefenseSettlementId, out var defended))
+        {
+            var invader = world.Npcs.Values
+                .Where(item => item.IsAlive && item.InvasionId == invasion.Id &&
+                               item.InvasionRole == InvasionRole.Attacker &&
+                               item.InvasionParticipation != InvasionParticipationState.Retreating &&
+                               item.Position.ChebyshevDistance(defended.Center) <= _config.Settlement.InfluenceRadius)
+                .OrderBy(item => item.Position.ChebyshevDistance(npc.Position))
+                .ThenBy(item => item.Id)
+                .FirstOrDefault();
+            if (invader is not null)
+            {
+                return invader.Position;
+            }
+
+            var attacker = world.Settlements[invasion.AttackSettlementId];
             return new Position(
                 defended.Center.X + Math.Sign(attacker.Center.X - defended.Center.X),
                 defended.Center.Y + Math.Sign(attacker.Center.Y - defended.Center.Y));
@@ -189,7 +245,8 @@ public sealed class InvasionSystem
     public static bool IsActiveParticipant(WorldState world, NpcState npc) =>
         npc.InvasionId.HasValue &&
         world.Invasions.TryGetValue(npc.InvasionId.Value, out var invasion) &&
-        invasion.IsActive(world.Tick);
+        invasion.IsActive(world.Tick) &&
+        npc.InvasionParticipation is InvasionParticipationState.Advancing or InvasionParticipationState.Defending;
 
     public void WithdrawForRest(WorldState world, NpcState npc, DomainEventEmitter emit, int microRound)
     {
@@ -200,18 +257,49 @@ public sealed class InvasionSystem
         }
 
         var role = npc.InvasionRole;
-        npc.WithdrawnInvasionIds.Add(invasion.Id);
-        npc.InvasionId = null;
-        npc.InvasionRole = null;
+        var maxHp = Math.Max(npc.EffectiveStats(_config).MaxHp, double.Epsilon);
+        var severe = npc.CurrentHp / maxHp <= _config.Invasion.SevereInjuryHpRatio;
+        npc.InvasionParticipation = severe
+            ? InvasionParticipationState.Retreating
+            : InvasionParticipationState.FieldRest;
+        npc.FieldRestUntilTick = severe ? null : world.Tick + 1;
         npc.HasAdvanceBias = false;
         npc.HasDefenseBias = false;
-        if (role == InvasionRole.Attacker)
+        if (severe)
         {
-            invasion.RestWithdrawals++;
+            npc.WithdrawnInvasionIds.Add(invasion.Id);
+            if (role == InvasionRole.Attacker)
+            {
+                invasion.RestWithdrawals++;
+            }
         }
 
+        emit(microRound, severe ? SimulationEventType.InvasionParticipantWithdrew :
+                SimulationEventType.InvasionParticipantStateChanged,
+            npc.Id, null, npc.Position, true,
+            $"invasion={invasion.Id};role={role};reason=rest;state={npc.InvasionParticipation}");
+    }
+
+    public void NotifyFlee(WorldState world, NpcState npc, DomainEventEmitter emit, int microRound)
+    {
+        if (!npc.InvasionId.HasValue || !world.Invasions.TryGetValue(npc.InvasionId.Value, out var invasion) ||
+            !invasion.IsActive(world.Tick))
+        {
+            return;
+        }
+
+        var maxHp = Math.Max(npc.EffectiveStats(_config).MaxHp, double.Epsilon);
+        if (npc.CurrentHp / maxHp > _config.Invasion.SevereInjuryHpRatio)
+        {
+            return;
+        }
+
+        npc.WithdrawnInvasionIds.Add(invasion.Id);
+        npc.InvasionParticipation = InvasionParticipationState.Retreating;
+        npc.HasAdvanceBias = false;
+        npc.HasDefenseBias = false;
         emit(microRound, SimulationEventType.InvasionParticipantWithdrew, npc.Id, null, npc.Position, true,
-            $"invasion={invasion.Id};role={role};reason=rest");
+            $"invasion={invasion.Id};role={npc.InvasionRole};reason=flee;state=Retreating");
     }
 
     public void NotifyDeath(WorldState world, NpcState npc, DomainEventEmitter emit, int microRound)
@@ -223,8 +311,7 @@ public sealed class InvasionSystem
 
         invasion.DeathWithdrawals++;
         var role = npc.InvasionRole;
-        npc.InvasionId = null;
-        npc.InvasionRole = null;
+        npc.InvasionParticipation = InvasionParticipationState.Dead;
         npc.HasAdvanceBias = false;
         npc.HasDefenseBias = false;
         emit(microRound, SimulationEventType.InvasionParticipantWithdrew, npc.Id, null, npc.Position, true,
@@ -235,13 +322,15 @@ public sealed class InvasionSystem
     {
         foreach (var invasion in world.Invasions.Values.Where(item => item.IsActive(world.Tick)).OrderBy(item => item.Id).ToArray())
         {
-            var aliveAdvance = world.Npcs.Values.Count(item => item.IsAlive && item.InvasionId == invasion.Id &&
-                item.InvasionRole == InvasionRole.Attacker && item.HasAdvanceBias);
-            if (aliveAdvance == 0)
+            if (invasion.LastVictoryEvaluationTick == world.Tick)
             {
-                End(world, invasion, InvasionOutcome.DefenseVictory, emit, microRound, "no-alive-advance-participants");
                 continue;
             }
+            invasion.LastVictoryEvaluationTick = world.Tick;
+
+            var aliveAdvance = world.Npcs.Values.Count(item => item.IsAlive && item.InvasionId == invasion.Id &&
+                item.InvasionRole == InvasionRole.Attacker &&
+                item.InvasionParticipation != InvasionParticipationState.Retreating);
 
             if (!world.Settlements.TryGetValue(invasion.DefenseSettlementId, out var defense))
             {
@@ -260,17 +349,45 @@ public sealed class InvasionSystem
                 item.SettlementId == invasion.AttackSettlementId && item.Position == defense.Center);
             invasion.MaximumCoreOccupationRate = Math.Max(invasion.MaximumCoreOccupationRate, rate);
             invasion.CenterOccupied |= centerOccupied;
-            if (rate >= _config.Invasion.AttackOccupationThreshold)
+            invasion.AttackOccupationDays = rate >= _config.Invasion.AttackOccupationThreshold
+                ? invasion.AttackOccupationDays + 1
+                : 0;
+            var initial = Math.Max(1, invasion.InitialAttackForce > 0
+                ? invasion.InitialAttackForce
+                : invasion.AttackParticipantIds.Count);
+            invasion.AttackCollapseDays = (double)aliveAdvance / initial <= _config.Invasion.AttackCollapseRatio
+                ? invasion.AttackCollapseDays + 1
+                : 0;
+            var attackerInInfluence = world.Npcs.Values.Any(item => item.IsAlive && item.InvasionId == invasion.Id &&
+                item.InvasionRole == InvasionRole.Attacker &&
+                item.InvasionParticipation != InvasionParticipationState.Retreating &&
+                item.Position.ChebyshevDistance(defense.Center) <= _config.Settlement.InfluenceRadius);
+            invasion.InfluenceClearDays = attackerInInfluence ? 0 : invasion.InfluenceClearDays + 1;
+
+            if (invasion.AttackOccupationDays >= _config.Invasion.AttackOccupationConsecutiveDays)
             {
                 End(world, invasion, InvasionOutcome.AttackVictory, emit, microRound,
-                    "core-occupation");
+                    "core-occupation-3-days");
+            }
+            else if (invasion.AttackCollapseDays >= _config.Invasion.AttackCollapseConsecutiveDays)
+            {
+                End(world, invasion, InvasionOutcome.DefenseVictory, emit, microRound, "attack-force-collapse");
+            }
+            else if (invasion.InfluenceClearDays >= _config.Invasion.InfluenceClearConsecutiveDays)
+            {
+                End(world, invasion, InvasionOutcome.DefenseVictory, emit, microRound, "defense-influence-clear");
+            }
+            else if (world.Tick - invasion.EffectiveTick + 1 >= _config.Invasion.StalemateDays)
+            {
+                End(world, invasion, InvasionOutcome.DefenseVictory, emit, microRound, "stalemate-90-days");
             }
         }
     }
 
     private (SettlementState Settlement, string Reason)? SelectTarget(WorldState world, SettlementState source)
     {
-        var candidates = SettlementQueries.ActiveSettlements(world).Where(item => item.Id != source.Id)
+        var candidates = SettlementQueries.ActiveSettlements(world)
+            .Where(item => item.Id != source.Id && !SettlementQueries.AreDirectParentChild(world, source.Id, item.Id))
             .Select(item =>
             {
                 var hostile = world.Hostilities.Contains(new HostilityEdge(source.Id, item.Id));
@@ -326,6 +443,8 @@ public sealed class InvasionSystem
         {
             npc.InvasionId = null;
             npc.InvasionRole = null;
+            npc.InvasionParticipation = null;
+            npc.FieldRestUntilTick = null;
             npc.HasAdvanceBias = false;
             npc.HasDefenseBias = false;
         }
