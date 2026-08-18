@@ -10,6 +10,25 @@ public sealed record NpcProjection(
     int? SettlementId,
     int? InvasionId);
 
+public sealed record NpcStatusProjection(
+    long Id,
+    bool IsAlive,
+    Position Position,
+    int AgeDays,
+    int DaysPerYear,
+    double CurrentHp,
+    double EffectiveMaxHp,
+    NeedsSnapshot Needs,
+    IReadOnlySet<ConceptKind> ConceptMarks,
+    IReadOnlySet<ConceptKind> ActiveAuras,
+    int? SettlementId,
+    int? InvasionId,
+    InvasionRole? InvasionRole,
+    int HeldInformationCount)
+{
+    public double AgeYears => (double)AgeDays / DaysPerYear;
+}
+
 public sealed record LandmarkProjection(ConceptKind Concept, Position Position);
 
 public sealed record SettlementProjection(

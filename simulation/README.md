@@ -97,4 +97,4 @@ Advance / Cohesionの具体WeightはConfig / implementation detailだがAdvance�
 }
 ```
 
-`events.jsonl`（wrapper schema 4）、`daily-stats.csv`、`diagnostics.jsonl`（schema 5）はWorld別に保存する。Eventと日次CSVは全日、重い全履歴diagnosticsはschema 6 App Configの間隔と完了時に保存する。明示完了時に`completion.json`を最後に確定し、同markerがあるWorldだけをZIPへ圧縮する。強制終了や通常終了で未完了のdirectoryを完了済みと誤認しない。Simulation snapshotの保存・再開とschema migrationは引き続きDraftである。
+`events.jsonl`（wrapper schema 4）、`daily-stats.csv`、`diagnostics.jsonl`（schema 5）はWorld別に保存する。Eventと日次CSVは全日、重い全履歴diagnosticsはschema 7 App Configの間隔と完了時に保存する。Desktopは日次cacheと現在snapshotだけを描画し、全履歴diagnosticsを画面更新時に再構築しない。明示完了時に`completion.json`を最後に確定し、同markerがあるWorldだけをZIPへ圧縮する。強制終了や通常終了で未完了のdirectoryを完了済みと誤認しない。Simulation snapshotの保存・再開とschema migrationは引き続きDraftである。

@@ -24,7 +24,7 @@ internal static class Program
         ("ConceptMark renders as a concept-colored flag", ConceptMarkRendersAsColoredFlag),
         ("Settlement palette expands and recycles dissolved colors", SettlementPaletteExpandsAndRecycles),
         ("Settlement center click takes priority over NPC click", SettlementCenterClickTakesPriority),
-        ("Social display hides dissolved Settlements and scopes Friction", SocialDisplayFiltersSettlementsAndFriction)
+        ("recent event display omits Friction telemetry", RecentEventDisplayOmitsFrictionTelemetry)
     };
 
     [STAThread]
@@ -53,10 +53,10 @@ internal static class Program
     private static void ObservationAppConfigurationIsStrict()
     {
         var config = ObservationAppConfigLoader.Load(AppConfigPath());
-        Equal(6, config.SchemaVersion);
+        Equal(7, config.SchemaVersion);
         Equal(1, config.SeedIncrement);
-        Equal(500, config.NpcActionHistoryDisplayLimit);
-        Equal(0.5, config.AgeDistributionBinYears);
+        Equal(80, config.RecentEventDisplayLimit);
+        Equal(730, config.ChartMaximumPoints);
         Equal(10, config.LogFlushIntervalDays);
         Equal(30, config.DiagnosticsIntervalDays);
         Equal(2, config.AutomaticAdvanceWorkSliceDays);
@@ -67,7 +67,7 @@ internal static class Program
         try
         {
             var json = File.ReadAllText(AppConfigPath())
-                .Replace("\"schemaVersion\": 6", "\"schemaVersion\": 6, \"unknown\": true", StringComparison.Ordinal);
+                .Replace("\"schemaVersion\": 7", "\"schemaVersion\": 7, \"unknown\": true", StringComparison.Ordinal);
             File.WriteAllText(invalidPath, json);
             Throws<ConfigurationException>(() => ObservationAppConfigLoader.Load(invalidPath));
         }
@@ -456,27 +456,8 @@ internal static class Program
         Equal(1, panel.SelectedSettlementId!.Value);
     }
 
-    private static void SocialDisplayFiltersSettlementsAndFriction()
+    private static void RecentEventDisplayOmitsFrictionTelemetry()
     {
-        var settlements = new[]
-        {
-            SettlementStatistics(1, active: true),
-            SettlementStatistics(2, active: false),
-            SettlementStatistics(3, active: false, dissolvedTick: 20)
-        };
-        SequenceEqual(new[] { 1, 2 },
-            ObservationDisplayPolicy.VisibleSocialSettlements(settlements).Select(item => item.Id));
-
-        var frictions = new[]
-        {
-            new FrictionStatistics(1, 2, 3, 2, 0, 1, 10),
-            new FrictionStatistics(2, 3, 8, 4, 1, 0, 12),
-            new FrictionStatistics(1, 3, 5, 3, 1, 2, 14)
-        };
-        SequenceEqual(new[] { (1, 3), (1, 2) },
-            ObservationDisplayPolicy.FrictionsForSettlement(frictions, 1)
-                .Select(item => (item.FirstSettlementId, item.SecondSettlementId)));
-
         var events = new[]
         {
             new SimulationEvent("friction", 1, 0, SimulationEventType.SettlementFrictionChanged,
@@ -490,12 +471,6 @@ internal static class Program
 
     private static SettlementProjection Settlement(int id, bool active) =>
         new(id, id == 1 ? new Position(4, 4) : new Position(id % 10, id % 10), 2, 7, id, active, 1, 0);
-
-    private static SettlementStatistics SettlementStatistics(int id, bool active, int? dissolvedTick = null) =>
-        new(id, new Position(id, id), id, 2, active, 4, 1, 2, 1, 0.2, 0.4, 0.1, 0,
-            true, 0, 0, 50, 0.5, 0.5, 0.5, 0, 90, 8, 4, 3, 2, 8, 2,
-            0, 0, 0, 0, 0, 0, 0, 0,
-            dissolvedTick, dissolvedTick.HasValue ? "test" : null, null);
 
     private static string TemporaryDirectory()
     {

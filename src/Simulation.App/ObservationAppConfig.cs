@@ -14,8 +14,6 @@ public sealed class ObservationAppConfig
     public int WorldNumberPadding { get; set; }
     public int RecentEventDisplayLimit { get; set; }
     public int ChartMaximumPoints { get; set; }
-    public int NpcActionHistoryDisplayLimit { get; set; }
-    public double AgeDistributionBinYears { get; set; }
     public int LogFlushIntervalDays { get; set; }
     public int DiagnosticsIntervalDays { get; set; }
     public int AutomaticAdvanceWorkSliceDays { get; set; }
@@ -26,7 +24,7 @@ public sealed class ObservationAppConfig
     public void Validate()
     {
         var errors = new List<string>();
-        Require(SchemaVersion == 6, "schemaVersion must be 6.", errors);
+        Require(SchemaVersion == 7, "schemaVersion must be 7.", errors);
         Require(SeedIncrement != 0, "seedIncrement cannot be zero.", errors);
         Require(IsSafeRelativeDirectory(LogDirectory),
             "logDirectory must be a simple relative path inside the repository.", errors);
@@ -41,10 +39,6 @@ public sealed class ObservationAppConfig
             "recentEventDisplayLimit must be positive.", errors);
         Require(ChartMaximumPoints >= 2,
             "chartMaximumPoints must be at least 2.", errors);
-        Require(NpcActionHistoryDisplayLimit > 0,
-            "npcActionHistoryDisplayLimit must be positive.", errors);
-        Require(double.IsFinite(AgeDistributionBinYears) && AgeDistributionBinYears is > 0 and <= 10,
-            "ageDistributionBinYears must be finite and within (0, 10].", errors);
         Require(LogFlushIntervalDays is >= 1 and <= 365,
             "logFlushIntervalDays must be within 1..365.", errors);
         Require(DiagnosticsIntervalDays is >= 1 and <= 365,

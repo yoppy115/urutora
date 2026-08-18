@@ -42,6 +42,7 @@ internal static class Program
         ("Settlement birth affiliation applies parent, Influence, and Core scopes", SettlementBirthAffiliationRules),
         ("birth batch arbitration is queue-order independent", BirthArbitrationIsOrderIndependent),
         ("NPC detail projection exposes stable lineage", NpcDetailProjectionExposesStableLineage),
+        ("NPC status projection reads current state without history", NpcStatusProjectionReadsCurrentState),
         ("NPC action history excludes movement events", NpcActionHistoryExcludesMovementEvents),
         ("NPC kill count includes combat deaths only", NpcKillCountIncludesCombatDeathsOnly),
         ("world statistics count selected action commands", WorldStatisticsCountSelectedActions),
@@ -831,6 +832,22 @@ internal static class Program
         True(details.ActionHistory.All(item => item.OtherNpcId != details.Id),
             "NPC action history reported itself as the other participant.");
         Throws<ArgumentOutOfRangeException>(() => engine.GetNpcDetails(details.Id, 0));
+    }
+
+    private static void NpcStatusProjectionReadsCurrentState()
+    {
+        var engine = new SimulationEngine(LoadConfig(), 321);
+        var npc = engine.GetSnapshot(0).Npcs.First();
+        var status = engine.GetNpcStatus(npc.Id)
+            ?? throw new InvalidOperationException("NPC status was not projected.");
+
+        Equal(npc.Id, status.Id);
+        Equal(npc.Position, status.Position);
+        Equal(npc.SettlementId, status.SettlementId);
+        Equal(npc.InvasionId, status.InvasionId);
+        True(status.IsAlive, "Living NPC was projected as dead.");
+        True(status.EffectiveMaxHp > 0, "Effective MaxHP was not projected.");
+        True(engine.GetNpcStatus(long.MaxValue) is null, "Unknown NPC unexpectedly had a status.");
     }
 
     private static void NpcKillCountIncludesCombatDeathsOnly()

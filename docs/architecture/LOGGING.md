@@ -90,7 +90,7 @@ v0.15 Runでは少なくとも次を集計可能にする。
 - 征服時のAffiliationChangedはAlive NPCだけに発行し、Dead NPCのHistoryを変更しない。
 - ログflush間隔はOperations設定でありEvent意味論を変えない。Run identityと保存運用は[`ENGINEERING_REPRODUCIBILITY.md`](ENGINEERING_REPRODUCIBILITY.md)に従う。
 
-v0.2.4実装では`run.json` schema 5、Event wrapper schema 4、diagnostics schema 5、Observation App Config schema 6を使用し、日次CSVへRest率、選択時Rest Need / Pressure、平均Support、LowSupportDays、armed数、連続開始防止数を追加する。
+v0.2.4実装では`run.json` schema 5、Event wrapper schema 4、diagnostics schema 5、Observation App Config schema 7を使用し、日次CSVへRest率、選択時Rest Need / Pressure、平均Support、LowSupportDays、armed数、連続開始防止数を追加する。schema 7はDesktop軽量化に伴いNPC履歴件数と年齢bin幅の廃止済み表示設定を削除するが、Worldログschemaと内容は変更しない。
 
 必須集計項目は [`STATISTICS.md`](STATISTICS.md) を正本とする。
 

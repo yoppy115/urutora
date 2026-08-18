@@ -15,11 +15,11 @@ DraftやTBDをこの台帳だけで確定仕様に変えてはならない。
 | App内の世界生成command | Implemented | `PLAYER_OBSERVATION.md` | buttonまたはCtrl+N。進行中は現在runを停止し、処理中の日が完了してから新規観測runを生成 |
 | World runの連番 | Implemented | `observation-app.json` | release versionごとに `world-NNNN`。各versionで0001から開始し、同version内は既存最大番号+1 |
 | World別ログ | Implemented | `LOGGING.md` | 観測中は`logs/vX.Y/world-NNNN/`。完了後は検証済みZIP＋SHA-256へ原子的に圧縮。生ログのためGit管理外 |
-| NPC番号とクリック詳細 | Implemented | `PLAYER_OBSERVATION.md` | 既存の安定した数値Entity IDを使用。Coreのread-only projection。Combat由来Death EventでNPC別キル数を表示 |
-| NPC行動履歴 | Implemented | `PLAYER_OBSERVATION.md` | NPCがactor / targetの既存EventからMove / MoveFailedだけを除外。新規Eventや因果を生成せず、表示上限500件をApp Config化 |
-| 世界統計graph / table | Implemented | `PLAYER_OBSERVATION.md`, `V0_15_ECOLOGY.md`, `STATISTICS.md` | 人口・所属率・平均年齢graph、選択Action、死因、現在年齢分布、World Phase、非消滅Settlement、Invasion、Aura、繁殖・Combat等をread-only表示。FrictionはSettlement詳細へ分離 |
-| 現在年齢分布の表示bin | Implementation detail | `simulation/configs/observation-app.json` | 生存NPCだけを0歳から隙間なく0.5年幅で集計。0件binも表示し、人数・構成比・相対barを表示 |
-| App観測設定 | Implemented | `simulation/configs/observation-app.json` | schema 6。完了World圧縮、旧release log削除、Worldログflush間隔、全履歴diagnostics間隔、automatic advanceのwork slice / cooldownを管理 |
+| NPC番号とクリック詳細 | Implemented | `PLAYER_OBSERVATION.md` | 既存の安定した数値Entity IDを使用。Desktop Appは現在位置・年齢・HP・Need・Concept・所属・InvasionだけをO(1) read-only projectionで表示し、Event全走査を行わない |
+| NPC行動履歴 | Headless projection only | `PLAYER_OBSERVATION.md` | Coreの既存read-only projectionは保持するが、Desktop Appから履歴・系譜・Affinity・キル数表示を外した。EventとWorldログは削除しない |
+| 世界統計graph / table | Lightweight desktop / full headless | `PLAYER_OBSERVATION.md`, `V0_15_ECOLOGY.md`, `STATISTICS.md` | Desktop Appは人口・所属率・平均年齢graph、現在Phase/人口/所属/Settlement/平均年齢、累積Action選択だけを表示。死因・年齢分布・社会・戦闘・繁殖・Rest診断はheadless projectionとWorldログに保持 |
+| 現在年齢分布の表示bin | Removed from Desktop | `simulation/configs/observation-app.json` | Coreの年齢分布projectionは保持するが、毎描画の生存NPC再集計を避けるためDesktop Appから除外 |
+| App観測設定 | Implemented | `simulation/configs/observation-app.json` | schema 7。完了World圧縮、旧release log削除、Worldログflush間隔、全履歴diagnostics間隔、automatic advanceのwork slice / cooldown、軽量UIのEvent / graph保持上限を管理。廃止した履歴・年齢bin表示設定を削除 |
 | World完了command | Implemented | `LOGGING.md`, `observation-app.json` | `世界完了`で現在runのstreamを閉じ、`completion.json`を最後に確定して検証済みZIPへ圧縮。通常のApp終了・強制終了は未完了のまま保持し、次回起動時に誤圧縮しない |
 | 指定年数反復実行 | Implemented | `observation-app.json` | Appで整数年数とWorld回数を指定。各Worldを`years * daysPerYear` tickで完了・圧縮し、release内の次番号・次seedで反復。最後のWorldは完了状態のread-only表示で停止。Core規則とtick順は変更しない |
 | 旧BIOS向け負荷抑制 | Conservative technical default | `v0-default.json`, `observation-app.json` | CPU並列度defaultを全24論理CPU自動から8へ制限し、自動進行を2日slice + 15ms cooldownで実行。Simulation結果は直列・並列同値を維持し、wall-clock負荷だけを抑える。firmware起因BSODの絶対保証ではない |
@@ -51,11 +51,12 @@ DraftやTBDをこの台帳だけで確定仕様に変えてはならない。
 | v0.2.2性能比較 | Verification record | `Simulation.App`, v0.2.1 release artifact | seed 8147292、120日、Worldログ有効の同一PC比較でv0.2.1 15.828秒、v0.2.2 14.493秒。比較用一時harnessはGit管理外 |
 | v0.2.3決定論的CPU並列化 | Implementation detail | `ARCHITECTURE.md`, `ADR-0020`, `v0-default.json` | ObservationをObserver単位、初回Intent planをNPC単位で分離し、NPC ID順にmerge。Action Resolution / Event / Maintenanceは直列。並列度0は論理CPU自動、1は直列、現行安全defaultは8、default開始人口128 |
 | v0.2.3知覚空間索引 | Implementation detail | `ARCHITECTURE.md`, `ADR-0020` | 各Observerの全Alive走査をやめ、Position索引からradius 3内だけをSubject ID順に取得。乱数key、Held Information順、Eventを維持 |
-| Settlement詳細Tab | Implementation detail | `PLAYER_OBSERVATION.md`, `STATISTICS.md` | Active Center clickをNPC clickより優先し、形成・人口・Core / Crowdingと当該Settlement PairのFrictionをread-only表示。World社会表から消滅済みSettlementとFrictionを非表示化 |
+| Settlement詳細Tab | Lightweight implementation detail | `PLAYER_OBSERVATION.md`, `STATISTICS.md` | Active Center clickをNPC clickより優先し、現在のCenter・形成日・人口・Core / Influence半径・Crowdingだけをsnapshotから表示。Support / Friction / 履歴はheadless projectionとWorldログに保持 |
 | v0.2.3人口300性能比較 | Verification record | `Simulation.Core`, `v0-default.json` | seed 8147291、初期人口300、120日、Worldログ有効、24 logical CPUの同一PCでv0.2.2 default 27.985秒、v0.2.3直列27.379秒、v0.2.3自動並列15.057秒。Event/stateは直列・並列一致test済み。一時harnessはGit管理外 |
 | v0.2.4 Move地域判定 | Conservative implementation detail | `V0_2_4_SETTLEMENT_STABILIZATION.md`, `Settlement Movement Policy` | 自領域Move疲労軽減は移動元と最終Cellがともに自Core / Influence内の場合に適用。Influence重複時のForeign weightは、回避側の最小倍率を退出側より優先し、複数Settlementによる倍率の無制限乗算を避ける |
 | v0.2.4 Support初期window | Conservative implementation detail | `V0_2_4_SETTLEMENT_STABILIZATION.md`, `Settlement Support` | 成立後90日未満は存在する日数だけでAverage / totalsを算出する。分母のFormation thresholdとMemberDaysは正史式を維持し、365日hysteresisを早送りしない |
-| v0.2.4観測projection | Implemented | `STATISTICS.md`, `LOGGING.md` | Settlement詳細へCore / Influence / 外部人数、Support P/R/S、LowSupportDays、Home / Foreign移動、armed / re-armを追加。世界統計へRest率、選択時Need / Pressure、Action別疲労、Invasion連続開始防止を追加 |
+| v0.2.4観測projection | Headless / log implemented | `STATISTICS.md`, `LOGGING.md` | CoreとWorldログはCore / Influence / 外部人数、Support P/R/S、LowSupportDays、Home / Foreign移動、Rest、疲労、Invasion診断を保持。Desktop Appはこれらの全履歴projectionを描画経路から外す |
+| v0.2.4軽量観測UI | Conservative implementation detail | `Simulation.App`, `observation-app.json` | 描画ごとの`GetWorldStatistics`、年齢分布、NPC Event履歴、Settlement Friction集計を廃止し、WorldSessionの日次cacheと現在snapshotだけを使用。最近Eventは80件、graphは730日を保持。Simulation Coreのtick、Event、乱数、ログ、replayは変更しない |
 | v0.2.4同版Hotspot追補 | Implemented | `V0_2_SETTLEMENT_ORDER.md` | Reproduction Success時点の両親のActive所属IDを固定し、一方でも所属なら場所にかかわらず新規Formation集計から除外。既存Settlement Support集計は変更しない |
 | v0.2.4長期実行最適化 | Conservative implementation detail | `ENGINEERING_REPRODUCIBILITY.md`, `LOGGING.md`, `observation-app.json` | Held InformationをFIFO・代表値・近傍・一様抽選索引化し、知覚view cache、移動occupancy、Threat対象だけの保護判定を採用。日次CSV / graphは軽量な正確集計、全履歴diagnosticsはdefault 30日間隔＋完了時。Core / Event順は直列・並列一致testで固定 |
 | v0.2.4長期実行性能確認 | Verification record | `Simulation.Core`, `Simulation.App` | seed 8147291のheadless実測で現行default-2は365日10.865秒、1460日80.611秒で完走。変更前default-1は365日22.066秒、1460日は90秒の計測枠内に完了しなかった。ConfigとCommunication抽選実装が変わるため同一世界軌跡の厳密比較ではなく、wall-clock回帰の参考値 |

@@ -134,13 +134,14 @@ public sealed class WorldSession : IDisposable
         _chartMaximumPoints = chartMaximumPoints;
         _diagnosticsIntervalDays = diagnosticsIntervalDays;
         _onCompleted = onCompleted ?? throw new ArgumentNullException(nameof(onCompleted));
-        var observation = Engine.GetDailyObservation();
-        AddMetric(observation);
-        _logger.WriteInitial(observation, Engine.GetWorldStatistics());
+        LatestObservation = Engine.GetDailyObservation();
+        AddMetric(LatestObservation);
+        _logger.WriteInitial(LatestObservation, Engine.GetWorldStatistics());
     }
 
     public WorldSessionInfo Info { get; }
     public SimulationEngine Engine { get; }
+    public DailyObservationProjection LatestObservation { get; private set; }
     public IReadOnlyList<WorldMetricPoint> Metrics => _metrics.ToArray();
     public int CurrentTick { get; private set; }
     public bool IsCompleted => _completionCommitted;
@@ -151,12 +152,12 @@ public sealed class WorldSession : IDisposable
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
             var result = Engine.AdvanceOneDay();
-            var observation = Engine.GetDailyObservation();
-            AddMetric(observation);
-            var diagnostics = observation.Tick % _diagnosticsIntervalDays == 0
+            LatestObservation = Engine.GetDailyObservation();
+            AddMetric(LatestObservation);
+            var diagnostics = LatestObservation.Tick % _diagnosticsIntervalDays == 0
                 ? Engine.GetWorldStatistics()
                 : null;
-            _logger.Append(result, observation, diagnostics);
+            _logger.Append(result, LatestObservation, diagnostics);
             CurrentTick = checked(result.CompletedTick + 1);
             return result;
         }

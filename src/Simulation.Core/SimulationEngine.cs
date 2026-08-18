@@ -170,9 +170,11 @@ public sealed class SimulationEngine
 
         lock (_gate)
         {
-            var npcs = State.Npcs.Values
+            var livingNpcs = State.Npcs.Values
                 .Where(item => item.IsAlive)
                 .OrderBy(item => item.Id)
+                .ToArray();
+            var npcs = livingNpcs
                 .Select(item => new NpcProjection(
                     item.Id,
                     item.Position,
@@ -185,6 +187,10 @@ public sealed class SimulationEngine
                 .OrderBy(item => item.Concept)
                 .Select(item => new LandmarkProjection(item.Concept, item.Position))
                 .ToArray();
+            var populationBySettlement = livingNpcs
+                .Where(item => item.SettlementId.HasValue)
+                .GroupBy(item => item.SettlementId!.Value)
+                .ToDictionary(item => item.Key, item => item.Count());
             var settlements = State.Settlements.Values.OrderBy(item => item.Id)
                 .Select(item => new SettlementProjection(
                     item.Id,
@@ -193,7 +199,7 @@ public sealed class SimulationEngine
                     Config.Settlement.InfluenceRadius,
                     item.FormedTick,
                     item.IsActive(State.Tick),
-                    State.Npcs.Values.Count(npc => npc.IsAlive && npc.SettlementId == item.Id),
+                    populationBySettlement.GetValueOrDefault(item.Id),
                     item.CrowdingPressure))
                 .ToArray();
             var invasions = State.Invasions.Values.OrderBy(item => item.Id)
@@ -509,6 +515,34 @@ public sealed class SimulationEngine
                 CountKills(relatedEvents, npcId),
                 npc.HeldInformation.Count,
                 actionHistory);
+        }
+    }
+
+    public NpcStatusProjection? GetNpcStatus(long npcId)
+    {
+        lock (_gate)
+        {
+            if (!State.Npcs.TryGetValue(npcId, out var npc))
+            {
+                return null;
+            }
+
+            var effective = npc.EffectiveStats(Config);
+            return new NpcStatusProjection(
+                npc.Id,
+                npc.IsAlive,
+                npc.Position,
+                npc.AgeDays,
+                Config.World.DaysPerYear,
+                npc.CurrentHp,
+                effective.MaxHp,
+                npc.Needs.Snapshot(),
+                (IReadOnlySet<ConceptKind>)npc.ConceptMarks.ToHashSet(),
+                (IReadOnlySet<ConceptKind>)npc.ActiveAuras.ToHashSet(),
+                npc.SettlementId,
+                npc.InvasionId,
+                npc.InvasionRole,
+                npc.HeldInformation.Count);
         }
     }
 
