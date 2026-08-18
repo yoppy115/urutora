@@ -210,8 +210,8 @@ Settlement Maintenance順と翌Tick反映、Aura / Core占有計算もcollection
 - AA. LowSupportDays 365で自然消滅する。
 - AB. World Population比だけでSettlementが消滅しない。
 - AC. ConquestでDead NPCのAffiliationとHistoryを変更しない。
-- AD. Invasion開始時に`CrowdingInvasionArmed = false`となる。
-- AE. Active Invasion終了後、SettlementPressure`<= 0.45`が30日連続するまでre-armしない。
+- AD. Invasion開始時に攻撃Settlementの`LastInvasionStartedTick`を記録する。
+- AE. 同Settlementは前回開始から60日未満で次のInvasionを開始しない。
 - AF. Center Cell占拠だけではAttack Victoryにならない。
 - AG. Usable Core 50%以上を3日連続占拠するとAttack Victoryになる。
 - AH. Frictionを0～100へClampする。
@@ -236,11 +236,11 @@ Invasion trigger:
 8. GenerationではPressureにかかわらずInvasionを開始しない。
 9. Order、Active、Support 35以上をすべて要求する。
 10. Active Invasion参加中のSettlementから新規Invasionを開始しない。
-11. `CrowdingInvasionArmed = true`を要求する。
+11. 前回攻撃開始から60日以上、または開始履歴なしを要求する。
 12. 攻撃可能な別Active Settlementとeligible participant 3名以上を要求する。
 13. Pressure `>= 0.65`だけHighPressureDaysを進め、下回ればresetし、既存30日条件を維持する。ただしv0.2.5ではFissionPressureDays 90日とhotspotなしを満たすまで開始しない。
-14. 開始時にarmedをfalse、High / Low counterを0とし、新Eventを翌Tickから有効にする。
-15. Event終了後かつActive InvasionなしでPressure `<= 0.45`が30日連続するとre-armし、上回ればLow counterをresetし、中間帯では両counterを進めない。
+14. 開始時にLastInvasionStartedTickを保存し、新Eventを翌Tickから有効にする。
+15. armed、LowPressureDays、re-arm counterを権威的stateへ持たない。
 16. targetがHostility、Hostile内Friction、全体Friction、距離、named seed tieの順に従う。
 
 Friction:
@@ -257,8 +257,8 @@ Friction:
 
 Mobilization:
 
-26. `Clamp(0.20 + 0.30 * SettlementPressure, 0.20, 0.50)`を使う。
-27. Target Forceを`floor(Population * rate + 0.5)`で決定論的に丸める。
+26. `Clamp(0.20 + 0.30 * SettlementPressure, 0.20, 0.50) * 2.0`を使い、所属人口を上限とする。
+27. Target Forceを`floor(Population * rate * 2.0 + 0.5)`で決定論的に丸める。
 28. Alive、Active Affiliation、非Rest、他Invasion非参加だけをeligibleにする。
 29. Actual Forceが3未満なら開始しない。
 30. `CoreTarget = ceil(ActualForceSize / 2)`となる。
@@ -354,7 +354,7 @@ Rest and Center:
 5. Active Invasion中はFissionしない。
 6. 5×5 Hotspot条件を正しく判定する。
 7. Resident-Days 90未満ではcandidateにしない。
-8. 現在Unaffiliated 3人未満ではcandidateにしない。
+8. 現在の全Alive NPCが3人未満ではcandidateにしない。Affiliatedだけのhotspotもcandidateにできる。
 9. 距離8～24以外をcandidateにしない。
 10. 非親SettlementとのInfluence重複を拒否する。
 11. 親SettlementとのInfluence overlap例外が動作する。
@@ -411,7 +411,7 @@ Rest and Center:
 8. 1～2日だけ50%以上でも勝利しない。
 9. Center占拠だけでは勝利しない。
 10. 攻撃軍30%以下が3日連続でDefense Victoryとなる。
-11. 防衛Influence内の攻撃Participant 0人が7日連続でDefense Victoryとなる。
+11. 防衛Influence内の攻撃Participant 0人が`7 + Ceil(開始時Center間Chebyshev距離 * 1.0)`日連続でDefense Victoryとなる。
 12. 90日膠着でDefense Victoryとなる。
 13. Damage式がv0.2.4から変化していない。
 
@@ -455,7 +455,7 @@ Rest and Center:
 2. Map外・侵入不能Cellを選ばない。
 3. 現在NPCがいるCellもDesignation Center候補にできる。
 4. Cell Resident-Days最大Cellを優先する。
-5. 同値なら現在Unaffiliated NPC在住Cellを優先する。
+5. 同値なら現在Alive NPC在住Cellを優先する。
 6. 同値なら5×5幾何中心へ近いCellを優先する。
 7. 最終同値をnamed seedで決定論的に解決する。
 8. Map scan順で結果が変化しない。

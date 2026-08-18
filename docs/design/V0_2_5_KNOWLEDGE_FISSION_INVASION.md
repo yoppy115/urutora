@@ -1,5 +1,7 @@
 # v0.2.5 Knowledge, Fission & Invasion Update
 
+> **Historical baseline:** 本書はv0.2.5時点の正史を保存する。現行のFission hotspot母集団、Invasion動員・攻撃者不在判定・cooldownは [`V0_2_6_FISSION_INVASION_THROUGHPUT.md`](V0_2_6_FISSION_INVASION_THROUGHPUT.md) を優先する。
+
 - **Status:** Baseline / v0.2.5 configurable defaults
 - **Supersedes in part:** v0.15のHeld Information、v0.2.4のRest候補、SettlementSupport、Pressure起因Invasion、Invasion離脱・勝敗
 - **Implementation:** 未着手。本書はゲームコードを変更しない正史更新である。

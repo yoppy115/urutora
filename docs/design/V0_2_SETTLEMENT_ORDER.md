@@ -1,6 +1,6 @@
 # v0.2 Settlement / Order Update
 
-> **Current override:** Settlement / Orderの基礎は本書を維持するが、v0.2.5の累積Support、Renewal、Fission先行、親子非侵略、FieldRest / Retreating、継続Victoryは [`V0_2_5_KNOWLEDGE_FISSION_INVASION.md`](V0_2_5_KNOWLEDGE_FISSION_INVASION.md) と各正本を優先する。
+> **Current override:** Settlement / Orderの基礎は本書を維持するが、v0.2.5の累積Support、Renewal、Fission先行、親子非侵略、FieldRest / Retreating、継続Victoryとv0.2.6のHotspot母集団、動員、距離連動Defense、cooldownは [`V0_2_5_KNOWLEDGE_FISSION_INVASION.md`](V0_2_5_KNOWLEDGE_FISSION_INVASION.md)、[`V0_2_6_FISSION_INVASION_THROUGHPUT.md`](V0_2_6_FISSION_INVASION_THROUGHPUT.md) と各正本を優先する。
 
 **Status:** Baseline boundaries / v0.2 configurable defaults
 
@@ -146,7 +146,7 @@ v0.2.4では平時Collisionとroot Explicit Threat Incidentを日次集約し、
 
 v0.2.4では旧CoreOccupancy / BlockedMovementの`CrowdingPressure`をInvasion Triggerから廃止する。`SettlementPressure`は直近30日のResidentLoad、MovementCongestion、ReturnFailureを`0.45 / 0.35 / 0.20`で統合し、Tick末Maintenanceで更新して翌Tickから使う。
 
-Order、Active、Support 35以上、armed、Active Invasionなし、攻撃可能targetあり、eligible participant 3名以上を前提とし、Pressure 0.65以上の30日条件を維持する。ただしv0.2.5ではPressure 0.40以上のFissionPressureDaysが90日に達するまでInvasionを開始せず、有効Fission hotspotがない場合だけtriggerを評価する。開始時disarmとPressure 0.45以下30日のre-armは維持する。詳細は [`SETTLEMENT_FISSION.md`](SETTLEMENT_FISSION.md) と [`V0_2_4_SETTLEMENT_STABILIZATION.md`](V0_2_4_SETTLEMENT_STABILIZATION.md) を参照する。
+Order、Active、Support 35以上、Active Invasionなし、攻撃可能targetあり、eligible participant 3名以上を前提とし、Pressure 0.65以上の30日条件を維持する。ただしPressure 0.40以上のFissionPressureDaysが90日に達するまでInvasionを開始せず、有効Fission hotspotがない場合だけtriggerを評価する。v0.2.6ではarmed / re-armを廃止し、攻撃開始間隔60日を要求する。詳細は [`SETTLEMENT_FISSION.md`](SETTLEMENT_FISSION.md) と [`V0_2_6_FISSION_INVASION_THROUGHPUT.md`](V0_2_6_FISSION_INVASION_THROUGHPUT.md) を参照する。
 
 ## Invasion target and mobilization
 
@@ -183,7 +183,7 @@ Invasion中は攻撃・防衛Settlement所属者を敵対対象としてCombat�
 
 ## Invasion victory and integration
 
-v0.2.5ではAttack Victoryをusable Core 50%以上の3日連続占有とし、Defense Victoryを攻撃戦力比30%以下3日、Influence内攻撃者0人7日、90日膠着のいずれかとする。Centerへの到達、一時占有、複数日保持はいずれも勝利条件ではなく、Event / Statisticsだけに記録できる。詳細は [`INVASION_V025.md`](INVASION_V025.md) を正本とする。
+Attack Victoryをusable Core 50%以上の3日連続占有とし、Defense Victoryを攻撃戦力比30%以下3日、Influence内攻撃者0人の距離連動日数、90日膠着のいずれかとする。Centerへの到達、一時占有、複数日保持はいずれも勝利条件ではなく、Event / Statisticsだけに記録できる。詳細は [`INVASION_V025.md`](INVASION_V025.md) を正本とする。
 
 終了時にAdvance Bias、Defense Bias、Invasion Participant、所属変更Lockを解除する。
 
@@ -257,7 +257,7 @@ Raw Logを人間が直接読み続けるより、ゲーム内Statistics UIでSim
 | Rest Collision | radius 5 |
 | Initial Hostility | 30% |
 | Friction | Collision weight 1、Threat weight 4、pair scale floor 10、daily impulse cap 5、half-life 180日、Invasion declaration retention 0.25 |
-| SettlementPressure | capacity ratio .70、Resident / Congestion / Return = .45 / .35 / .20、30-day window、trigger .65 ×30日、re-arm .45 ×30日 |
+| SettlementPressure | capacity ratio .70、Resident / Congestion / Return = .45 / .35 / .20、30-day window、trigger .65 ×30日、攻撃開始cooldown 60日 |
 | Mobilization | 0.20 + 0.30 × SettlementPressure、Clamp 0.20–0.50、minimum 3、Core target 50% |
 | Natural dissolution | v0.2.4では90-day Support、25 / 35 Hysteresis、365 LowSupportDays |
 | Exposure | radius 4、1/0.5/0.25/0.125、threshold 100 |

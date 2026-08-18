@@ -35,7 +35,10 @@ DraftやTBDをこの台帳だけで確定仕様に変えてはならない。
 | Git build provenance | Implemented | `ARCHITECTURE.md`, `ADR-0019` | commit/tree stateをassemblyとrun metadataへ埋め込み、clean treeだけをrelease publishの既定とする。成果物hashはrelease manifestへ保存。所有者が異なる限定作業cloneでも対象repositoryだけを`safe.directory`指定し、global Git設定は変更しない |
 | Repository hygiene | Implemented | `tools/` | 生成物の誤追跡、不要な`.gitkeep`、Markdown local linkをCIとbaseline確定前に検査。finalizerはbranch/commit/tag/clean確認を行いpushしない |
 | Git ACL用管理者finalizer | Implemented | `AGENTS.md`, `tools/` | 通常processが`.git`をOSに拒否された場合だけ使うWindows PowerShell 5.1対応wrapperとCMD入口。対象をurutoraのbranch/index/commit/tagへ限定し、OS設定変更やpushは行わない。同一version追補は`-NoTag`で既存tagを移動しない |
-| v0.2.5 Config schema | Implemented | `V0_2_5_KNOWLEDGE_FISSION_INVASION.md`, `simulation/configs/v0-default.json` | schema 4 / `v0.2.5-default-1`。PersonBelief capacity / TTL、Recent Event容量、累積Support / Renewal、Fission、Migration、Invasion継続counterを型付き設定へ分離 |
+| v0.2.6 Config / diagnostics schema | Implemented | `V0_2_6_FISSION_INVASION_THROUGHPUT.md`, `simulation/configs/v0-default.json`, `LOGGING.md` | Simulation Config schema 5 / `v0.2.6-default-1`、diagnostics schema 7。Mobilization倍率、60日cooldown、攻撃者不在base / Center距離係数を型付き設定へ分離し、旧re-arm設定を削除 |
+| v0.2.6 Fission resident cache | Conservative implementation detail | `SETTLEMENT_FISSION.md`, `ADR-0030` | 直近30日の全Alive NPC Cell Resident-Daysを日別疎Dictionaryで保持し、期限外の日を毎日削除する。Affiliationは集計keyに含めず、同一seed / 同一Configの結果だけに使用する |
+| v0.2.6 Invasion distance snapshot | Conservative implementation detail | `INVASION_V025.md`, `ADR-0030` | Invasion作成時にCenter間Chebyshev距離と`7 + Ceil(distance * 1.0)`をEvent stateへ固定し、後のSettlement state変化で勝敗counterの必要日数を遡及変更しない |
+| v0.2.5 Config schema | Superseded by v0.2.6 | `V0_2_5_KNOWLEDGE_FISSION_INVASION.md`, `simulation/configs/v0-default.json` | schema 4 / `v0.2.5-default-1`。PersonBelief capacity / TTL、Recent Event容量、累積Support / Renewal、Fission、Migration、Invasion継続counterを型付き設定へ分離 |
 | v0.2.5 Knowledge store | Implemented | `KNOWLEDGE_MEMORY.md`, `ADR-0025`, `ADR-0029` | 旧Subject + Property 3件FIFOを削除し、1 Subject 1 PersonBeliefの7 field、EventBelief、SettlementBeliefを別辞書で保持。field優先度、Unknown、365日TTL、capacity evictionはCore内の決定論的順序で処理 |
 | v0.2.5 Recent Event buffer | Conservative implementation detail | `EVENT_HISTORY.md`, `ADR-0026`, `v0-default.json` | live Coreの構造化Eventはdefault 20,000件の有限窓。Replay用fingerprint列とSHA-256 chain、日次集計、Milestone / Knowledgeは別保持し、buffer容量は権威的state fingerprintとEvent列へ影響させない |
 | v0.2.5 Incremental event counters | Conservative implementation detail | `EVENT_HISTORY.md`, `ADR-0026` | Event発行時にLifetime件数と更新回数を増分更新し、Recent Buffer外のEvent総数をUI / diagnosticsのために再走査しない。NPCのcombat kill数も個体へ累積し、Recent Bufferの切詰めで欠落させない。どちらも意思決定へ入力しない |
@@ -72,4 +75,4 @@ DraftやTBDをこの台帳だけで確定仕様に変えてはならない。
 - World snapshotの保存・再開、削除、名前変更、比較画面は未実装であり、この台帳から仕様を推測しない。
 - graphの長期downsampling、ログschema migrationは未決。現在のUI保持上限を超えた点は画面から落ちるが、CSVログには全日分を保持する。
 
-v0.2.5の正史更新はCore、Config、headless projection、Desktop観測表示、World diagnostics、Replayへ反映済み。Struggle Phase、汎用Importance算出、Event / Settlement Belief容量、snapshot保存・再開は正史どおり先取りしない。
+v0.2.6の正史更新はCore、Config、headless projection、Desktop観測表示、World diagnostics、Replayへ反映済み。Struggle Phase、汎用Importance算出、Event / Settlement Belief容量、snapshot保存・再開は正史どおり先取りしない。

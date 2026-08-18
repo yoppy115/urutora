@@ -212,10 +212,10 @@ public sealed class WorldState
     public long AttackCandidateSuppressionCount { get; set; }
     public long UnaffiliatedThreatExceptionAttackCount { get; set; }
     public long InvasionStartPreventedCount { get; set; }
-    public List<DailyUnaffiliatedResidents> UnaffiliatedResidentHistory { get; } = new();
+    public List<DailyHotspotResidents> FissionResidentHistory { get; } = new();
 }
 
-public sealed record DailyUnaffiliatedResidents(
+public sealed record DailyHotspotResidents(
     int Tick,
     IReadOnlyDictionary<Position, int> ResidentCounts);
 
@@ -240,9 +240,7 @@ public sealed class SettlementState
     public List<SettlementPressureDailyRecord> PressureHistory { get; } = new();
     public List<double> CrowdingHistory { get; } = new();
     public int CrowdingConsecutiveDays { get; set; }
-    public bool CrowdingInvasionArmed { get; set; } = true;
-    public int CrowdingRearmConsecutiveDays { get; set; }
-    public int CrowdingRearmCount { get; set; }
+    public int? LastInvasionStartedTick { get; set; }
     public int FoundingResidentBaseline { get; set; }
     public List<SettlementSupportDailyRecord> SupportHistory { get; } = new();
     public double SupportPopulationComponent { get; set; }
@@ -326,6 +324,8 @@ public sealed class InvasionState
     public int AttackOccupationDays { get; set; }
     public int AttackCollapseDays { get; set; }
     public int InfluenceClearDays { get; set; }
+    public int CenterDistance { get; set; }
+    public int InfluenceClearRequiredDays { get; set; }
     public int LastVictoryEvaluationTick { get; set; } = -1;
 
     public bool IsPending(int tick) => EndTick is null && tick < EffectiveTick;
@@ -432,7 +432,6 @@ public enum SimulationEventType
     FatigueApplied,
     MovementBiasApplied,
     SettlementSupportEvaluated,
-    InvasionCrowdingRearmed,
     InvasionStartPrevented,
     SettlementRenewed,
     SettlementFission,

@@ -1,7 +1,8 @@
-# v0.2.5 Invasion Field Model
+# Invasion Field Model
 
-- **Status:** Baseline / v0.2.5 configurable defaults
+- **Status:** Baseline / v0.2.6 configurable defaults
 - **Decision:** [`ADR-0028`](../decisions/ADR-0028-invasion-field-rest-and-sustained-victory.md)
+- **Current amendment:** [`ADR-0030`](../decisions/ADR-0030-v026-fission-and-invasion-throughput.md)
 
 ## Participant state
 
@@ -47,7 +48,7 @@ front cellの具体的決定アルゴリズムは、seed / collection順非依�
 次のいずれかで成立する。
 
 1. `AliveNonRetreatingAttackParticipants / InitialAttackForce <= 0.30`を3日連続。
-2. Defender Influence内のAlive Non-Retreating attackerが0人の状態を7日連続。
+2. Defender Influence内のAlive Non-Retreating attackerが0人の状態を`7 + Ceil(Invasion開始時Center間Chebyshev距離 * 1.0)`日連続。
 3. Attack VictoryなしでEvent開始から90日経過。
 
 FieldRestはAlive Non-Retreatingとして数える。RetreatingとDeadは数えない。各日条件を外れた連続counterは0へ戻す。
@@ -56,6 +57,8 @@ FieldRestはAlive Non-Retreatingとして数える。RetreatingとDeadは数え�
 
 勝敗成立時にParticipant state、Invasion Bias、Event専用Threat / lock、連続counterを解除し、終了・Conquest等のEventを発行する。Retreatingへ付いたHome Biasは帰還のため維持できる。
 
-既存v0.2.4のtrigger、target評価、Pressure、Friction、armed / re-arm、mobilization、Alive-only integration等は、[`SETTLEMENT_FISSION.md`](SETTLEMENT_FISSION.md)のFission先行gateと親子target除外を加えた上で維持する。Damage、Hit、Counterattack、Pursuitも変更しない。
+trigger、target評価、Pressure、Friction、Alive-only integration等は、[`SETTLEMENT_FISSION.md`](SETTLEMENT_FISSION.md)のFission先行gateと親子target除外を加えた上で維持する。Damage、Hit、Counterattack、Pursuitも変更しない。
+
+v0.2.6ではTarget Forceを既存Pressure rateの2.0倍（所属人口上限）とし、armed / re-armを廃止して攻撃Settlementごとの開始間隔60日へ置換する。式と不変条件は[`V0_2_6_FISSION_INVASION_THROUGHPUT.md`](V0_2_6_FISSION_INVASION_THROUGHPUT.md)を正本とする。
 
 死亡数quotaは勝敗条件にしない。

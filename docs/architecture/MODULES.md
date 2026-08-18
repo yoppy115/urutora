@@ -82,7 +82,7 @@
 - Settlement Supportは日末のread-only 90日集計からP/R/Sを算出し、Membership変更と自然消滅をMaintenance順でcommitする。
 - Settlement Pressureは日末のread-only 30日集計から3成分を算出し、High / Low counterとともに翌Tick stateへcommitする。InvasionはPressure値を所有せず、eligibility inputとして受け取る。
 - Settlement FissionはPressureをInvasionより先に評価し、有効hotspotがある同日にInvasionへfallbackしない。
-- Fission Centerはimmutable snapshot上のCell Resident-Days、現在Unaffiliated、幾何中心距離、named seedで選ぶ。Migration完了はchild Influence到達をAction最終PositionとTick末fallbackで一度だけ判定する。
+- Fission Centerはimmutable snapshot上の全Alive NPC Cell Resident-Days、現在Alive NPC、幾何中心距離、named seedで選ぶ。Migration完了はchild Influence到達をAction最終PositionとTick末fallbackで一度だけ判定する。
 - Incremental Statistics、Recent Buffer、Historical Milestone、Raw Archiveはterminal observerで、保持量やflushが権威的Event列を変えない。
 - Mobilizationはeligible snapshot、SettlementPressure、Affinity、named seedだけを使い、Combat / Action値やcollection順でcohortを歪めない。
 - Observation cache、近傍index、CPU並列read phaseは最適化portの内側に閉じ、権威的順序・random stream・Event IDを変えない。

@@ -1,8 +1,9 @@
 # Settlement Support, Renewal, and Fission
 
-- **Status:** Baseline / v0.2.5 configurable defaults
+- **Status:** Baseline / v0.2.6 configurable defaults
 - **Decision:** [`ADR-0027`](../decisions/ADR-0027-accumulated-support-renewal-and-fission.md)
 - **Closure:** [`ADR-0029`](../decisions/ADR-0029-v025-unresolved-contracts-closure.md)
+- **Current amendment:** [`ADR-0030`](../decisions/ADR-0030-v026-fission-and-invasion-throughput.md)
 
 ## SupportPotential and accumulated support
 
@@ -63,15 +64,15 @@ Renewalは新Settlement生成や能力bonusではない。
 
 - candidate centerが既存Active Settlement Influenceの外側。
 - 親CenterとのChebyshev距離が8～24。
-- 直近30日の5×5内Unaffiliated Resident-Daysが90以上。
-- 現在の5×5内Unaffiliatedが3人以上。
+- 直近30日の5×5内All Alive NPC Resident-Daysが90以上。
+- 現在の5×5内Alive NPCが3人以上。
 - Center cellがMap / occupancy規則上有効。
 - child Coreが非親SettlementのCoreと重ならない。
 - child Influenceが非親SettlementのInfluenceと重ならない。
 
 直接の親だけは、child centerが親Influence外、両Core非重複、非親Influence非重複を満たす場合にInfluence overlapを許す。overlap cellのSettlement benefitはActive Affiliationで決める。Unaffiliatedは双方へのAffinityを得てもよい。
 
-Resident-Daysはその日に当該5×5へいたUnaffiliatedだけを加算する。さらに各Cellについて直近30日の`UnaffiliatedResidentDaysByCell`を保持または同値に集計する。Unaffiliated NPC 1人が1日そのCellにいれば+1、所属者は加算しない。
+Resident-Daysはその日に当該5×5へいた全Alive NPCを所属に関係なく加算する。さらに各Cellについて直近30日の`ResidentDaysByCell`を保持または同値に集計する。Alive NPC 1人が1日そのCellにいれば+1とし、Affiliated / Unaffiliated、所属Settlementを区別しない。ただしmigrant候補は親Settlement所属者のままである。
 
 複数hotspotはResident-Days最大、親への距離が近い方、named seedによる決定論的tie-breakの順で選ぶ。scan順、collection順へ依存しない。
 
@@ -81,8 +82,8 @@ Center候補CellはMap内、NPCが通常占有可能、Landmarkではない、�
 
 有効Cellを次の固定順で選ぶ。
 
-1. `UnaffiliatedResidentDaysByCell`最大。
-2. 同値なら評価snapshot時点でUnaffiliated NPCが存在するCell。
+1. `ResidentDaysByCell`最大。
+2. 同値なら評価snapshot時点でAlive NPCが存在するCell。
 3. 同値なら5×5の幾何学的中心へのChebyshev距離が短いCell。
 4. なお同値ならnamed seedによる決定論的tie-break。
 
@@ -143,7 +144,7 @@ Pressure起因の処理順は固定する。
 
 1. `FissionPressureDays`が90日未満ならInvasionを開始しない。
 2. 90日以上で有効hotspotがあればFissionする。
-3. 有効hotspotがない場合だけ、既存のarmed、target、mobilization等を再ValidationしInvasionを開始できる。
+3. 有効hotspotがない場合だけ、既存のcooldown、target、mobilization等を再ValidationしInvasionを開始できる。
 4. 直接親子Settlementをtargetから除く。
 
 Fission成功candidateがある日にInvasionへfallbackしてはならない。

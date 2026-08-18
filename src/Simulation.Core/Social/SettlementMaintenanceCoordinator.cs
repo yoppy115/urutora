@@ -515,25 +515,6 @@ public sealed class SettlementMaintenanceCoordinator
 
             var rollingEligible = settlement.CrowdingPressure >= _config.Settlement.CrowdingThreshold;
             settlement.CrowdingConsecutiveDays = rollingEligible ? settlement.CrowdingConsecutiveDays + 1 : 0;
-            if (!settlement.CrowdingInvasionArmed)
-            {
-                settlement.CrowdingRearmConsecutiveDays =
-                    settlement.CrowdingPressure <= _config.Invasion.CrowdingRearmPressureThreshold
-                        ? settlement.CrowdingRearmConsecutiveDays + 1
-                        : 0;
-                if (settlement.CrowdingRearmConsecutiveDays >= _config.Invasion.CrowdingRearmConsecutiveDays)
-                {
-                    settlement.CrowdingInvasionArmed = true;
-                    settlement.CrowdingRearmCount++;
-                    emit(0, SimulationEventType.InvasionCrowdingRearmed, null, null, settlement.Center, true,
-                        $"settlement={settlement.Id};pressure={settlement.CrowdingPressure:R};" +
-                        $"days={settlement.CrowdingRearmConsecutiveDays}");
-                }
-            }
-            else
-            {
-                settlement.CrowdingRearmConsecutiveDays = 0;
-            }
         }
 
         emit(0, SimulationEventType.SettlementMaintenance, null, null, null, true, "phase=10;crowding=updated");

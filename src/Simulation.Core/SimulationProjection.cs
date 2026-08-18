@@ -186,9 +186,8 @@ public sealed record SettlementStatistics(
     double MovementCongestion,
     double ReturnFailure,
     int CrowdingConsecutiveDays,
-    bool CrowdingInvasionArmed,
-    int CrowdingRearmConsecutiveDays,
-    int CrowdingRearmCount,
+    int? LastInvasionStartedTick,
+    int InvasionCooldownDaysRemaining,
     double SupportPotential,
     double DailySupportDelta,
     double Support,
@@ -309,7 +308,9 @@ public sealed record InvasionStatistics(
     int RetreatingParticipants,
     int AttackOccupationDays,
     int AttackCollapseDays,
-    int InfluenceClearDays);
+    int InfluenceClearDays,
+    int CenterDistance,
+    int InfluenceClearRequiredDays);
 
 public sealed record AuraStatistics(
     long Applied,
@@ -403,7 +404,7 @@ public sealed record DailyObservationProjection(
     double AverageSelectedRestPressure,
     double ActiveSettlementAverageSupport,
     int TotalLowSupportDays,
-    int ArmedSettlementCount,
+    int CoolingDownSettlementCount,
     long InvasionStartPrevented);
 
 public sealed record SimulationSnapshot(

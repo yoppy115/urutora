@@ -92,14 +92,15 @@ v0.15 Runでは少なくとも次を集計可能にする。
 
 観測AppのWorld Eventと日次CSVは毎日記録する。diagnosticsは初期状態、App Configの間隔（default 30日）、明示完了時に記録し、Recent Event有限窓・増分counter・日次集計・現在Reality projectionから生成する。累積Raw Event全体は再走査しない。物理streamのflushはSimulation Eventではなく、App Configの10日間隔と終了時に行う。diagnostics / flush間隔を変えてもEvent列、日次行、乱数、Statistics値を変えない。App側の明示完了時は全streamを閉じた後に`completion.json`を原子的に確定し、このmarkerがあるWorldだけを完了済みarchive対象にする。未完了Worldの保存や圧縮判定はSimulation結果を変更しない。
 - v0.2.1～v0.2.3はHotspot 5×5 / Success 3、出生所属の判定経路、ConceptMark表示、Settlement詳細、Friction、NPC履歴をVersion / commit付きで追跡可能にする。
-- v0.2.5はRest Candidate抑止、三種Knowledge、Communication category / field差分、SupportPotential / 累積Support / Renewal、Fission / Migration / 親子関係、Invasion participant state / front / 継続counter / Victory reasonを機械可読にする。
-- Fission CenterはCell Resident-Days、現在Unaffiliated、中心距離、seed tie、invalid理由、次hotspot評価を追跡する。Migrationは開始、成立時即時、Move / Flee / Tick末完了、死亡・child無効化中断、Invasion pause / resumeを区別する。
+- v0.2.6はRest Candidate抑止、三種Knowledge、Communication category / field差分、SupportPotential / 累積Support / Renewal、Fission / Migration / 親子関係、Invasion participant state / front / 継続counter / Victory reasonを機械可読にする。
+- Fission Centerは全Alive NPCのCell Resident-Days、現在Alive NPC、中心距離、seed tie、invalid理由、次hotspot評価を追跡する。Migrationは開始、成立時即時、Move / Flee / Tick末完了、死亡・child無効化中断、Invasion pause / resumeを区別する。
+- InvasionはCenterDistance、InfluenceClearRequiredDays、LastInvasionStartedTick、cooldown残日数、cooldownによる開始防止を記録する。
 
 Event保持は[`EVENT_HISTORY.md`](../design/EVENT_HISTORY.md)の四層へ分ける。Recent Bufferから消えたPinを失わず、Optional Archiveの有無、buffer容量、flush間隔でSimulation結果を変えない。
 - 征服時のAffiliationChangedはAlive NPCだけに発行し、Dead NPCのHistoryを変更しない。
 - ログflush間隔はOperations設定でありEvent意味論を変えない。Run identityと保存運用は[`ENGINEERING_REPRODUCIBILITY.md`](ENGINEERING_REPRODUCIBILITY.md)に従う。
 
-v0.2.5実装では`run.json` schema 5、Event wrapper schema 4、diagnostics schema 6、Observation App Config schema 7を使用する。diagnostics schema 6はPerson / Event / Settlement Belief、SupportPotential / 累積Support / Renewal、Pressure三成分、Fission系譜、Migration、Invasion participant state / 継続counterを追加する。Core内Recent Eventはdefault 20,000件の有限窓、Appの`events.jsonl`はCore外Optional Raw Archiveとして分離する。
+v0.2.6実装ではSimulation Config schema 5、`run.json` schema 5、Event wrapper schema 4、diagnostics schema 7、Observation App Config schema 7を使用する。diagnostics schema 7は全NPC Fission resident集計、Invasion Center距離・攻撃者不在必要日数・最終開始tick・cooldown残日数を追加し、廃止したarmed / re-arm stateを除く。Core内Recent Eventはdefault 20,000件の有限窓、Appの`events.jsonl`はCore外Optional Raw Archiveとして分離する。
 
 必須集計項目は [`STATISTICS.md`](STATISTICS.md) を正本とする。
 

@@ -959,8 +959,8 @@ public sealed class MainForm : Form
             AddSocialRow("Settlement", $"#{settlement.Id}",
                 $"{status} Center {settlement.Center} / 人口 {settlement.Population} ({settlement.WorldPopulationRatio:P1}) / " +
                 $"Core/Influence/外 {settlement.CorePopulation}/{settlement.InfluenceOnlyPopulation}/{settlement.OutsidePopulation} / " +
-                $"Support {settlement.Support:0.0} / Crowding {settlement.CrowdingPressure:0.00} " +
-                $"{(settlement.CrowdingInvasionArmed ? "armed" : "disarmed")}");
+                $"Support {settlement.Support:0.0} / Crowding {settlement.CrowdingPressure:0.00} / " +
+                $"Cooldown {settlement.InvasionCooldownDaysRemaining}日");
         }
         foreach (var invasion in statistics.Invasions.OrderBy(item => item.Id))
         {
@@ -968,7 +968,9 @@ public sealed class MainForm : Form
                 invasion.EffectiveTick <= statistics.Tick ? "Active" : "Pending";
             AddSocialRow("Invasion", $"#{invasion.Id}",
                 $"#{invasion.AttackSettlementId} → #{invasion.DefenseSettlementId} / {status} / " +
-                $"兵力 {invasion.InitialForceSize} / 最大占有 {invasion.MaximumCoreOccupationRate:P1}");
+                $"兵力 {invasion.InitialForceSize} / 距離 {invasion.CenterDistance} / " +
+                $"不在 {invasion.InfluenceClearDays}/{invasion.InfluenceClearRequiredDays}日 / " +
+                $"最大占有 {invasion.MaximumCoreOccupationRate:P1}");
         }
         if (visibleSettlements.Count == 0)
         {
@@ -1015,7 +1017,7 @@ public sealed class MainForm : Form
             AddDiagnosticRow("疲労", fatigue.Cause,
                 $"{fatigue.Applications:N0}回 / 要求{fatigue.RequestedTotal:0.00} / 実加算{fatigue.AppliedTotal:0.00}");
         }
-        AddDiagnosticRow("Invasion", "re-arm防止", $"{statistics.InvasionStartPrevented:N0}件");
+        AddDiagnosticRow("Invasion", "cooldown防止", $"{statistics.InvasionStartPrevented:N0}件");
         AddDiagnosticRow("暴力", "衝突攻撃 / 抑制",
             $"{statistics.Violence.CollisionAttacks:N0} / " +
             $"{statistics.Violence.SameSettlementSuppressions + statistics.Violence.UnaffiliatedProtectionCollisions + statistics.Violence.OtherSettlementCollisions:N0}");
@@ -1065,7 +1067,9 @@ public sealed class MainForm : Form
         AddSettlementRow("Core占有率", settlement.CoreOccupancy.ToString("P1"));
         AddSettlementRow("Crowding", settlement.CrowdingPressure.ToString("0.000"));
         AddSettlementRow("Crowding連続", $"{settlement.CrowdingConsecutiveDays:N0}日");
-        AddSettlementRow("Invasion re-arm", $"{(settlement.CrowdingInvasionArmed ? "armed" : "disarmed")} / 低圧 {settlement.CrowdingRearmConsecutiveDays:N0}日 / 再arm {settlement.CrowdingRearmCount:N0}回");
+        AddSettlementRow("Invasion cooldown", settlement.InvasionCooldownDaysRemaining > 0
+            ? $"残り {settlement.InvasionCooldownDaysRemaining:N0}日 / 最終開始 D{settlement.LastInvasionStartedTick!.Value + 1}"
+            : "開始可能");
         if (settlement.DissolvedTick.HasValue)
         {
             AddSettlementRow("消滅日", $"D{settlement.DissolvedTick.Value + 1}");

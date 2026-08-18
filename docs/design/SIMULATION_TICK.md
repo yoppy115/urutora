@@ -142,7 +142,7 @@ Birth解決時点で空いている死亡Cellは利用可能。LandmarkとAlive 
 - Rest Collision再評価は元Action枠の置換で、同一Micro Round最大1回とする。
 - Settlement構造変更は固定Maintenance順でcommitし、新規Settlement / WorldPhase / Invasion開始を翌Tickから反映する。
 - Hotspot Candidateは同一immutable snapshotから生成し、繁殖成功数とseed tie-breakで順序非依存にarbitrateする。
-- v0.2.4のSupport、SettlementPressure、Friction、High / Low counter、Invasion作成、自然消滅は日末Maintenanceでcommitし、日中Micro Round途中でSettlementを消滅・再armしない。
-- v0.2.5のKnowledge TTL / capacity整理、増分Statistics、累積Support、Renewal、Fission、Migration、Invasion継続counterもstable ID順の日末commitとし、collection順へ依存させない。
+- Support、SettlementPressure、Friction、HighPressure counter、Invasion作成・cooldown開始tick、自然消滅は日末Maintenanceでcommitし、日中Micro Round途中でSettlementを消滅・Invasion開始しない。
+- Knowledge TTL / capacity整理、増分Statistics、累積Support、Renewal、Fission、Migration、Invasion継続counterもstable ID順の日末commitとし、collection順へ依存させない。
 - Fission Center選択はsnapshot、Map走査順、collection順に依存せず、無効hotspotの次候補を同じMaintenanceで評価できる。
 - Migration完了はchild Influenceへの実到達をAction最終PositionとTick末fallbackで一度だけ判定し、Invasion中の優先関係を変えない。

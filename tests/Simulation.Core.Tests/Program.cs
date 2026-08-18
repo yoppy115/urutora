@@ -21,7 +21,7 @@ internal static class Program
     private static readonly (string Name, Action Test)[] Tests =
     {
         ("configuration schema is strict", ConfigurationSchemaIsStrict),
-        ("v0.2.4 defaults preserve earlier ecology", V024DefaultsAndInitialAges),
+        ("v0.2.6 defaults preserve earlier ecology", V026DefaultsAndInitialAges),
         ("v0.2 logged seeds form Settlements with the v0.2.1 hotspot", LoggedV02SeedsFormSettlements),
         ("partitioned RNG is deterministic and local", PartitionedRandomIsDeterministicAndLocal),
         ("utility candidate count and edge rules", UtilityCandidateRules),
@@ -66,7 +66,7 @@ internal static class Program
         ("Friction decay is symmetric and bounded", FrictionDecayRules),
         ("Friction is clamped at the v0.2.4 maximum", FrictionMaximumClamp),
         ("Invasion Rest withdraws while Flee state remains", InvasionWithdrawalRules),
-        ("Invasion re-arm and conquest guardrails are enforced", InvasionStabilizationGuardrails),
+        ("Invasion doubled mobilization cooldown and conquest guardrails are enforced", InvasionStabilizationGuardrails),
         ("Core occupation denominator excludes unusable cells", CoreOccupationDenominator),
         ("whole run and render frequency are deterministic", WholeRunAndRenderDeterminism),
         ("Recent Event capacity does not change authority", RecentEventCapacityIsTerminal),
@@ -105,7 +105,7 @@ internal static class Program
         var invalidPath = Path.Combine(Path.GetTempPath(), $"world-sim-invalid-{Guid.NewGuid():N}.json");
         try
         {
-            File.WriteAllText(invalidPath, original.Replace("\"schemaVersion\": 4", "\"schemaVersion\": 4, \"unknown\": true", StringComparison.Ordinal));
+            File.WriteAllText(invalidPath, original.Replace("\"schemaVersion\": 5", "\"schemaVersion\": 5, \"unknown\": true", StringComparison.Ordinal));
             Throws<ConfigurationException>(() => SimulationConfigLoader.Load(invalidPath));
         }
         finally
@@ -117,10 +117,10 @@ internal static class Program
         }
     }
 
-    private static void V024DefaultsAndInitialAges()
+    private static void V026DefaultsAndInitialAges()
     {
         var config = LoadConfig();
-        Equal("v0.2.5-default-1", config.Id);
+        Equal("v0.2.6-default-1", config.Id);
         Equal(5, config.Settlement.HotspotWindowSize);
         Equal(3, config.Settlement.HotspotSuccessThreshold);
         Equal(0.125, config.Concept.ExposureByDistance[4], 0);
@@ -142,6 +142,10 @@ internal static class Program
         Equal(1.25, config.Settlement.GenerationPositiveVitalityMultiplier, 0);
         Equal(90, config.Settlement.SupportWindowDays);
         Equal(50, config.Invasion.AttackOccupationThreshold * 100, 0);
+        Equal(2, config.Invasion.MobilizationMultiplier, 0);
+        Equal(60, config.Invasion.CooldownDays);
+        Equal(7, config.Invasion.InfluenceClearBaseDays);
+        Equal(1, config.Invasion.InfluenceClearDaysPerCenterDistance, 0);
         Equal(config.Settlement.StrongHomeBiasTowardWeight, Math.Exp(config.Invasion.AdvanceBiasWeight), 1e-12);
         Equal(config.Settlement.StrongHomeBiasAwayWeight, Math.Exp(-config.Invasion.AdvanceBiasWeight), 1e-12);
 
@@ -1503,11 +1507,13 @@ internal static class Program
         }
         for (var id = 11L; id <= 13; id++)
         {
-            world.Npcs.Add(id, Npc(id, new Position(20, 20), 5, 5, 5, 100));
+            var npc = Npc(id, new Position(20, 20), 5, 5, 5, 100);
+            npc.SettlementId = parent.Id;
+            world.Npcs.Add(id, npc);
         }
         for (var tick = 0; tick < 29; tick++)
         {
-            world.UnaffiliatedResidentHistory.Add(new DailyUnaffiliatedResidents(
+            world.FissionResidentHistory.Add(new DailyHotspotResidents(
                 tick, new Dictionary<Position, int> { [new Position(20, 20)] = 3 }));
         }
 
@@ -1519,7 +1525,8 @@ internal static class Program
         Equal(parent.Id, child.ParentSettlementId!.Value);
         True(parent.ChildSettlementIds.Contains(child.Id), "Parent-child relation was not stored symmetrically.");
         var migrants = world.Npcs.Values.Where(item => item.SettlementId == child.Id).OrderBy(item => item.Id).ToArray();
-        Equal(4, migrants.Length);
+        Equal(5, migrants.Length);
+        Equal(new Position(20, 20), child.Center);
         True(migrants.All(item => item.FissionFounder && item.MigrationTargetSettlementId == child.Id),
             "Migrant founder state was incomplete.");
         world.Tick++;
@@ -1732,6 +1739,45 @@ internal static class Program
                                  item.ActorId == deadDefender.Id),
             "Dead affiliation history was rewritten during conquest.");
 
+        var distanceWorld = SocialWorld(config);
+        var distantAttacker = Npc(1, new Position(0, 0), 5, 5, 5, 100);
+        distantAttacker.SettlementId = 1;
+        distantAttacker.InvasionId = 1;
+        distantAttacker.InvasionRole = InvasionRole.Attacker;
+        distantAttacker.InvasionParticipation = InvasionParticipationState.Advancing;
+        distanceWorld.Npcs.Add(distantAttacker.Id, distantAttacker);
+        var centerDistance = distanceWorld.Settlements[1].Center
+            .ChebyshevDistance(distanceWorld.Settlements[2].Center);
+        var requiredClearDays = config.Invasion.InfluenceClearBaseDays +
+                                (int)Math.Ceiling(centerDistance *
+                                                  config.Invasion.InfluenceClearDaysPerCenterDistance);
+        var distanceInvasion = new InvasionState
+        {
+            Id = 1,
+            AttackSettlementId = 1,
+            DefenseSettlementId = 2,
+            CreatedTick = 0,
+            EffectiveTick = 0,
+            TriggerCrowdingPressure = 0.9,
+            TargetReason = "distance-test",
+            CenterDistance = centerDistance,
+            InfluenceClearRequiredDays = requiredClearDays,
+            InitialAttackForce = 1,
+            AttackParticipantIds = new[] { distantAttacker.Id },
+            CoreCohortIds = new[] { distantAttacker.Id },
+            FrontierCohortIds = Array.Empty<long>()
+        };
+        distanceWorld.Invasions.Add(distanceInvasion.Id, distanceInvasion);
+        for (var day = 0; day < requiredClearDays - 1; day++)
+        {
+            distanceWorld.Tick = day;
+            system.ResolveVictories(distanceWorld, Capture(events), 1);
+            Equal(InvasionOutcome.None, distanceInvasion.Outcome);
+        }
+        distanceWorld.Tick = requiredClearDays - 1;
+        system.ResolveVictories(distanceWorld, Capture(events), 1);
+        Equal(InvasionOutcome.DefenseVictory, distanceInvasion.Outcome);
+
         var startWorld = SocialWorld(config);
         startWorld.Settlements[1].CrowdingPressure = 0.9;
         startWorld.Settlements[1].CrowdingConsecutiveDays = config.Settlement.CrowdingConsecutiveDays;
@@ -1742,24 +1788,27 @@ internal static class Program
             startWorld.Npcs.Add(id, participant);
         }
         system.StartEligibleInvasions(startWorld, new HashSet<long>(), Capture(events));
-        True(startWorld.Invasions.Count == 1 && !startWorld.Settlements[1].CrowdingInvasionArmed,
-            "Invasion creation did not disarm the crowding episode.");
+        Equal(1, startWorld.Invasions.Count);
+        var created = startWorld.Invasions.Values.Single();
+        Equal(7, created.InitialAttackForce);
+        Equal(6, created.CenterDistance);
+        Equal(config.Invasion.InfluenceClearBaseDays +
+              (int)Math.Ceiling(created.CenterDistance * config.Invasion.InfluenceClearDaysPerCenterDistance),
+            created.InfluenceClearRequiredDays);
+        Equal(startWorld.Tick, startWorld.Settlements[1].LastInvasionStartedTick!.Value);
 
-        var rearmWorld = SocialWorld(config);
-        var source = rearmWorld.Settlements[1];
-        source.CrowdingInvasionArmed = false;
-        config.Invasion.CrowdingRearmConsecutiveDays = 2;
-        config.Invasion.CrowdingRearmPressureThreshold = 0.70;
-        config.Settlement.CrowdingWindowDays = 1;
-        var random = new RandomStreamFactory(871);
-        var maintenance = new SettlementMaintenanceCoordinator(config, random, new InvasionSystem(config, random));
-        for (var tick = 0; tick < 2; tick++)
-        {
-            rearmWorld.Tick = tick;
-            maintenance.RunEndOfDay(rearmWorld, Array.Empty<SimulationEvent>(), Capture(events));
-        }
-        True(source.CrowdingInvasionArmed, "Crowding did not re-arm after 30-day-rule test equivalent.");
-        Equal(1, source.CrowdingRearmCount);
+        created.EndTick = startWorld.Tick;
+        created.Outcome = InvasionOutcome.DefenseVictory;
+        startWorld.Tick = config.Invasion.CooldownDays - 1;
+        system.StartEligibleInvasions(startWorld, new HashSet<long>(), Capture(events));
+        Equal(1, startWorld.Invasions.Count);
+        True(events.Any(item => item.Type == SimulationEventType.InvasionStartPrevented &&
+                                item.Detail.Contains("reason=cooldown", StringComparison.Ordinal)),
+            "The 60-day start-to-start cooldown did not block an early invasion.");
+
+        startWorld.Tick = config.Invasion.CooldownDays;
+        system.StartEligibleInvasions(startWorld, new HashSet<long>(), Capture(events));
+        Equal(2, startWorld.Invasions.Count);
     }
 
     private static void CoreOccupationDenominator()

@@ -3,7 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-08-18
 - **Amends:** ADR-0022、ADR-0024
-- **Amended by:** ADR-0029
+- **Amended by:** ADR-0029、ADR-0030
 
 ## Context
 
@@ -23,3 +23,4 @@ Order中のActive SettlementがSupport 35以上、非戦時・非migrationでPre
 - Support Potential、累積Support、Renewal、Resident-Days、Migration、親子関係を別state / eventとして追跡する。
 - Fission成功時の人口変化が以後のSupport / Pressureへ自然に反映される。
 - ADR-0029により、CenterはFission開始時snapshot上のCell別Unaffiliated Resident-Daysを第一順位として選び、MigrationはAliveかつActive child SettlementのInfluence内へ実到達した時点で完了すると確定した。
+- ADR-0030により、Fission hotspotのResident-Daysと現在人口はUnaffiliated限定から全Alive NPCへ拡張された。migrant候補は親Settlement所属者のままである。

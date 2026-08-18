@@ -245,7 +245,7 @@ public sealed class SimulationEngine
         {
             var checkpoint = new
             {
-                SchemaVersion = 4,
+                SchemaVersion = 5,
                 State.Tick,
                 State.Phase,
                 State.PendingPhase,
@@ -374,9 +374,7 @@ public sealed class SimulationEngine
                     PressureHistory = item.PressureHistory.ToArray(),
                     CrowdingHistory = item.CrowdingHistory.ToArray(),
                     item.CrowdingConsecutiveDays,
-                    item.CrowdingInvasionArmed,
-                    item.CrowdingRearmConsecutiveDays,
-                    item.CrowdingRearmCount,
+                    item.LastInvasionStartedTick,
                     item.FoundingResidentBaseline,
                     SupportHistory = item.SupportHistory.ToArray(),
                     item.SupportPopulationComponent,
@@ -429,6 +427,8 @@ public sealed class SimulationEngine
                     item.AttackOccupationDays,
                     item.AttackCollapseDays,
                     item.InfluenceClearDays,
+                    item.CenterDistance,
+                    item.InfluenceClearRequiredDays,
                     item.LastVictoryEvaluationTick
                 }).ToArray(),
                 ReproductionSuccesses = State.ReproductionSuccesses.OrderBy(item => item.EventId, StringComparer.Ordinal).ToArray(),
@@ -440,7 +440,7 @@ public sealed class SimulationEngine
                 State.AttackCandidateSuppressionCount,
                 State.UnaffiliatedThreatExceptionAttackCount,
                 State.InvasionStartPreventedCount,
-                UnaffiliatedResidentHistory = State.UnaffiliatedResidentHistory
+                FissionResidentHistory = State.FissionResidentHistory
                     .OrderBy(item => item.Tick)
                     .Select(item => new
                     {
@@ -695,7 +695,8 @@ public sealed class SimulationEngine
                 _restActions == 0 ? 0 : _selectedRestPressureTotal / _restActions,
                 activeSettlements.Count == 0 ? 0 : activeSettlements.Average(item => item.Support),
                 activeSettlements.Sum(item => item.LowSupportDays),
-                activeSettlements.Count(item => item.CrowdingInvasionArmed),
+                activeSettlements.Count(item => item.LastInvasionStartedTick.HasValue &&
+                    State.Tick - item.LastInvasionStartedTick.Value < Config.Invasion.CooldownDays),
                 State.InvasionStartPreventedCount);
         }
     }

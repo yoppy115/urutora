@@ -290,7 +290,7 @@ internal sealed class WorldLogWriter : IDisposable
                                     ",positionInvalidations,subjectPurges,heldInformationEvictions," +
                                     "heldInformationTotal,heldInformationAverage,heldInformationMaximum," +
                                     "restActionRate,averageRestNeed,averageSelectedRestNeed,averageSelectedRestPressure," +
-                                    "activeSettlementAverageSupport,totalLowSupportDays,armedSettlementCount," +
+                                    "activeSettlementAverageSupport,totalLowSupportDays,coolingDownSettlementCount," +
                                     "invasionStartPrevented");
     }
 
@@ -416,7 +416,7 @@ internal sealed class WorldLogWriter : IDisposable
             statistics.AverageSelectedRestPressure.ToString("0.000000", CultureInfo.InvariantCulture),
             statistics.ActiveSettlementAverageSupport.ToString("0.000000", CultureInfo.InvariantCulture),
             statistics.TotalLowSupportDays.ToString(CultureInfo.InvariantCulture),
-            statistics.ArmedSettlementCount.ToString(CultureInfo.InvariantCulture),
+            statistics.CoolingDownSettlementCount.ToString(CultureInfo.InvariantCulture),
             statistics.InvasionStartPrevented.ToString(CultureInfo.InvariantCulture)
         })));
     }
@@ -432,7 +432,7 @@ internal sealed class WorldLogWriter : IDisposable
     private void WriteDiagnostics(WorldStatisticsProjection statistics)
     {
         var entry = new WorldStatisticsLogEntry(
-            6, _info.ReleaseVersion, _info.WorldNumber, _info.WorldId, _info.Seed, statistics);
+            7, _info.ReleaseVersion, _info.WorldNumber, _info.WorldId, _info.Seed, statistics);
         _diagnosticsWriter.WriteLine(JsonSerializer.Serialize(entry, EventJsonOptions));
         _lastDiagnosticsTick = statistics.Tick;
     }

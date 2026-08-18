@@ -179,9 +179,8 @@ internal sealed class WorldStatisticsProjector
                         item.MovementCongestion,
                         item.ReturnFailure,
                         item.CrowdingConsecutiveDays,
-                        item.CrowdingInvasionArmed,
-                        item.CrowdingRearmConsecutiveDays,
-                        item.CrowdingRearmCount,
+                        item.LastInvasionStartedTick,
+                        CooldownRemaining(item),
                         item.SupportPotential,
                         item.DailySupportDelta,
                         item.Support,
@@ -345,7 +344,16 @@ internal sealed class WorldStatisticsProjector
                             npc.InvasionParticipation == InvasionParticipationState.Retreating),
                         item.AttackOccupationDays,
                         item.AttackCollapseDays,
-                        item.InfluenceClearDays);
+                        item.InfluenceClearDays,
+                        item.CenterDistance,
+                        item.InfluenceClearRequiredDays > 0
+                            ? item.InfluenceClearRequiredDays
+                            : checked(_config.Invasion.InfluenceClearBaseDays +
+                                (int)Math.Ceiling((item.CenterDistance > 0
+                                        ? item.CenterDistance
+                                        : _state.Settlements[item.AttackSettlementId].Center.ChebyshevDistance(
+                                            _state.Settlements[item.DefenseSettlementId].Center)) *
+                                    _config.Invasion.InfluenceClearDaysPerCenterDistance)));
                 })
                 .ToArray();
             var auras = new AuraStatistics(
@@ -482,6 +490,11 @@ internal sealed class WorldStatisticsProjector
 
             IReadOnlyList<SimulationEvent> Events(SimulationEventType type) =>
                 eventsByType.TryGetValue(type, out var values) ? values : Array.Empty<SimulationEvent>();
+
+            int CooldownRemaining(SettlementState settlement) => settlement.LastInvasionStartedTick.HasValue
+                ? Math.Max(0, _config.Invasion.CooldownDays -
+                              (_state.Tick - settlement.LastInvasionStartedTick.Value))
+                : 0;
 
             static PhaseWindowStatistics AggregateWindow(
                 string name,

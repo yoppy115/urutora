@@ -21,7 +21,7 @@ public sealed class SettlementFissionSystem
 
     public FissionEvaluationResult Evaluate(WorldState world, DomainEventEmitter emit)
     {
-        RecordUnaffiliatedResidentDay(world);
+        RecordResidentDay(world);
         var formed = new HashSet<int>();
         var fallback = new HashSet<int>();
 
@@ -125,22 +125,22 @@ public sealed class SettlementFissionSystem
         }
     }
 
-    private void RecordUnaffiliatedResidentDay(WorldState world)
+    private void RecordResidentDay(WorldState world)
     {
         var counts = world.Npcs.Values
-            .Where(item => item.IsAlive && SettlementQueries.ActiveSettlement(world, item.SettlementId) is null)
+            .Where(item => item.IsAlive)
             .GroupBy(item => item.Position)
             .OrderBy(item => item.Key)
             .ToDictionary(item => item.Key, item => item.Count());
-        world.UnaffiliatedResidentHistory.Add(new DailyUnaffiliatedResidents(world.Tick, counts));
+        world.FissionResidentHistory.Add(new DailyHotspotResidents(world.Tick, counts));
         var oldest = world.Tick - _config.Settlement.FissionResidentWindowDays + 1;
-        world.UnaffiliatedResidentHistory.RemoveAll(item => item.Tick < oldest);
+        world.FissionResidentHistory.RemoveAll(item => item.Tick < oldest);
     }
 
     private Position? SelectHotspot(WorldState world, SettlementState parent)
     {
         var aggregate = new Dictionary<Position, int>();
-        foreach (var day in world.UnaffiliatedResidentHistory.OrderBy(item => item.Tick))
+        foreach (var day in world.FissionResidentHistory.OrderBy(item => item.Tick))
         {
             foreach (var pair in day.ResidentCounts.OrderBy(item => item.Key))
             {
@@ -149,7 +149,7 @@ public sealed class SettlementFissionSystem
         }
 
         var current = world.Npcs.Values
-            .Where(item => item.IsAlive && SettlementQueries.ActiveSettlement(world, item.SettlementId) is null)
+            .Where(item => item.IsAlive)
             .GroupBy(item => item.Position)
             .ToDictionary(item => item.Key, item => item.Count());
         var size = _config.Settlement.HotspotWindowSize;

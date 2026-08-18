@@ -1,6 +1,6 @@
 # v0.2.4 Settlement Stabilization Update
 
-> **Historical baseline:** 本書はv0.2.4時点の正史を保存する。v0.2.5でHeld Information、SettlementSupport、Pressure→Invasion順、Invasion Rest / Victoryが置換された。現行overrideは [`V0_2_5_KNOWLEDGE_FISSION_INVASION.md`](V0_2_5_KNOWLEDGE_FISSION_INVASION.md) を参照する。
+> **Historical baseline:** 本書はv0.2.4時点の正史を保存する。v0.2.5でHeld Information、SettlementSupport、Pressure→Invasion順、Invasion Rest / Victoryが置換され、v0.2.6でarmed / re-armと動員倍率が置換された。現行overrideは [`V0_2_5_KNOWLEDGE_FISSION_INVASION.md`](V0_2_5_KNOWLEDGE_FISSION_INVASION.md) と [`V0_2_6_FISSION_INVASION_THROUGHPUT.md`](V0_2_6_FISSION_INVASION_THROUGHPUT.md) を参照する。
 
 Status: **Baseline / v0.2.4 configurable defaults**
 

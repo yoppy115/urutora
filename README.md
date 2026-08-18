@@ -6,12 +6,12 @@
 
 ## Current status
 
-- フェーズ: v0.2.5 Knowledge, Fission & Invasion UpdateおよびUnresolved Contracts Closure
-- 実装: headless Core、Windows Desktop観測App、SimRunner、全自動testへv0.2.5を反映済み
+- フェーズ: v0.2.6 Fission / Invasion Throughput Update
+- 実装: headless Core、Windows Desktop観測App、SimRunner、全自動testへv0.2.6を反映済み
 - 実装基盤: C# / .NET 10。`Simulation.Core`、`Simulation.App`、`Simulation.Runner`、各Testsを分離
 - 外部依存: test-onlyのFsCheck 3.3.4。Production Core / App / Runnerは外部packageなし
 
-v0.2.4までの境界を維持しながら、v0.2.5の三種Knowledge、増分統計、累積Support / Renewal、Fission先行、持続型Invasion、記憶・Center・Migration契約を同一seedで再現可能なCoreへ反映する。Windows Formsは交換可能なPresentation Adapterであり、GUIはRealityの権威を持たない。
+v0.2.5までの境界を維持しながら、v0.2.6の全NPC Fission hotspot、Invasion動員2倍、Center距離連動の攻撃者不在判定、開始間隔60日を同一seedで再現可能なCoreへ反映する。Windows Formsは交換可能なPresentation Adapterであり、GUIはRealityの権威を持たない。
 
 ## Source of truth
 
@@ -64,18 +64,18 @@ dotnet run --project src\Simulation.App\Simulation.App.csproj -c Release --no-bu
 .\publish.ps1
 ```
 
-成果物は `outputs\World Sim v0.2.5\Simulation.App.exe` と `outputs\World Sim v0.2.5\tools\Simulation.Runner\Simulation.Runner.exe`。同梱Configを使い、ログはreleaseごとに `logs/v0.2.5/world-NNNN/`、完了後はZIPへ保存する。
+成果物は `outputs\World Sim v0.2.6\Simulation.App.exe` と `outputs\World Sim v0.2.6\tools\Simulation.Runner\Simulation.Runner.exe`。同梱Configを使い、ログはreleaseごとに `logs/v0.2.6/world-NNNN/`、完了後はZIPへ保存する。
 
 headless実行と決定論的replay:
 
 ```powershell
 dotnet run --project src\Simulation.App\Simulation.App.csproj -c Release --no-build -- --headless --ticks 120 --seed 8147291
-dotnet run --project src\Simulation.Runner\Simulation.Runner.csproj -c Release --no-build -- record --config simulation\configs\v0-default.json --seed 8147291 --ticks 120 --output work\replays\v0.2.5-seed-8147291.json
-dotnet run --project src\Simulation.Runner\Simulation.Runner.csproj -c Release --no-build -- verify --replay work\replays\v0.2.5-seed-8147291.json
+dotnet run --project src\Simulation.Runner\Simulation.Runner.csproj -c Release --no-build -- record --config simulation\configs\v0-default.json --seed 8147291 --ticks 120 --output work\replays\v0.2.6-seed-8147291.json
+dotnet run --project src\Simulation.Runner\Simulation.Runner.csproj -c Release --no-build -- verify --replay work\replays\v0.2.6-seed-8147291.json
 ```
 
 Appは世界生成、明示的な世界完了、指定年数×World回数の自動実行、1/2/3/5/10/50倍の速度制御、Settlement / Core / Influence / Invasion Map、ConceptMark旗、NPCとSettlementの現在状態、人口・所属率・平均年齢graph、累積Action選択を提供する。重い系譜・行動履歴・死因・年齢分布・社会・戦闘・繁殖・Friction・Support・Rest診断はDesktop描画から外し、headless統計とWorldログに保持する。
 
 ## Next validation
 
-固定seedでv0.2.4とv0.2.5を比較し、記憶、平和的拡張、戦線、Settlement寿命の因果を観測する。Struggle、汎用Pin Importance式、Event / Settlement Belief容量は先取りしない。
+固定seedでv0.2.5とv0.2.6を比較し、Fission成立数、Invasion動員・期間・間隔、人口、Settlement寿命の因果を観測する。Struggle、汎用Pin Importance式、Event / Settlement Belief容量は先取りしない。

@@ -101,12 +101,14 @@ public sealed class InvasionSystem
                 continue;
             }
 
-            if (!source.CrowdingInvasionArmed)
+            if (source.LastInvasionStartedTick.HasValue &&
+                world.Tick - source.LastInvasionStartedTick.Value < _config.Invasion.CooldownDays)
             {
+                var elapsed = Math.Max(0, world.Tick - source.LastInvasionStartedTick.Value);
                 world.InvasionStartPreventedCount++;
                 emit(0, SimulationEventType.InvasionStartPrevented, null, null, source.Center, true,
-                    $"settlement={source.Id};reason=crowding-not-rearmed;pressure={source.CrowdingPressure:R};" +
-                    $"rearmDays={source.CrowdingRearmConsecutiveDays}");
+                    $"settlement={source.Id};reason=cooldown;elapsed={elapsed};" +
+                    $"remaining={_config.Invasion.CooldownDays - elapsed}");
                 continue;
             }
 
@@ -121,7 +123,9 @@ public sealed class InvasionSystem
                 _config.Invasion.MobilizationBase + _config.Invasion.MobilizationCrowdingFactor * source.CrowdingPressure,
                 _config.Invasion.MobilizationMinimum,
                 _config.Invasion.MobilizationMaximum);
-            var forceSize = (int)Math.Round(population * rate, MidpointRounding.AwayFromZero);
+            var forceSize = Math.Min(population, (int)Math.Round(
+                population * rate * _config.Invasion.MobilizationMultiplier,
+                MidpointRounding.AwayFromZero));
             if (forceSize < _config.Invasion.MinimumForceSize)
             {
                 continue;
@@ -165,6 +169,9 @@ public sealed class InvasionSystem
                 continue;
             }
 
+            var centerDistance = source.Center.ChebyshevDistance(target.Value.Settlement.Center);
+            var influenceClearRequiredDays = checked(_config.Invasion.InfluenceClearBaseDays +
+                (int)Math.Ceiling(centerDistance * _config.Invasion.InfluenceClearDaysPerCenterDistance));
             var invasion = new InvasionState
             {
                 Id = world.NextInvasionId++,
@@ -174,16 +181,19 @@ public sealed class InvasionSystem
                 EffectiveTick = world.Tick + 1,
                 TriggerCrowdingPressure = source.CrowdingPressure,
                 TargetReason = target.Value.Reason,
+                CenterDistance = centerDistance,
+                InfluenceClearRequiredDays = influenceClearRequiredDays,
                 AttackParticipantIds = participants,
                 CoreCohortIds = core.Select(item => item.Id).OrderBy(item => item).ToArray(),
                 FrontierCohortIds = frontier.Select(item => item.Id).OrderBy(item => item).ToArray()
             };
             invasion.InitialAttackForce = participants.Length;
             world.Invasions.Add(invasion.Id, invasion);
-            source.CrowdingInvasionArmed = false;
-            source.CrowdingRearmConsecutiveDays = 0;
+            source.LastInvasionStartedTick = world.Tick;
             emit(0, SimulationEventType.SettlementMaintenance, null, null, source.Center, true,
-                $"phase=11;invasion={invasion.Id};status=pending;effectiveTick={invasion.EffectiveTick}");
+                $"phase=11;invasion={invasion.Id};status=pending;effectiveTick={invasion.EffectiveTick};" +
+                $"centerDistance={centerDistance};influenceClearRequiredDays={influenceClearRequiredDays};" +
+                $"cooldownDays={_config.Invasion.CooldownDays}");
         }
     }
 
@@ -373,7 +383,7 @@ public sealed class InvasionSystem
             {
                 End(world, invasion, InvasionOutcome.DefenseVictory, emit, microRound, "attack-force-collapse");
             }
-            else if (invasion.InfluenceClearDays >= _config.Invasion.InfluenceClearConsecutiveDays)
+            else if (invasion.InfluenceClearDays >= InfluenceClearRequiredDays(world, invasion))
             {
                 End(world, invasion, InvasionOutcome.DefenseVictory, emit, microRound, "defense-influence-clear");
             }
@@ -382,6 +392,21 @@ public sealed class InvasionSystem
                 End(world, invasion, InvasionOutcome.DefenseVictory, emit, microRound, "stalemate-90-days");
             }
         }
+    }
+
+    internal int InfluenceClearRequiredDays(WorldState world, InvasionState invasion)
+    {
+        if (invasion.InfluenceClearRequiredDays > 0)
+        {
+            return invasion.InfluenceClearRequiredDays;
+        }
+
+        var distance = world.Settlements.TryGetValue(invasion.AttackSettlementId, out var attack) &&
+                       world.Settlements.TryGetValue(invasion.DefenseSettlementId, out var defense)
+            ? attack.Center.ChebyshevDistance(defense.Center)
+            : 0;
+        return checked(_config.Invasion.InfluenceClearBaseDays +
+            (int)Math.Ceiling(distance * _config.Invasion.InfluenceClearDaysPerCenterDistance));
     }
 
     private (SettlementState Settlement, string Reason)? SelectTarget(WorldState world, SettlementState source)
