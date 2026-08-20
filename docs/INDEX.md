@@ -5,6 +5,11 @@
 - [`VERSION_LINEAGE.md`](VERSION_LINEAGE.md): v0.2系の版系譜とRun identity。
 - [`IMPLEMENTATION_REGISTER.md`](IMPLEMENTATION_REGISTER.md): 採用済みminor実装・最適化・運用detailの台帳。
 
+## Project records（ゲーム正史外）
+
+- [`INTERIM_REPORT_2026-08-20.md`](project/INTERIM_REPORT_2026-08-20.md): v0.2.6時点の成果、実装状態、実現可能性、継続上の課題をまとめた中間報告。
+- [`COLLABORATION_RULES.md`](project/COLLABORATION_RULES.md): ユーザーと開発AIの会話姿勢、思考手順、実行・報告ルール。
+
 ## Status labels
 
 - **Baseline**: 現時点で採用済みの設計原則または仕様。

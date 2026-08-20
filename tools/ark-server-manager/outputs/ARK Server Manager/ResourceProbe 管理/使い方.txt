@@ -1,0 +1,41 @@
+ResourceProbe 安全管理
+======================
+
+緊急に切り離す場合
+------------------
+1. ARK Server Managerからサーバーを安全に停止します。
+2. ResourceProbe-Disable.cmd をダブルクリックします。
+3. Windowsの管理者確認で「はい」を押します。
+4. 次回のサーバー起動からResourceProbeは読み込まれません。
+
+再び有効にする場合
+------------------
+サーバー停止中に ResourceProbe-Enable.cmd をダブルクリックします。
+
+更新前へ戻す場合
+----------------
+サーバーとARK Server Managerの両方を停止してから、
+ResourceProbe-Rollback-v1.3.cmd をダブルクリックします。
+管理アプリv1.13.0とResourceProbe v1.3を、保存済みバックアップから復元します。
+
+稼働中に走査だけ止める場合
+--------------------------
+管理アプリの「サーバー操作」から次のRCONコマンドを送ります。
+
+ResourceProbe.Pause       資源走査を一時停止
+ResourceProbe.Resume      資源走査を再び許可（自動開始はしません）
+ResourceProbe.Diagnostics 診断情報と全スポットの直近結果を表示
+
+PauseはDLLを取り外さない一時停止です。通常は「現在量を取得」を押した時だけ1回走査され、定期走査はありません。
+
+ログ
+----
+D:\arkserver\ShooterGame\Binaries\Win64\logs\ResourceProbe.log
+
+通常は「現在量を取得」を押して走査が完了した時だけ集計を記録します。走査例外が発生した場合は、
+失敗回数とエラー内容をResourceProbe.Diagnosticsでも確認できます。
+
+バックアップ
+------------
+更新前バックアップは、この管理フォルダー内の「Backups」に保存されます。
+Disable実行時にも、DLLとPluginInfo.jsonをArkApi側のEmergencyBackupへコピーします。

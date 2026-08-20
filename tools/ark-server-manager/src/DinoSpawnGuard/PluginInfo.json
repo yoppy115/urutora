@@ -1,0 +1,7 @@
+{
+  "FullName": "Major Wild Dino Spawn Guard",
+  "Description": "After-save collision checks and safe relocation for selected major wild dinosaurs",
+  "Version": 1.0,
+  "MinApiVersion": 3.5,
+  "Dependencies": []
+}

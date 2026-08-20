@@ -21,6 +21,7 @@ v0.2.5までの境界を維持しながら、v0.2.6の全NPC Fission hotspot、I
 | モジュール境界と依存方向 | [`docs/architecture/`](docs/architecture/) |
 | 重要な判断と採用理由 | [`docs/decisions/`](docs/decisions/) |
 | 未採用・保留・却下案 | [`docs/ideas/BACKLOG.md`](docs/ideas/BACKLOG.md) |
+| 開発中間報告・共同作業ルール | [`docs/project/`](docs/project/)（ゲーム正史外） |
 | 調整値・プリセット・ゲームデータ | [`simulation/`](simulation/) |
 | 保存対象の実験結果 | `research/`（設定・要約・所見を保存） |
 | 実行時の生ログ | `logs/`（Git管理外） |
