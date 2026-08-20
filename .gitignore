@@ -6,6 +6,9 @@
 /work/
 /outputs/
 
+# Projects extracted to standalone repositories
+/tools/ark-server-manager/
+
 # Operating-system and editor noise
 .DS_Store
 Thumbs.db
