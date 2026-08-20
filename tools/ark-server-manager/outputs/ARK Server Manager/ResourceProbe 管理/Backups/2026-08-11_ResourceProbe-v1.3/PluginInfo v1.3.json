@@ -1,7 +1,0 @@
-{
-  "FullName": "Fjordur Resource Probe",
-  "Description": "Manual-only live counts for small metal, crystal and obsidian resource spots",
-  "Version": 1.3,
-  "MinApiVersion": 3.5,
-  "Dependencies": []
-}
