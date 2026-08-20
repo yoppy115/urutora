@@ -1,0 +1,146 @@
+# Simulation Tick and Micro Rounds
+
+**Status:** Baseline boundaries / v0.2 default and configurable mechanics
+
+## Time baseline
+
+- 1 Simulation Tick = 1日、365 Tick = 1年。
+- 内部時刻は整数Tick。Presentationでは `year = floor(tick / 365)`、`day = tick % 365 + 1` とする。
+- Tick 0は第0年1日、Tick 365は第1年1日。
+- うるう年は扱わない。1 Actionはその日に行った意味のある行動の抽象化である。
+
+## One-day transaction
+
+1. Reality Snapshot
+2. Observation
+3. Perception更新
+4. Needs更新
+5. Action Candidate生成
+6. Utility評価
+7. ActionIntent生成
+8. Targeted Action Phase
+   1. Attack Resolution → Outcome / Interrupt / 必要な再判断
+   2. Reproduction Resolution → Outcome / Interrupt / 必要な再判断
+   3. Communication Resolution → Outcome
+9. Movement Phase
+10. Rest
+11. Reality / Event処理
+12. Actionによる追加Micro Round判定
+13. 成功NPCについて3〜11を反復
+14. Concept Exposure
+15. Vitality / Aging / Lifecycle更新
+16. Birth Queue解決
+17. Death cleanup
+18. 翌日へ
+
+Observationは原則として日初に一度だけ行い、Micro Roundごとに周囲を完全再観測しない。ただし攻撃を受けた、攻撃が失敗した、交流で情報を受信した、追撃された、対象が死亡した等、本人が直接経験したActionOutcomeは即時にPerceptionへ反映できる。高Action個体が同日中に古い周辺情報で複数行動することは、許容する逸脱要因である。
+
+v0.2はReproduction Success履歴、Core滞在・行動によるAffinity、人口統計、Settlement Candidate、Generation→Order、SettlementPressure、Friction、Invasion、自然消滅、Auraを日次処理へ追加する。Settlementの大きな構造変更は日中Micro Roundへ割り込ませず、Tick末Settlement Maintenanceでcommitし、原則翌Tickから通常Ruleへ反映する。
+
+Settlement Maintenanceの固定順は、当日Event / 増分Statistics確定→Affinity反映→Membership / Affiliation変更→Population / Demographic rolling更新→Frictionの日次decay / impulse→Formation Hotspot Candidate生成→同時arbitration / Settlement生成→SupportPotential算出と累積Support / Renewal / 自然消滅→Generation / Order判定→SettlementPressure rolling更新→Fission counter / hotspot / migration評価→有効Fissionがない場合だけInvasion trigger / target / mobilization評価→翌Tick state確定とする。Invasion宣言時のFriction retentionは開始Eventと同じcommitで適用する。
+
+Fission CenterはFission判定開始時のimmutable snapshotからCell Resident-Days等の確定順位で選ぶ。Migration完了は、Fission成立時、Move / Flee等のPosition変更Action全体の最終Position確定後、Tick末fallbackで評価する。2マス移動の1マス目では判定せず、完了Eventを二重発生させない。Invasion参加中はInvasion Biasを優先し、未完了MigrationはchildがActiveならInvasion終了後に再開する。
+
+日中に即時解決するAffinity発生要因、Friction Event、Rest Collision、Active InvasionのMove / Combat、勝敗成立、Auraと区別する。征服統合はVictory Outcomeとして自然消滅phaseを待たず処理できる。
+
+## v0.15 Micro Round phases
+
+Targeted Action PhaseはAttack → Reproduction → Communicationの固定順で、Move、Flee、Restより先にResolutionする。AttackはHP、Alive、Intentを不可逆的に変え得るため最初、ReproductionはAccept時にIntentを置換し得るため次、情報・Perceptionを主に変えるCommunicationは最後とする。
+
+v0.2.4のHome / Foreign Move weightとAction別Rest疲労は各Action ResolutionでEvent化する。ReactionのCounterattack / Pursuitには身体疲労だけを適用し、通常Action枠やActivity変化を追加しない。
+
+各後続phaseは先行phase完了後の最新RealityでIntentを再Validationする。Attackで死亡したNPCへのReproduction / Communicationは成立させない。Attack後にHP条件等が崩れたReproductionはFailure Outcome、Reproduction後にDead、距離外、不存在となったCommunicationは不成立とする。
+
+Movement PhaseはMoveとFleeを扱い、その後にRestを扱う。各phaseの競合は既存のEffectiveActionとseed付きtie-break規則へ従う。
+
+Order中のMovement ResolutionはAffiliation、Settlement Influence、Invasion関係を明示的に参照し、同Settlement / Unaffiliated保護 / 異Settlement Friction / Invasion Combatの条件を [`V0_2_SETTLEMENT_ORDER.md`](V0_2_SETTLEMENT_ORDER.md) に従って解決する。radius 5内のRest Collisionは対象の未実行Rest Intentを解除し、元Action枠を同一Micro Round最大1回だけ再評価できる。
+
+## Interrupt and intent replacement
+
+Attackを受けたNPCは現在の未実行ActionIntentを破棄し、最新の自己State / Perceptionを使ってUtility AIを1回だけ再評価できる。得たActionは同Micro Roundの元Action枠を置き換え、追加Actionにはならない。同一Micro Roundで複数回AttackされてもAttack由来の再評価は最大1回である。
+
+Reproduction Rejectでは申込対象の未実行Intentを維持する。Acceptでは既存Intentを破棄し、同じAction枠を最大1回だけ再評価する。Rejectを無料の行動キャンセルとして利用できない。
+
+ReactionとIntent置換は追加Micro Round回数を消費せず、既存のReaction非再帰規則を維持する。
+
+再抽選Intentは現在Micro Roundでまだ未処理の適切なphaseに限り実行できる。終了済みphaseへ時間を巻き戻さない。例えばAttack Phase中に再抽選されたAttackは同じAttack Phaseの先頭へ戻して実行せず、そのMicro Roundでは失効する。これによりInterrupt Attackの再帰連鎖を防ぐ。
+
+## TargetAbsent outcome
+
+Perception上の位置を基準に選んだTargeted ActionのResolution時に、Targetがその位置・距離へ存在しなければTargetAbsent Outcomeを返す。行動者は対象PositionをUnknownまたは無効Confidenceとして即時更新し、次Decisionで同じ古いPositionを根拠に反復できないようにする。
+
+TargetAbsentは対象の死亡や正確な現在位置を自動開示しない。Attack命中/失敗、Communication成立/不成立、Reproduction成立/不成立、Pursuit等も、本人が直接経験したOutcomeとして同日中にPerceptionへ反映できる。
+
+## Additional actions
+
+初回Actionは通常通り可能。以後の参加確率はv0 defaultとして次を使う。
+
+```text
+P(repeat) = EffectiveAction / (EffectiveAction + 5)
+```
+
+EffectiveAction 0で0%、5で50%、10で約66.7%。ConceptMarkでBase scaleの10を超えることを許容する。1 NPC 1日最大5 Actionとし、上限はConfig化する。追加判定に成功したAlive NPCだけが次Micro Roundへ進む。
+
+## Conflict ordering
+
+同じ資源・Cellを競合するIntentはEffectiveAction値の高いNPCを優先し、完全同値だけseed付き乱数で解決する。Entity配列順、生成順、Dictionary列挙順に依存してはならない。
+
+同一空きCellを選んだMove競合の敗者はUtility AIへ戻らず、残る有効移動先だけを再抽選する。再抽選先がNPC占有CellならCollision Attackへ変換し、候補が尽きればMoveFailedとする。
+
+## Second step
+
+MoveまたはFleeの1マス目の後、次のv0 defaultで2マス目を試みる。
+
+```text
+P(secondStep) = Clamp(0.02 * EffectiveAction, 0, 1)
+```
+
+通常Moveは原則同方向、Fleeは主観上のThreatからさらに離れる方向を選ぶ。2マス目が不可能なら1マス地点で終了する。
+
+## Determinism baseline
+
+同じCode Version、Config、RunSeedなら同じSimulation Event列を再現可能にする。単一共有乱数列へ全面依存せず、run seedから少なくとも `subsystem / tick / entity / purpose` で用途別streamを派生する。
+
+用途例はUtilityChoice、Mutation、MoveDirection、MoveConflict、CommunicationDistortion、SubjectSwap、CombatHit、CombatDamage、BirthLocationである。無関係な乱数利用追加が既存の全結果をずらさない構造を目標とする。
+
+## Immediate death and end-of-day cleanup
+
+Reality ResolutionでCurrentHPが0以下になった時点から即座にDeadとして扱う。同Tickの新Action、Micro Round、Counterattack、Pursuit、Reproduction、Communicationへ参加できない。Corpseは持たず、Cell占有を即時解除するため、後続Micro Roundの別MoveはそのCellを利用できる。
+
+攻撃者は相手を倒したAttackまたはCollision Attackと同じAction内でそのCellへ移動しない。Tick末Death phaseはDeath Event確定、Lifecycle cleanup、index / collection cleanupを担当する。
+
+## Birth queue arbitration
+
+Reproduction Success時に両親ID、受胎時Position、GeneticData / seed informationをBirthRequestへ固定する。後の親の移動やBirth解決前の死亡でRequestを移動・キャンセルしない。
+
+Tick末には全BirthRequestをまとめ、各Requestが受胎時の両親隣接Cell和集合から有効な希望Cellをseed付きで選ぶ。同一Cell競合はseed付き決定論的tie-breakで1件だけ勝者とし、敗者は残る候補から再抽選する。全候補が尽きた場合だけBirth Failureとなる。queue順、Entity生成順、collection列挙順に依存させない。
+
+Birth解決時点で空いている死亡Cellは利用可能。LandmarkとAlive NPC占有Cellは利用できない。
+
+採用理由は [`ADR-0007`](../decisions/ADR-0007-v0-time-and-micro-rounds.md) と [`ADR-0011`](../decisions/ADR-0011-partitioned-deterministic-rng.md) を参照する。
+
+## Headless invariants
+
+- DecisionはRealityを直接読まない。
+- 未観測Reality変更は同じPerceptionとseedのDecisionを変えない。
+- Action競合は入力配列順を変えても同じ結果となる。
+- Dead NPCは同Tickの後続行動・Reactionへ参加しない。
+- Birth競合はqueue順を変えても同じ結果となる。
+- Targeted ActionをMove / Flee / Restより先に解決する。
+- Targeted ActionはAttack → Reproduction → Communication順で解決し、後続phaseは更新後Realityを再Validationする。
+- Attack InterruptとReproduction Accept Interruptは各由来につき同一Micro Round最大1回で、Action枠を増やさない。
+- 再抽選Intentは終了済みphaseへ巻き戻さず、そのMicro Roundで適切な未処理phaseがなければ失効する。
+- Reproduction Rejectは相手の未実行Intentを維持する。
+- TargetAbsent後に同じ古いPositionによるTargeted Actionを反復しない。
+- 同一Code、Config、RunSeedから同じEvent列を得る。
+- UI render頻度を変えてもSimulation結果は変化しない。
+- Observation cache、NPC近傍index、deterministic CPU parallelization、thread scheduling、CPU core数でEvent列が変化しない。
+- Generation中のSettlement形成とOrderへの人口安定判定が、collection順や表示頻度に依存しない。
+- Order中のCollisionはAffiliation / Invasion条件に従い、同Settlement・保護対象・異Settlement・戦時を混同しない。
+- Rest Collision再評価は元Action枠の置換で、同一Micro Round最大1回とする。
+- Settlement構造変更は固定Maintenance順でcommitし、新規Settlement / WorldPhase / Invasion開始を翌Tickから反映する。
+- Hotspot Candidateは同一immutable snapshotから生成し、繁殖成功数とseed tie-breakで順序非依存にarbitrateする。
+- v0.2.4のSupport、SettlementPressure、Friction、High / Low counter、Invasion作成、自然消滅は日末Maintenanceでcommitし、日中Micro Round途中でSettlementを消滅・再armしない。
+- v0.2.5のKnowledge TTL / capacity整理、増分Statistics、累積Support、Renewal、Fission、Migration、Invasion継続counterもstable ID順の日末commitとし、collection順へ依存させない。
+- Fission Center選択はsnapshot、Map走査順、collection順に依存せず、無効hotspotの次候補を同じMaintenanceで評価できる。
+- Migration完了はchild Influenceへの実到達をAction最終PositionとTick末fallbackで一度だけ判定し、Invasion中の優先関係を変えない。

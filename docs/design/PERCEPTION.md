@@ -1,39 +1,131 @@
-# Perception
+# Perception and Knowledge
 
-**Status:** Baseline
+**Status:** Baseline boundaries / v0 default and configurable mechanics
 
-## Principle
+Observation cacheとNPC近傍indexは非権威的な高速化である。Held Informationの入口、観測範囲、誤差、Confidence、Outcome更新を変えず、cache / index / deterministic parallelizationの有無で同一Code / Config / Seedの結果を変えてはならない。
 
-Reality（世界の客観状態）とNPC Perception（NPCが知っていると考える主観状態）を、別のデータ層として扱う。
+## Reality boundary
 
-NPCの判断はPerceptionだけを使い、隠されたRealityを直接参照しない。誤認・遅延・不完全な情報を導入する場合も、この境界内で表現する。
-
-## Boundary
+RealityとNPCごとのPerceptionを別データ層にする。NPCはRealityを直接知れず、DecisionはPerceptionだけを使う。NPCは主観上可能なActionを選べるが、ActionIntentはReality側で失敗し得る。失敗もEventと直接経験になり、後のPerceptionへ影響できる。
 
 ```text
-Reality
-  -> observation process
-  -> NPC Perception
-  -> Utility evaluation
-  -> selected action
-  -> Reality update
+Reality -> Observation -> Perception
+  -> PerceivedActionCandidate -> ActionIntent
+  -> Reality validation / resolution -> ActionOutcome
+  -> observable fact -> Perception update
 ```
 
-- RealityからPerceptionへの変換は明示的な処理にする。
-- Utility評価器はRealityの参照を受け取れないinterfaceにする。
-- 表示層へ内部数値を自動公開しない。プレイヤーが何を観測できるかは別途設計する。
-- デバッグ時の完全状態表示と、製品UIの情報公開は分ける。
+## v0 information record
 
-## Not decided yet
+Perceptionは少なくとも次を保持可能にする。
 
-- 視界、距離、記憶、噂、伝聞をどう表現するか。
-- 認識誤差と情報遅延の生成規則。
-- Perceptionの忘却、更新、矛盾解消。
-- NPC間で情報が伝播する際の変形。
-- プレイヤーが得られる情報と、その不確実性の見せ方。
+- Subject
+- Property
+- EstimatedValue
+- Confidence
+- Source
+- AcquiredBy: `Observation` または `Communication`
+- AcquiredTick
+- stable InformationId
 
-## Minimum tests
+主観には将来、記憶、噂、誤認、経験、関係、文化的解釈を加えられる。同じ事実を異なる意味として解釈できる上位正史を維持する。
 
-- NPCが観測していないReality変更で、そのNPCのUtilityが変化しない。
-- 同じPerceptionとseedから同じ意思決定が得られる。
-- RealityオブジェクトをUtility評価器へ直接渡せない構造になっている。
+## Held Information
+
+Held Informationは、自分でObservationした情報とCommunicationで受け取った情報の集合だけである。Communicationで送れるのも送信者自身のHeld Informationだけで、知らないReality情報を生成してはならない。
+
+Reality変更で既存情報を自動更新しない。古い情報を保持できる。同じSubject / Propertyの複数記録も保持可能で、Decision用代表値は次で選ぶ。
+
+1. Confidenceが最も高い。
+2. 同ConfidenceならAcquiredTickが新しい。
+3. それも同じならseedに依存しないstable InformationId順。
+
+Realityの最新値による自動上書きを禁止する。
+
+この節の旧Subject + Property記録方式はv0.15の履歴である。v0.2.5ではPersonBelief / EventBelief / SettlementBeliefへ置換し、詳細は [`KNOWLEDGE_MEMORY.md`](KNOWLEDGE_MEMORY.md) を正本とする。
+
+## Directly confirmed subject disappearance
+
+旧v0.15では、本人がSubject消滅を直接経験した場合に全Propertyを削除した。v0.2.5では通常のfield優先規則を通った死亡認知でもPersonBeliefを削除できる。
+
+TargetAbsentは現在もPositionだけを無効化し、死亡を自動開示しない。死亡伝聞は自動採用ではなく、既存直接Alive等とのfield優先度を通して評価する。World Event LogとHistory Logは削除しない。
+
+## v0 direct observation
+
+最大Chebyshev距離は3。直接Observationで最低限、Subject EntityId、Position、Alive、CurrentHP estimate、Combat estimate、ConceptMark有無、Perceived Life StageのChild / Matureを得られる。Action、Communication、RiskPreference、正確なAgeDays等の数値は直接取得しない。Old等の追加LifeStageはDraftである。
+
+Subject EntityIdの取り違えはなく、PositionとAliveはObservation時点で正確に取得する。CurrentHP、Combat等の数値は距離 `d in {1,2,3}` に応じて次の誤差を持つ。
+
+```text
+ObservationErrorMax = 0.025 * (d + 1)
+error = SeededRandom(-ObservationErrorMax, +ObservationErrorMax)
+EstimatedValue = RealityValue * (1 + error)
+```
+
+最大誤差は距離1で±5%、距離2で±7.5%、距離3で±10%。v0 default Confidenceは距離1で1.00、距離2で0.90、距離3で0.80とする。誤差・ConfidenceはConfig化する。
+
+## v0 communication confidence
+
+受信者の品質を次で求め、送信元Confidenceをそのままコピーしない。
+
+```text
+CommQuality = Clamp(EffectiveCommunication_receiver, 0, 10)
+TransmissionConfidenceFactor = 0.50 + 0.03 * CommQuality
+ReceivedConfidence = Clamp(
+  SourceInformationConfidence * TransmissionConfidenceFactor,
+  0, 1)
+```
+
+Communication 0で係数0.50、10以上で0.80となり、伝聞を重ねるほど原則Confidenceが低下する。数値DistortionとSubjectSwapは別途適用する。直接ObservationはCommunication由来より原則高Confidenceである。
+
+## Observation and immediate experience
+
+日初Observationの最大Chebyshev距離は3。Micro Roundごとに周囲を完全再観測しない。本人が直接経験したAttack、失敗、情報受信、Pursuit、対象死亡等のActionOutcomeだけは即時更新できる。
+
+Micro Round中にNPCが移動しても、他NPCのPosition認識は自動更新しない。Communication、Attack、Reproduction等は現在のPerceptionから候補を作り、対象がReality上ですでに距離外、死亡、不存在ならResolutionで失敗できる。そのOutcomeは本人へ即時反映できる。
+
+Targeted ActionのResolution時に対象が既知Position / 距離に存在しなければTargetAbsentとなる。行動者はそのTargetのPositionをUnknownまたは無効Confidenceへ即時変更し、次Decisionで同じ古いPositionを根拠に同一Targeted Actionを作れないようにする。TargetAbsentだけから対象の死亡や正確な現在位置を推論・自動開示しない。
+
+Attackされた、Attackが命中/失敗した、Communicationが成立/不成立だった、Reproductionが成立/不成立だった、Pursuitされた等の直接Outcomeも同日中に更新できる。ただしReproductionの非公開precondition値はOutcomeへ含めない。
+
+v0ではNPCは自身のCurrentHP、EffectiveMaxHP、Base/Effective能力、Needs、Ageを正確に把握してよい。他NPCについてはPerceptionを必須とする。
+
+## Threat Memory
+
+Attack、Collision Attack、Pursuit Attackを直接受けたNPCは相手をPerceivedThreatとして記録する。これはPerception上の情報であり、明示的Attack Candidateは原則として距離1以内の既知Threatに対して生成する。
+
+期限を持てる構造とし、v0.15 defaultは90日。再度脅威行為を受けるたび更新し、期間はConfig化する。これにより空間競合→最初の暴力→Threat Memory→継続的敵対という因果を作る。
+
+直接Threat行為を受けるたびLastThreatTickを更新する。期限切れ後は明示的Attack/Flee Candidate対象から外すが、履歴ログまで削除する必要はない。Attackは距離1以内の各Threat、Fleeは距離3以内で最大 `R_threat` のPrimaryThreat、Pursuitは直前にFleeした対象だけを扱う。
+
+Collision Attackの攻撃側はOutcomeから相手EntityId、相手Position、戦闘結果を直接知る。被攻撃側は攻撃者をPerceivedThreatへ登録する。
+
+## v0.2 social boundary
+
+Settlement AffinityとActive AffiliationはNPC自身の社会状態として扱い、Initial HostilityはFounder cohortと成立時初期住民が現に持つActive PerceivedThreatを集計して生成する。個人が知らないThreatやReality情報を補完して外交関係をランダム生成しない。
+
+SettlementのHostility、Friction、Invasion状態はReality上の社会状態である。Order中のUnaffiliated保護Candidateは、NPCがPerception上把握する対象Position / Affiliationと自身のActive PerceivedThreatだけを使う。ResolutionはReality上のUnaffiliated、Influence、Active Threatを再Validationする。NPCへ公開してよい専用入力を使い、Reality Store全体をPerception境界越しに渡さない。
+
+v0.2.4は旧Held Information境界を維持したが、v0.2.5がこれを明示的に置換する。現行仕様は人物ごと1 PersonBelief、StableCommunication由来の全人物capacity、365日TTL、保護付きeviction、field provenanceである。Event / Settlement知識は別categoryとする。
+
+v0.2.5 closureでは、Person evictionの人物Confidenceを7 tracked fieldの0込み平均、Position Unknownを無限遠として確定した。SettlementBeliefは自己所属、距離3以内のCenter / 所属表示Observation、当事者Event、Communication、直接Outcomeからだけ取得する。Mandatory Memorable EventまたはPin Importance 60以上であっても、NPCが認識しなければEventBeliefへ保存しない。詳細は [`KNOWLEDGE_MEMORY.md`](KNOWLEDGE_MEMORY.md) を正本とする。
+
+## Player boundary
+
+プレイヤーも通常はReality全知ではない。現在の表層状態を中心に観測し、完全な因果や全履歴の調査を主目的にしない。開発用debug projectionとは分ける。
+
+## Minimum invariants
+
+- 未観測Reality変更は、同一Perceptionとseedの候補順位・選択を変えない。
+- Reality型をUtility評価器へ直接渡せない。
+- CommunicationはHeld Information外の情報を生成しない。
+- 数値変形とSubjectSwapは設定上限を超えず、未知Entityを生成しない。
+- Observation誤差は距離別上限を超えない。
+- Communication受信Confidenceはsource Confidenceを上回らない。
+- PersonBeliefは1 Subject 1 recordで、全人物capacity、TTL、保護付き決定論的evictionに従う。
+- PersonBelief / EventBelief / SettlementBeliefを別管理し、Unknownを0 / falseと区別する。
+- Subject消滅を直接確認した場合だけ全Propertyを削除し、TargetAbsentや死亡伝聞だけでは全削除しない。
+- TargetAbsent後は同じ古いPositionをTargeted Action根拠へ使えない。
+- 隠れたReality差はActionOutcomeだけを変え得る。
+
+採用理由は [`ADR-0002`](../decisions/ADR-0002-subjective-decision-boundary.md) を参照する。

@@ -1,0 +1,47 @@
+# ADR-0003: World lifecycle progresses through causal difficulty chains
+
+- **Status:** Accepted
+- **Date:** 2026-08-16
+
+## Context
+
+固定時間や単一の世界安定度ゲージだけで終末を起こすと、世界内の出来事とフェーズ遷移の因果が弱くなる。また、困難へ完全適応した世界がゲーム都合だけで崩壊すると、その成功が無意味になる。
+
+## Decision
+
+世界の基本ライフサイクルを次とする。
+
+```text
+萌芽 -> 秩序 -> 争覇 -> 滅亡 / 再編 -> 詩篇 -> 次世界
+```
+
+フェーズ遷移は、上位存在の影響圏、持続可能な秩序、影響圏同士の接触、困難への適応と副作用、新しい困難の連鎖から生じる。
+
+単一の世界崩壊ゲージを主因にしない。長期安定した世界は成功として分析し、その成功では解きにくい新しい困難または概念を伴って再編する。
+
+フェーズ名や内部閾値を通常UIへ明示する必要はない。
+
+v0.2では萌芽をGenerationとして最小実装し、Generation中にSettlementを形成する。90日人口系列のPopulationCVとDemographicImbalanceがConfig条件を30日連続で満たすことをOrder移行の実験用判定とする。これは上位Lifecycle全体の普遍的遷移式ではない。詳細判断は [`ADR-0016`](ADR-0016-generation-settlement-and-order.md) に記録する。
+
+## Reasons
+
+- 世界内部の因果から歴史と終末を生む。
+- 戦争だけでなく疾病、資源、情報、文化、制度の副作用を困難として扱う。
+- 失敗と成功の両方を次世界の進化へ変換する。
+
+## Consequences
+
+- Order以降の定量的遷移条件は別途Draftとして設計する必要がある。
+- 滅亡時にシミュレーションの一部が変調・停止する表現が必要になる。
+- 終わらない安定世界を検出し、再編へ導く規則が必要になる。
+- フェーズの内部状態とプレイヤー表示を分ける。
+
+## Rejected alternatives
+
+### Fixed-duration phases only
+
+世界状態と無関係に展開が進み、毎世界の因果が弱くなる。
+
+### A single world stability meter as the primary cause
+
+複数システムの相互作用を一つの数値へ潰してしまう。
