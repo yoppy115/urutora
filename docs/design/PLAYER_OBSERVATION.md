@@ -52,14 +52,16 @@ v0はheadless Coreに加え、観測用Desktop Applicationを実装対象とす�
 
 1. 64×64 World Map。NPC、Empty、闘争・生存・交流Landmarkを視覚的に識別できる。
 2. 現在のYear / Day。
-3. Pause、通常速度、複数の高速化段階。可能ならMax Speed。
+3. Pause、1倍、2倍、3倍、5倍、10倍、50倍の速度段階。
 4. 最近のBirth、Death、Attack、CollisionAttack、Communication、Reproduction、ConceptMark Eventのスクロールログ。
 
 v0.2ではMap上でSettlement Centerと、必要に応じてCore / Influenceを識別可能にする。Current World Phase、Settlement数、主要Statistics、Invasion中Settlementも確認可能にする。Generation→Orderの条件、Settlement / Affiliation、暴力、Reproduction、Invasion、Concept / Auraの最低限統計は [`STATISTICS.md`](../architecture/STATISTICS.md) に従う。
 
-v0.2.2以降、ConceptMark HolderをMap/UIで識別可能にし、Pause、1x、2x、3x、5x、10x、50xの速度段階を提供する。Mark旗、ボタン、色はPresentation detailであり、速度や描画頻度でSimulation結果を変えない。
+v0.2.2ではSettlement所属色とConceptMarkを同じNPC記号の色だけで重ねない。所属は従来の輪郭色、ConceptMarkは該当Concept / Landmarkと同色の旗として別レイヤーに描画し、複数Markは複数旗で識別可能にする。
 
-v0.2.3以降、Settlementは不変IDで識別し、表示色は最大約60色の再利用可能paletteとして扱う。消滅済みSettlementは通常Mapから隠してよいがHistory / Statisticsから削除しない。Settlement詳細、Friction、NPCの行動履歴とKill countを観測可能にする。
+v0.2.3ではActive Settlement Centerをクリックすると専用詳細Tabを開き、Center、形成日、Founder数、人口、Core占有、Crowdingと、そのSettlementに関係するFrictionを表示する。World統計の社会表は消滅済みSettlementを除外し、Active / Pendingだけを列挙する。Friction値と変動Eventは一般の社会表・最近の出来事から外し、Settlement詳細からだけ閲覧可能にする。headless統計とWorldログには保持する。NPC詳細は既存EventからCombat Deathの最後の一撃を数えたキル数を表示する。
+
+同時に表示するActive Settlement色は60色を用意し、Active中は同じSettlementへ固定する。消滅したSettlementの色は解放し、次に成立するSettlementの色抽選候補へ戻す。この色割当はPresentation専用であり、Simulation乱数や結果を変更しない。
 
 v0.2.4ではCurrent Support、P/R/S、LowSupportDays、所属者のCore / Influence / 外部分布、Home Bias、Rest、Foreign movement、Invasion診断をSettlement詳細とStatisticsへ追加可能にする。
 
@@ -67,7 +69,7 @@ v0.2.5では、NPCが知らないPerson / Event / Settlement fieldを`0`や`fals
 
 診断UIではMandatory / Pin経路別EventBelief、SettlementBelief取得経路とKnown率、AggregatePersonConfidence、Fission Center選択、Migration完了経路、Expansion Indicatorsを表示可能にする。これは開発・観測projectionであり、NPCへ非公開Realityを渡したりExpansionをWorldPhaseとして表示したりするものではない。
 
-具体倍率、配置、UI framework、デザインは実装時の裁量とする。
+具体倍率、配置、UI framework、旗形状、デザインは実装時の裁量とする。
 
 Simulation TickとUI Render Updateを分離する。高速進行では複数Tick後の最新Stateだけを描画してよく、render頻度、frame rate、UI操作がSimulation Event列を変えてはならない。自動テストはGUIなしで実行可能にする。
 

@@ -22,4 +22,3 @@
 ## Supersession
 
 ADR-0024がPressure trigger `0.65`、re-arm `0.45`、正規化Friction、Mobilization、Rest同一Event再参加禁止、Center非勝利を確定した。Alive-only conquestとUsable Core 50%勝利はADR-0024でも維持する。旧Pressure `0.70`未満30日のre-armと、FrictionをClampするだけの暫定状態は現行仕様ではない。
-

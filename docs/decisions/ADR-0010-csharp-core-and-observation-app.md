@@ -16,4 +16,3 @@ v0の言語とruntimeをC# / .NETとし、概念上 `Simulation.Core`、`Simulat
 - CoreはGUIなしで高速実行・テスト可能でなければならない。
 - render頻度を変えた決定性テストが必要になる。
 - UI固有型をCore APIへ持ち込まない。
-

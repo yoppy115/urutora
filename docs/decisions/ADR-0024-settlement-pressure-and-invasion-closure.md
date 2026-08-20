@@ -3,7 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-08-18
 - **Supersedes:** ADR-0017の旧Crowding / raw Friction detail、ADR-0023
-- **Amended by:** ADR-0027、ADR-0028
+- **Amended by:** ADR-0027、ADR-0028、ADR-0030、ADR-0031
 
 ## Context
 
@@ -35,3 +35,9 @@ v0.2.4はInvasion連打、Center一人到達、Friction無制限化を暫定guar
 ## v0.2.5 amendments
 
 ADR-0027はPressure起因Invasionの前へ90日Fission gateを置き、有効hotspotがない場合だけInvasionを許す。ADR-0028は通常Restを1日FieldRestとし、重傷時だけRetreatingへ移し、瞬間Core 50%勝利を3日連続条件へ置換する。Pressure成分、Friction、armed / re-arm、Mobilization、Center非勝利、能力値非選抜は維持する。
+
+## v0.2.6 amendments
+
+ADR-0030はarmed / 低Pressure再武装を攻撃開始間隔60日のcooldownへ置換し、既存Pressure rateによるTarget Forceへ2.0倍を適用する。Pressure成分、Friction、Center非勝利、eligible境界、能力値非選抜は維持する。
+
+ADR-0031は2.0倍Target Forceを全Alive affiliated member参加へ置換する。Pressure trigger、最低3名、cohort分類、能力値非選抜は維持する。

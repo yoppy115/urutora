@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>Simulation.Core</AssemblyName>
+    <RootNamespace>Simulation.Core</RootNamespace>
+  </PropertyGroup>
+</Project>

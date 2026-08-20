@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>Simulation.Runner.Tests</AssemblyName>
+    <RootNamespace>Simulation.Runner.Tests</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Simulation.Runner\Simulation.Runner.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\simulation\configs\v0-default.json" Link="simulation\configs\v0-default.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

@@ -5,6 +5,11 @@
 - [`VERSION_LINEAGE.md`](VERSION_LINEAGE.md): v0.2系の版系譜とRun identity。
 - [`IMPLEMENTATION_REGISTER.md`](IMPLEMENTATION_REGISTER.md): 採用済みminor実装・最適化・運用detailの台帳。
 
+## Project records（ゲーム正史外）
+
+- [`INTERIM_REPORT_2026-08-20.md`](project/INTERIM_REPORT_2026-08-20.md): v0.2.6時点の成果、実装状態、実現可能性、継続上の課題をまとめた中間報告。
+- [`COLLABORATION_RULES.md`](project/COLLABORATION_RULES.md): ユーザーと開発AIの会話姿勢、思考手順、実行・報告ルール。
+
 ## Status labels
 
 - **Baseline**: 現時点で採用済みの設計原則または仕様。
@@ -30,10 +35,11 @@
 | [`V0_2_SETTLEMENT_ORDER.md`](design/V0_2_SETTLEMENT_ORDER.md) | Baseline / v0.2 configurable | Settlement自然発生、Maintenance、Order、Friction、Invasion、Aura |
 | [`V0_2_4_SETTLEMENT_STABILIZATION.md`](design/V0_2_4_SETTLEMENT_STABILIZATION.md) | Baseline / v0.2.4 configurable | Rest v2、Home Bias、Proto-Order、Support、SettlementPressure、Friction、Mobilization、Invasion |
 | [`V0_2_5_KNOWLEDGE_FISSION_INVASION.md`](design/V0_2_5_KNOWLEDGE_FISSION_INVASION.md) | Baseline / v0.2.5 configurable | v0.2.5の適用範囲、置換関係、closureと将来Backlog |
+| [`V0_2_6_FISSION_INVASION_THROUGHPUT.md`](design/V0_2_6_FISSION_INVASION_THROUGHPUT.md) | Baseline / v0.2.6 configurable | Fission hotspot全NPC化、Invasion全所属者参加、距離連動Defense、60日cooldown |
 | [`KNOWLEDGE_MEMORY.md`](design/KNOWLEDGE_MEMORY.md) | Baseline / v0.2.5 configurable | Person / Event / Settlement Belief、capacity、TTL、Communication |
 | [`EVENT_HISTORY.md`](design/EVENT_HISTORY.md) | Baseline constraints / technical policy | Event保持四層と増分Statistics |
-| [`SETTLEMENT_FISSION.md`](design/SETTLEMENT_FISSION.md) | Baseline / v0.2.5 configurable | 累積Support、Renewal、Fission Center、Migration、親子非侵略 |
-| [`INVASION_V025.md`](design/INVASION_V025.md) | Baseline / v0.2.5 configurable | FieldRest、Retreating、前線、継続Victory |
+| [`SETTLEMENT_FISSION.md`](design/SETTLEMENT_FISSION.md) | Baseline / v0.2.6 configurable | 累積Support、Renewal、全NPC Fission Center、Migration、親子非侵略 |
+| [`INVASION_V025.md`](design/INVASION_V025.md) | Baseline / v0.2.6 configurable | FieldRest、Retreating、前線、距離連動Defense、cooldown |
 | [`SIMULATION_TICK.md`](design/SIMULATION_TICK.md) | Baseline / v0 configurable | 日、Micro Round、即時Death、Birth競合、乱数 |
 | [`V0_ACTIONS.md`](design/V0_ACTIONS.md) | Baseline / v0 configurable | Action/Reaction、Move、Communication、Combat、Flee、Pursuit |
 | [`CONCEPTS.md`](design/CONCEPTS.md) | Baseline constraints / Draft mechanics | 概念と困難、初期3概念 |
@@ -54,6 +60,10 @@
 ## Decisions
 
 - [`decisions/INDEX.md`](decisions/INDEX.md): ADR一覧と運用規則。
+
+## Implementation register
+
+- [`IMPLEMENTATION_REGISTER.md`](IMPLEMENTATION_REGISTER.md): 正史外のtooling、workflow、UI・保存形式等の交換可能な実装詳細。
 
 ## Ideas
 

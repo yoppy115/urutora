@@ -36,4 +36,3 @@
 ### Higher entity and psalm share one canonical personality
 
 実体と物語の乖離が失われる。
-

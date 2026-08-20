@@ -34,4 +34,3 @@ Narrative Adapterは世界状態を直接変更せず、ローカルLLM、常駐
 ### LLM directly decides world state transitions
 
 再現性、検証可能性、交換可能性を損なう。
-

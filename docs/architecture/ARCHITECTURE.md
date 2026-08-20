@@ -2,7 +2,7 @@
 
 **Status:** Baseline constraints / Draft mechanics
 
-**Technology:** v0はC# / .NET。UI frameworkは未決定。
+**Technology:** v0はC# / .NET 10。現行Desktop AdapterはWindows Formsだが、Simulation Coreから分離された交換可能な実装とする。
 
 ## Baseline constraints
 
@@ -14,6 +14,7 @@
 - LLMとPresentationをSimulation Coreの外側に置く。
 - `Simulation.Core`、`Simulation.App`、`Simulation.Core.Tests` の依存方向を `App/Tests -> Core` に限定する。
 - GUIのrender loopとSimulation tickを分離し、CoreだけをRealityの権威とする。
+- 1 Worldのauthoritative phase順、Action Resolution、Event確定、Maintenance commitは並列化せず、UI threadから分離したworkerで進める。NPC単位で書込先が分離されたObservationと初回Intent planは並列化できるが、結果をNPC ID順へmergeしてから権威的解決へ渡す。CPU thread schedulingをSimulation結果の入力にしない。
 
 ## Decision and action flow
 
@@ -66,11 +67,12 @@ flowchart LR
 16. **Settlement formation and order are separate.** Generation中からSettlement関係stateを形成し、v0.2.4の限定Proto-OrderとOrder専用Benefitを明示的に分ける。
 17. **Social conflict is typed state.** Affiliation、Friction、Hostility、Invasionを個人ThreatやSpatial Resolutionへ暗黙に埋め込まない。
 18. **Statistics are read-only projections.** 集計、UI、logging量はSimulation state、乱数、phase順を変えない。
-19. **Knowledge categories have separate lifetimes.** Person、Event、Settlementの主観記録をReality cacheやWorld Event historyと混同しない。
-20. **History storage is layered.** Recent Buffer、Incremental Statistics、Milestone / Pin、Optional Raw Archiveを分離する。
-21. **Expansion precedes war.** SettlementPressureはFission domainへ先に渡し、有効候補がない場合だけInvasion eligibilityへ進む。
-22. **Recognition gates long-term belief.** Mandatory / high-Importance EventやSettlement Realityも、自己情報、Observation、直接参加、Communication、Outcomeの入口を通らなければNPC Knowledgeへ入れない。
-23. **Expansion is not a phase.** v0.2.5のExpansion Indicatorsはread-only Statisticsであり、World Ruleを切り替えない。
+19. **Performance preserves authority order.** AuraやStatisticsは同値な空間・Event索引を利用できる。ObservationはObserverごと、Intent planningはNPCごとに書込先を隔離して並列化できるが、Event発行、Action Resolution、Maintenance順を複数coreの完了順へ委ねない。
+20. **Knowledge categories have separate lifetimes.** Person、Event、Settlementの主観記録をReality cacheやWorld Event historyと混同しない。
+21. **History storage is layered.** Recent Buffer、Incremental Statistics、Milestone / Pin、Optional Raw Archiveを分離する。
+22. **Expansion precedes war.** SettlementPressureはFission domainへ先に渡し、有効候補がない場合だけInvasion eligibilityへ進む。
+23. **Recognition gates long-term belief.** Mandatory / high-Importance EventやSettlement Realityも、自己情報、Observation、直接参加、Communication、Outcomeの入口を通らなければNPC Knowledgeへ入れない。
+24. **Expansion is not a phase.** v0.2.5のExpansion Indicatorsはread-only Statisticsであり、World Ruleを切り替えない。
 
 ## State layers
 
@@ -104,6 +106,8 @@ Historyは住人の認識を含む世界の語られ方、Psalmは次世界へ�
 v0のPRNGは単一共有列にせず、run seedと `subsystem / tick / entity / purpose` から用途別streamを派生する。描画、ログ整形、診断がSimulation用streamを消費してはならない。
 
 ObservationError、CommunicationTransmission、ThreatSelection、ActionTarget、BirthConflict等も固有purposeを持つ。stable InformationIdやBirthRequest IDをtie-break keyへ使用し、乱数key自体をcollection indexから作らない。
+
+v0.2.3ではObservation対象検索へ半径3のPosition索引を使い、Observer単位のHeld Information更新を並列化する。Intent planningもNPC単位のPerception、Need snapshot、named random streamだけを使用して並列化し、DecisionTrace、診断counter、IntentはNPC ID順にmergeする。並列度0は論理CPU数の自動利用、1は直列、2以上は上限指定とし、人口閾値未満は直列で処理する。直列と並列でEvent fingerprintと最終state fingerprintが一致しなければならない。
 
 ## v0.15 phase dependency
 
@@ -173,4 +177,4 @@ AppはSnapshotまたはread-only projectionと構造化Event streamを受け取�
 - v0で定めた同期処理を実装する具体的なstate slice、commit API、event delivery方式。
 - 永続化形式とschema versioning。
 - event busを使用するか、明示的な呼び出しと戻り値を使うか。
-- 大規模個体数に対する性能目標。
+- 大規模個体数に対する定量的な性能目標。

@@ -1,4 +1,4 @@
-# v0.2.5 Statistics and Diagnostics
+# v0.2.6 Statistics and Diagnostics
 
 **Status:** Baseline observation obligations / Draft storage and UI mechanics
 
@@ -29,6 +29,8 @@ World全体でSettlement数、Affiliated / Unaffiliated Population、所属率�
 - Hotspot Candidate数、同時競合数、arbitration棄却数、Candidate別Reproduction Success数。
 - Settlement Pair別CurrentFriction、Collision / root Threat raw件数、weighted件数、Living Population scale、daily impulse、decay前後、Invasion宣言時retention、Hostility。
 
+headless統計とWorldログは消滅済みSettlementと全Friction履歴を保持する。v0.2.3 Desktop AppのWorld社会一覧は消滅済みSettlementを除外してActive / Pendingだけを表示し、Pair別FrictionとFriction変動Eventは選択したSettlementの詳細Tabへ限定して表示する。これは表示範囲だけの変更で、履歴projectionを削除しない。
+
 ## Affiliated versus unaffiliated
 
 Settlement所属NPCとUnaffiliated NPCについて、最低限次を比較する。
@@ -53,6 +55,8 @@ Settlement所属NPCとUnaffiliated NPCについて、最低限次を比較する
 
 死亡は最後の一撃だけでなく、Combat Damage Sourceの寄与を診断可能な構造にする。
 
+NPC詳細のキル数は、当該NPCが`Death` EventのTargetIdに記録され、DetailがCombat由来である件数とする。Vitality Deathや単なるAttack命中は含めない。
+
 ## Reproduction
 
 Failureを少なくともTargetAbsent、Maturity、HP、Cooldown、Distance、Reject、Other Reality Failureへ可能な範囲で分離する。Settlement Core内 / 外でもAttempt、Success、Failureを比較可能にする。
@@ -66,8 +70,8 @@ NPC向けActionOutcomeへ非公開Reality値を露出しないという境界は
 各Invasion Eventについて次を確認可能にする。
 
 - 開始日、終了日、Attack Settlement、Defense Settlement。
-- Trigger SettlementPressure、High / Low Pressure Days、Armed、前提別trigger rejection reason、Target選択理由。
-- MobilizationRate、Target / Actual Force Size、eligible人数、不適格理由、Core / Frontier target・actual・不足補充、最終participant ID。
+- Trigger SettlementPressure、HighPressureDays、cooldown残日数、前提別trigger rejection reason、Target選択理由。
+- Alive affiliated population、Target / Actual Force Size、既存Invasion stateによる保留、Core / Frontier target・actual、最終participant ID。
 - Advance Bias離脱数、Combat Death、Rest離脱。
 - 最大Core占有率、Center占拠有無、Center hold days。
 - Attack / Defense Victory、戦争期間、統合後人口。
@@ -107,16 +111,16 @@ NPC向けActionOutcomeへ非公開Reality値を露出しないという境界は
 - Ecology: 所属 / 無所属およびGeneration / Order別の人口、年齢、死亡年齢、HP、Birth、Reproduction、Combat / Vitality Death、Collision / Explicit Attack Damage。
 - Foreign: Influence / Core進入、退出、Settlement間Collision、Friction Event、Current Friction。
 - Proto-Order: 形成前後のCombat Death、同所属Collision抑制、HP、Positive Vitality Benefit、Affinity、Membership、Settlement survival。
-- Invasion: 開始、armed、re-arm、防止された連続開始、Rest / Death離脱、最大Core占有率、Center Occupied、勝敗。
+- Invasion: 開始、最終攻撃開始tick、cooldown残日数、cooldown防止、Rest / Death離脱、最大Core占有率、Center Occupied、勝敗。
 
 追加で次を必須とする。
 
 - Pressure: Usable Influence Cells、Nominal Residential Capacity、30日Average Affiliated Population、ResidentLoad分子 / 分母 / 値。
 - Congestion: Settlement Move Attempts、Blocked Settlement Move Events、block理由別件数、MovementCongestion。
 - Return: Strong Home Move Attempts、Failed Strong Home Moves、failure理由、ReturnFailure。
-- Trigger: SettlementPressure、HighPressureDays、LowPressureDays、Armed、Support / Phase / Active / target / participant等のrejection reason。
+- Trigger: SettlementPressure、HighPressureDays、LastInvasionStartedTick、cooldown残日数、Support / Phase / Active / target / participant等のrejection reason。
 - Friction: 日次Pair raw Collision、root Explicit Threat、weighted events、Living Population A/B、scale、decay前後、impulse、retention前後、Hostility。
-- Mobilization: rate、Settlement Population、target / actual force、eligible / ineligible reason、Core / Frontier target / actual / fill、participant ID。
+- Mobilization: Alive affiliated population、target / actual force、既存Invasion stateによる保留、Core / Frontier target / actual / fill、participant ID。
 - Center: occupied、occupation start / end、hold days、non-victory reason、UsableCoreOccupationRate。
 - Concept / Held Information: Exposure、Mark / Aura、同種抑制、Held Information総数、NPC平均 / 最大、FIFO eviction、直接purge、TargetAbsent Position invalidation。
 
@@ -161,7 +165,7 @@ Communication:
 - RenewalCount、LastRenewalTick、LowSupportDays、Support 100到達日、Renewal間隔。
 - Renewal後の人口・Pressure変化。
 - Settlement別FissionPressureDays / eligible日数、hotspot candidate / 有効 / 不在数。
-- Candidate Resident-Days、Cell Resident-Days最大、現在Unaffiliated人口。
+- Candidate Resident-Days、Cell Resident-Days最大、現在Alive NPC人口。
 - Valid Center候補、現在居住Cell選択、中心距離 / seed tie、Valid Centerなし、次hotspot評価。
 - Fission回数、migrant target / 実数、成立時即時 / Move後 / Flee後 / Tick末完了、migration中死亡、child無効化中断。
 - 平均 / 最大Migration日数、Migration完了率。
@@ -173,6 +177,7 @@ Communication:
 - RestによるFieldRest / 重傷撤退、Fleeによる重傷撤退。
 - InitialAttackForce、AliveNonRetreatingAttackParticipants、AttackForceRatio。
 - AttackCollapseDays、InfluenceClearDays、AttackOccupationDays、UsableCoreOccupationRate。
+- CenterDistance、InfluenceClearRequiredDays、LastInvasionStartedTick、CooldownDaysRemaining。
 - CombatDeath、Retreat後生存率、Event期間、Victory Reason、親子target除外。
 
 ## v0.2.5 Population and expansion

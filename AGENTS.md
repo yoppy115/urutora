@@ -4,11 +4,12 @@
 
 ## Before changing anything
 
-1. 最新の `main`、`README.md`、`docs/INDEX.md` を確認する。
-2. 変更対象に対応する `docs/design/` の文書を読む。
-3. `docs/architecture/` と関連ADRを確認する。
-4. `Draft` や `TBD` を推測で埋めない。不足する判断を明示する。
-5. 文書間に矛盾があれば、実装で片方を黙って選ばず報告する。
+1. `git status --short --branch`、直近の `git log`、tag / branch、前回releaseからのchanged filesを確認し、update内容はGit履歴と差分を一次情報として特定する。ローカルrefが古い場合はGitHub上の更新情報も確認する。
+2. 最新の `main`、`README.md`、`docs/INDEX.md` を確認する。
+3. 変更対象に対応する `docs/design/` の文書を読む。
+4. `docs/architecture/` と関連ADRを確認する。
+5. `Draft` や `TBD` を推測で埋めない。不足する判断を明示する。
+6. 文書間に矛盾があれば、実装で片方を黙って選ばず報告する。
 
 ## Execution behavior
 
@@ -42,9 +43,10 @@
 - EventBeliefはMandatory Memorable Eventまたは認識済みPin Importance 60以上だけを候補とし、Reality Eventを全NPCへ自動配布しない。
 - Person evictionはAggregatePersonConfidenceとPosition Unknown = PositiveInfinityを使う。SettlementBeliefは自己所属、直接観測、当事者Event、Communication、直接Outcomeだけから取得する。
 - v0.2 Settlement / Order仕様は `docs/design/V0_2_SETTLEMENT_ORDER.md` を正本とし、Generation中の形成・AffinityとOrderから有効な社会Ruleを混同しない。
-- v0.2.1はHotspotを90日、5×5、成功3件、15日評価とする。v0.2.3は既存Influence内SuccessをHotspotから除外し、新Core全Cellを既存Active Influenceと非重複にする。
-- v0.2.3出生所属は、同じActive Settlement所属の両親なら場所非依存、片親所属なら受胎時に両親とも所属先Influence内、異所属なら両親が同じ一意なActive Core内という境界を守る。
-- v0.2.4の履歴は `docs/design/V0_2_4_SETTLEMENT_STABILIZATION.md`、現行overrideは `docs/design/V0_2_5_KNOWLEDGE_FISSION_INVASION.md` とその正本群を使う。
+- v0.2.1はv0.2の社会境界を維持し、Hotspotを90日、5×5、threshold 3、15日評価とする。spacing 7とarbitrationを連動変更しない。
+- v0.2.3の出生所属は、両親が同じActive Settlement所属なら位置を問わず通常の親近傍へ出生し同所属で開始する。片親だけが所属する場合は、受胎時の両親がそのActive SettlementのInfluence内にいる場合に限り、子を同Influence内へ出生させ同所属で開始する。両親の所属が異なる場合は、両者が同じ一意なActive Settlement Core内にいる従来条件とCore内出生を維持する。
+- v0.2.3はCoreを5×5とし、既存Settlement Influence内の繁殖成功を新規Hotspotから除外する。新Coreを既存Influenceへ重ねず、消滅済みSettlementの空間は予約しない。
+- v0.2.4の履歴は `docs/design/V0_2_4_SETTLEMENT_STABILIZATION.md`、現行overrideは `docs/design/V0_2_5_KNOWLEDGE_FISSION_INVASION.md`、`docs/design/V0_2_6_FISSION_INVASION_THROUGHPUT.md` とその正本群を使う。
 - 自然消滅は累積SettlementSupport、更新はRenewal、高PressureはFissionを先に評価する。旧CoreOccupancy / BlockedMovement Crowding、raw Friction加算、Pressureからの直接Invasionを復活させない。
 - CenterにはVictory ruleを持たせず、Attack VictoryはUsable Core 50%以上を3日連続とする。Defense Victoryとparticipant stateは `INVASION_V025.md` に従い、征服所属変更はAlive NPCだけに行う。
 - Invasion cohortをCombat / Action値で全知的に選ばない。通常RestはFieldRest、HP比20%以下のRest / FleeだけがRetreatingとなり、同じEventへ戻らない。
@@ -52,7 +54,7 @@
 - Order中のCollision、Friction、Invasion、Auraは所属・WorldPhase・Event状態を明示的に解決し、v0.15の主観境界やTargeted Action順を弱体化しない。
 - v0.2 Settlement構造変更は固定順のTick末Maintenanceでcommitし、新規Settlement / WorldPhase / Invasion開始は原則翌Tickから反映する。
 - Hotspot arbitration、Friction、SettlementPressure、Mobilization、Unaffiliated保護、同一Core繁殖、Aura / temporary MaxHPは `V0_2_SETTLEMENT_ORDER.md`、Support / Fissionは `SETTLEMENT_FISSION.md`、Invasion離脱・勝敗は `INVASION_V025.md` の確定境界を守る。
-- Fission CenterはCell別Unaffiliated Resident-Daysを優先し、Migration完了はchild Influenceへの実到達で判定する。Struggleはv0.2.5のWorldPhaseではなくBacklogである。
+- Fission CenterはCell別の全Alive NPC Resident-Daysを優先し、Migration完了はchild Influenceへの実到達で判定する。Invasion開始時は攻撃Settlementの全Alive affiliated memberを参加させ、Center距離連動の攻撃者不在日数、攻撃Settlementごとの60日cooldownを使い、旧割合動員・armed / re-armを復活させない。Struggleは現行WorldPhaseではなくBacklogである。
 
 ## Change contract
 
@@ -64,10 +66,12 @@
 - 調整値とゲームデータはコードへ埋め込まず、設定またはデータファイルへ分離する。
 - 新しいゲームエンジン、言語ランタイム、外部依存は、採用理由を示して合意後に追加する。
 - 生ログをGitへ追加しない。保存価値のある実験だけを `research/` に要約して残す。
+- 管理者権限が必要な導入・修復は、回避試行を重ねず、対象とrollbackを限定したWindows PowerShell 5.1対応の管理者用installer / wrapperを作る。自動実行やOS全体の設定変更はしない。
 
 ## Documentation and history
 
 - 文書は日本語を基本とし、コード識別子とファイル形式上のキーは英語を基本とする。
+- Codexが追加した正史外の実装仕様、tooling、workflow、保守的な技術既定値は `docs/IMPLEMENTATION_REGISTER.md` に記録する。ゲーム挙動へ影響する事項は台帳だけで完結させず、対応する正史へも反映する。
 - 文書内でBaselineとDraftが混在する場合、節ごとに状態を明記する。
 - ADRは `docs/decisions/ADR-NNNN-short-title.md` 形式で連番にする。
 - コミット接頭辞は内容に応じて `feat:`, `sim:`, `balance:`, `design:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:` を使う。

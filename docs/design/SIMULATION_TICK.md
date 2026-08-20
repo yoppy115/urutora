@@ -113,6 +113,8 @@ Reality ResolutionでCurrentHPが0以下になった時点から即座にDeadと
 
 Reproduction Success時に両親ID、受胎時Position、GeneticData / seed informationをBirthRequestへ固定する。後の親の移動やBirth解決前の死亡でRequestを移動・キャンセルしない。
 
+両親が同じActive Settlement所属なら、そのSettlement IDと親近傍配置を場所に関係なくBirthRequestへ固定する。片親所属では、受胎時の両親が所属先のActive Influence内にいる場合にSettlement IDとInfluence配置を固定する。異所属の一意なCore条件ではSettlement IDとCore配置を固定する。後の所属変更でこの判定を差し替えない。
+
 Tick末には全BirthRequestをまとめ、各Requestが受胎時の両親隣接Cell和集合から有効な希望Cellをseed付きで選ぶ。同一Cell競合はseed付き決定論的tie-breakで1件だけ勝者とし、敗者は残る候補から再抽選する。全候補が尽きた場合だけBirth Failureとなる。queue順、Entity生成順、collection列挙順に依存させない。
 
 Birth解決時点で空いている死亡Cellは利用可能。LandmarkとAlive NPC占有Cellは利用できない。
@@ -140,7 +142,7 @@ Birth解決時点で空いている死亡Cellは利用可能。LandmarkとAlive 
 - Rest Collision再評価は元Action枠の置換で、同一Micro Round最大1回とする。
 - Settlement構造変更は固定Maintenance順でcommitし、新規Settlement / WorldPhase / Invasion開始を翌Tickから反映する。
 - Hotspot Candidateは同一immutable snapshotから生成し、繁殖成功数とseed tie-breakで順序非依存にarbitrateする。
-- v0.2.4のSupport、SettlementPressure、Friction、High / Low counter、Invasion作成、自然消滅は日末Maintenanceでcommitし、日中Micro Round途中でSettlementを消滅・再armしない。
-- v0.2.5のKnowledge TTL / capacity整理、増分Statistics、累積Support、Renewal、Fission、Migration、Invasion継続counterもstable ID順の日末commitとし、collection順へ依存させない。
+- Support、SettlementPressure、Friction、HighPressure counter、Invasion作成・cooldown開始tick、自然消滅は日末Maintenanceでcommitし、日中Micro Round途中でSettlementを消滅・Invasion開始しない。
+- Knowledge TTL / capacity整理、増分Statistics、累積Support、Renewal、Fission、Migration、Invasion継続counterもstable ID順の日末commitとし、collection順へ依存させない。
 - Fission Center選択はsnapshot、Map走査順、collection順に依存せず、無効hotspotの次候補を同じMaintenanceで評価できる。
 - Migration完了はchild Influenceへの実到達をAction最終PositionとTick末fallbackで一度だけ判定し、Invasion中の優先関係を変えない。

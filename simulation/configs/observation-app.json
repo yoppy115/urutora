@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 7,
+  "defaultSeed": 8147291,
+  "seedIncrement": 1,
+  "logDirectory": "logs",
+  "worldDirectoryPrefix": "world-",
+  "worldNumberPadding": 4,
+  "recentEventDisplayLimit": 80,
+  "chartMaximumPoints": 730,
+  "logFlushIntervalDays": 10,
+  "diagnosticsIntervalDays": 30,
+  "automaticAdvanceWorkSliceDays": 2,
+  "automaticAdvanceCooldownMilliseconds": 15,
+  "archiveCompletedWorldLogs": true,
+  "deleteOtherReleaseVersionLogs": true
+}

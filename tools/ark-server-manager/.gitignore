@@ -1,0 +1,8 @@
+/build/
+/outputs/
+/.builddeps/
+/work/
+/vendor/
+/Move-To-Urutora*
+/MOVED_TO_URUTORA.txt
+*.obj

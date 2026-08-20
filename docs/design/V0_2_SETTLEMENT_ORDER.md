@@ -1,6 +1,6 @@
 # v0.2 Settlement / Order Update
 
-> **Current override:** Settlement / Orderの基礎は本書を維持するが、v0.2.5の累積Support、Renewal、Fission先行、親子非侵略、FieldRest / Retreating、継続Victoryは [`V0_2_5_KNOWLEDGE_FISSION_INVASION.md`](V0_2_5_KNOWLEDGE_FISSION_INVASION.md) と各正本を優先する。
+> **Current override:** Settlement / Orderの基礎は本書を維持するが、v0.2.5の累積Support、Renewal、Fission先行、親子非侵略、FieldRest / Retreating、継続Victoryとv0.2.6のHotspot母集団、動員、距離連動Defense、cooldownは [`V0_2_5_KNOWLEDGE_FISSION_INVASION.md`](V0_2_5_KNOWLEDGE_FISSION_INVASION.md)、[`V0_2_6_FISSION_INVASION_THROUGHPUT.md`](V0_2_6_FISSION_INVASION_THROUGHPUT.md) と各正本を優先する。
 
 **Status:** Baseline boundaries / v0.2 configurable defaults
 
@@ -18,13 +18,17 @@ SettlementはOrder開始を待たず、Generation中から順次生成できる�
 
 v0.2.1 defaultでは、直近90日間のReproduction Successを5×5 Cell windowで集計し、3件以上の領域をSettlement Candidateとする。15日ごとにCandidateを再評価する。旧v0.2の4×4 / Success 4をこの値で置換する。
 
-v0.2.3では、消滅していない既存SettlementのInfluence内で発生したReproduction Successを新規Hotspot集計から除外する。新Centerは、そのCenterを中心とするCore全Cellが既存Active Settlement Influenceと重ならない場合だけ有効。同じevaluationで先に採用したCenterにも同じ条件を適用し、消滅済みSettlementは空間を予約しない。
+v0.2.1ではv0.2の実測2 Worldを補正根拠とし、同じ90日・15日評価の `HotspotSuccessThreshold` を3、`HotspotWindowSize` を5×5へ変更する。world-0001は385日でReproduction Success 152件、world-0002は290日で132件あったが、旧4×4評価日ごとの最大集中数はいずれも3で、Candidate評価・棄却・成立がすべて0件だった。5×5化は近接する繁殖成功を同一局所Hotspotとして扱う範囲変更であり、閾値3と組み合わせる。arbitration、Center、Founder、spacing、翌Tick反映は変更しない。
 
-同じevaluation日の全Candidateは、evaluation開始時の同一immutable snapshotから生成する。各Candidateは5×5領域、rolling window内Reproduction Success数、有効Center候補Cell、Founder候補を保持する。
+v0.2.3では既存Settlementの隣接エリアを当該SettlementのInfluenceと定義する。消滅していないSettlementのInfluence内で発生したReproduction Successは、新規Settlement用Hotspot集計から除外する。新規Center候補は、そのCenterを中心とするCore全Cellが既存SettlementのInfluenceと重ならないCellだけとする。同一evaluationで先に採用されたCenterにも同じ境界を適用する。消滅済みSettlementはHotspotとCenter候補を予約せず、その色と空間を後続Settlementが再利用できる。
 
-排他距離で競合するCandidateはReproduction Success数の多い順、同数だけnamed seed streamで決定論的に優先する。必要距離は`max(MinimumCenterDistance, InfluenceRadius + CoreRadius)`で、両CenterのChebyshev距離はその値より大きくなければならない。v0.2.3 defaultは`max(7, 7 + 2) = 9`のためCenter距離`> 9`。勝利Candidate確定後、違反する残りCandidateを当該evaluationで棄却する。Map走査、collection、thread scheduling順へ依存させない。
+v0.2.4同版追補では、Reproduction Success発生時点で参加者の一方でもActive Settlement所属なら、場所にかかわらず新規Settlement用Hotspot集計から除外する。既存Influence内Successの除外とCore非重複境界は維持する。この除外は新規Settlement形成だけに適用し、既存SettlementのSupport用Reproduction Continuity集計は変更しない。
 
-Candidate採用後、その5×5内でLandmarkではなく、提案Coreが既存Influenceへ重ならないCellからseed付き乱数で1 Centerを選ぶ。選択Centerが既存・同日採用済みSettlementの排他条件へ違反した場合はCandidate全体を不成立とし、別Centerへ再抽選して迂回しない。Centerは物理占有物ではない。
+同じevaluation日の全Candidateは、evaluation開始時の同一immutable snapshotから生成する。各CandidateはConfigで定めた領域（v0.2.1 defaultは5×5）、rolling window内Reproduction Success数、有効Center候補Cell、Founder候補を保持する。
+
+排他距離で競合するCandidateはReproduction Success数の多い順、同数だけnamed seed streamで決定論的に優先する。v0.2.3 defaultでは従来のCenter spacing 7に加え、Influence radius 7とCore radius 2の非重複条件があるため、Center間Chebyshev距離は9より大きくなければならない。勝利CandidateのCenter確定後、この有効排他距離へ違反する残りCandidateを当該evaluationでは棄却し、競合しないCandidateへ同じ処理を続ける。Map走査、配列、Dictionary、thread scheduling順へ依存させない。棄却は永久ではなく、後日のevaluationで再Candidate化できる。
+
+Candidate採用後、そのCandidate領域内でLandmarkではなく、かつ提案Coreが既存Influenceへ重ならないCenter候補Cellからseed付き乱数で1 Cell選ぶ。選択Centerが同日採用済みSettlementを含む排他条件へ違反した場合はCandidate全体を不成立とし、別Centerへ再抽選して迂回しない。Centerは物理占有物ではなく、NPCが侵入、滞在、占拠できる。
 
 成立条件となったReproduction Success群の参加者のうち成立時点でAliveなNPCをFounderとして記録する。成立時に近くにいただけのNPCと区別し、History / Statisticsへ利用できる。
 
@@ -32,9 +36,9 @@ Candidate採用後、その5×5内でLandmarkではなく、提案Coreが既存I
 
 距離はSettlement CenterからのChebyshev距離で測る。
 
-| Region | v0.2 default | Role |
+| Region | default | Role |
 | --- | --- | --- |
-| Core | v0.2.3 defaultはradius 2、最大5×5 | Settlement内生活、Affinity、社会Bonusの主領域 |
+| Core | v0.2–v0.2.2はradius 3、v0.2.3はradius 2（最大5×5） | Settlement内生活、Affinity、社会Bonusの主領域 |
 | Influence | radius 7、最大15×15 | 治安、所属形成、Settlement間空間関係 |
 
 Settlement成立時のAffinityはFounderへ+10、Core内のAliveな非Founderへ+7。MembershipThresholdは10であるためFounderは原則即所属し、初期Core住民は少量の追加滞在・行動で所属できる。
@@ -61,6 +65,8 @@ AffinityはGeneration中から有効で、Order前でも住民とSettlementの�
 Birth解決時点で対象Settlementが非Activeなら通常の無所属出生へ戻す。親のAffinity数値そのものは複製しない。詳細は[`REPRODUCTION.md`](REPRODUCTION.md)を参照する。
 
 Invasion参加中はEvent終了までActive Affiliationを固定する。Affinity履歴自体は更新可能だが、敵地の滞在や行動で戦闘中に所属を変更しない。征服後は統合規則を適用する。
+
+両親が同じActive Settlement所属なら、受胎位置に関係なく子は通常の親近傍へ出生し、そのSettlementのMembershipThreshold相当AffinityとActive Affiliationを持って開始する。片親だけが所属する場合は、受胎時の両親がそのActive Settlement Influence内にいる場合に限り、子を同Influence内へ出生・所属させる。両親の所属が異なる場合は、受胎時に両者が同じ一意なActive Settlement Core内にいる従来条件だけを認め、子を同Core内へ出生・所属させる。出生解決時点で対象Settlementが非Activeなら通常の無所属出生へ戻す。親のAffinity数値を複製するものではない。詳細は [`REPRODUCTION.md`](REPRODUCTION.md) を正本とする。
 
 ## Generation and Order
 
@@ -140,7 +146,7 @@ v0.2.4では平時Collisionとroot Explicit Threat Incidentを日次集約し、
 
 v0.2.4では旧CoreOccupancy / BlockedMovementの`CrowdingPressure`をInvasion Triggerから廃止する。`SettlementPressure`は直近30日のResidentLoad、MovementCongestion、ReturnFailureを`0.45 / 0.35 / 0.20`で統合し、Tick末Maintenanceで更新して翌Tickから使う。
 
-Order、Active、Support 35以上、armed、Active Invasionなし、攻撃可能targetあり、eligible participant 3名以上を前提とし、Pressure 0.65以上の30日条件を維持する。ただしv0.2.5ではPressure 0.40以上のFissionPressureDaysが90日に達するまでInvasionを開始せず、有効Fission hotspotがない場合だけtriggerを評価する。開始時disarmとPressure 0.45以下30日のre-armは維持する。詳細は [`SETTLEMENT_FISSION.md`](SETTLEMENT_FISSION.md) と [`V0_2_4_SETTLEMENT_STABILIZATION.md`](V0_2_4_SETTLEMENT_STABILIZATION.md) を参照する。
+Order、Active、Support 35以上、Active Invasionなし、攻撃可能targetあり、eligible participant 3名以上を前提とし、Pressure 0.65以上の30日条件を維持する。ただしPressure 0.40以上のFissionPressureDaysが90日に達するまでInvasionを開始せず、有効Fission hotspotがない場合だけtriggerを評価する。v0.2.6ではarmed / re-armを廃止し、攻撃開始間隔60日を要求する。詳細は [`SETTLEMENT_FISSION.md`](SETTLEMENT_FISSION.md) と [`V0_2_6_FISSION_INVASION_THROUGHPUT.md`](V0_2_6_FISSION_INVASION_THROUGHPUT.md) を参照する。
 
 ## Invasion target and mobilization
 
@@ -153,15 +159,10 @@ Order、Active、Support 35以上、armed、Active Invasionなし、攻撃可能
 5. さらに同値ならseed付き乱数。
 
 ```text
-MobilizationRate = Clamp(
-  0.20 + 0.30 * SettlementPressure,
-  0.20, 0.50)
-
-TargetForceSize = floor(
-  SettlementPopulation * MobilizationRate + 0.5)
+TargetForceSize = LivingAffiliatedPopulation
 ```
 
-候補はAlive、攻撃SettlementへActive Affiliation、現在Rest中でない、他Invasionへ参加していないNPC。実数はTargetとeligibleの小さい方で、3名未満なら開始しない。`ceil(ActualForceSize / 2)`をCore目標とし、Core内はAffinity上位・同値seed tie、Core外はseed randomで選ぶ。不足は他側から補充し、50/50は目標比率とする。Combat / Action値で全知的に選抜しない。
+v0.2.6では攻撃SettlementへActive Affiliationを持つ全Alive NPCを参加者にし、同日にRestした人物も除外しない。Active Invasion stateが残る所属者が1人でもいれば部分動員せず開始しない。3名未満なら開始せず、`DeterministicRound(ActualForceSize * 0.50)`をCore目標とする。Core内はAffinity上位・同値seed tie、Core外はseed randomで分類し、不足は他側から補充する。Combat / Action値で参加可否を選抜しない。
 
 ## Invasion movement and combat
 
@@ -177,7 +178,7 @@ Invasion中は攻撃・防衛Settlement所属者を敵対対象としてCombat�
 
 ## Invasion victory and integration
 
-v0.2.5ではAttack Victoryをusable Core 50%以上の3日連続占有とし、Defense Victoryを攻撃戦力比30%以下3日、Influence内攻撃者0人7日、90日膠着のいずれかとする。Centerへの到達、一時占有、複数日保持はいずれも勝利条件ではなく、Event / Statisticsだけに記録できる。詳細は [`INVASION_V025.md`](INVASION_V025.md) を正本とする。
+Attack Victoryをusable Core 50%以上の3日連続占有とし、Defense Victoryを攻撃戦力比30%以下3日、Influence内攻撃者0人の距離連動日数、90日膠着のいずれかとする。Centerへの到達、一時占有、複数日保持はいずれも勝利条件ではなく、Event / Statisticsだけに記録できる。詳細は [`INVASION_V025.md`](INVASION_V025.md) を正本とする。
 
 終了時にAdvance Bias、Defense Bias、Invasion Participant、所属変更Lockを解除する。
 
@@ -232,26 +233,27 @@ Raw Logを人間が直接読み続けるより、ゲーム内Statistics UIでSim
 
 必須統計は [`STATISTICS.md`](../architecture/STATISTICS.md)、必須headless testsは [`TESTING.md`](../architecture/TESTING.md) を正本とする。
 
-## v0.2 configurable defaults
+## v0.2.3 configurable defaults
 
 次は初回Run用Configであり、不変のゲーム思想ではない。
 
 | Area | Default |
 | --- | --- |
-| Hotspot | 90 days、5×5、Success 3、15-day evaluation。旧v0.2は4×4 / Success 4 |
-| Settlement spacing | Config minimum > 7に加えCore / Influence非重複。default実効Center distance > 9 |
-| Regions | Core radius 2、Influence radius 7。既存Influence内SuccessをHotspotから除外 |
+| Hotspot | 90 days、5×5、Success 3、15-day evaluation。v0.2 originalは4×4 / Success 4 |
+| Settlement spacing | Config最小Center distance > 7に加え、Coreと既存Influenceの非重複によりdefault実効値はCenter distance > 9 |
+| Regions | Core radius 2（5×5）、Influence radius 7。既存Influence内、または参加者の一方がActive Settlement所属するSuccessはHotspotから除外 |
 | Initial Affinity | Founder +10、Core resident +7 |
 | Affiliation | threshold 10、switch margin +5 |
 | Core Affinity | Stay +0.05/day、Rest +1、Communication +0.5、Reproduction Success +2 |
+| Settlement birth | 同一Active Settlement所属の両親は場所非依存で通常出生・同所属。片親所属は両親が所属先Influence内にいる場合に同Influence出生、異所属は一意なCore内条件で同Core出生。いずれもAffinity 10から開始 |
 | Generation → Order | 90-day window、CV <= 0.10、Imbalance <= 0.20、30 consecutive days |
 | Order benefits | Rest ×1.5、positive Vitality ×2、negative Vitality ×0.5 |
 | Outside Core reproduction | 同一Active Settlement Core内の2名だけ免除。それ以外はU_reproduce -2、U_accept -2 |
 | Rest Collision | radius 5 |
 | Initial Hostility | 30% |
 | Friction | Collision weight 1、Threat weight 4、pair scale floor 10、daily impulse cap 5、half-life 180日、Invasion declaration retention 0.25 |
-| SettlementPressure | capacity ratio .70、Resident / Congestion / Return = .45 / .35 / .20、30-day window、trigger .65 ×30日、re-arm .45 ×30日 |
-| Mobilization | 0.20 + 0.30 × SettlementPressure、Clamp 0.20–0.50、minimum 3、Core target 50% |
+| SettlementPressure | capacity ratio .70、Resident / Congestion / Return = .45 / .35 / .20、30-day window、trigger .65 ×30日、攻撃開始cooldown 60日 |
+| Mobilization | 全Alive affiliated member、minimum 3、Core target 50% |
 | Natural dissolution | v0.2.4では90-day Support、25 / 35 Hysteresis、365 LowSupportDays |
 | Exposure | radius 4、1/0.5/0.25/0.125、threshold 100 |
 | Aura | radius 2、Rest -0.10/day、stat ×1.1 |
@@ -264,7 +266,7 @@ C# / .NET、Core / App分離、1 Tick = 1日、64×64 Map、InitialPopulation 20
 
 ## Future direction preserved
 
-Settlementへの所属を規則で強制しない。回復、休息、長寿、繁殖、治安の強い利益により、結果として所属系統が長期的に有利となり、ほぼ全NPCが何らかのSettlementへ所属し得る社会化を目指す。
+一般のNPCをSettlementへ一律所属させない。同一Active Settlement所属の両親による場所非依存の出生所属、片親所属に対するInfluence内出生、異所属に対する一意なCore内出生だけを例外とし、それ以外は滞在、休息、交流、繁殖等のAffinity蓄積で所属する。回復、休息、長寿、繁殖、治安の強い利益により、結果として所属系統が長期的に有利となり、ほぼ全NPCが何らかのSettlementへ所属し得る社会化を目指す。
 
 その成功が高密度、疾病、依存、階層、内部対立、資源不足、Settlement間戦争等の新Difficultyを生む方向性を維持する。v0.2はSettlementPressureからInvasionへ至る最初の接続だけを実装対象とし、他の将来制度を前倒ししない。
 

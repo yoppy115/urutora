@@ -16,4 +16,3 @@ RunSeedから `subsystem / tick / entity / purpose` 等の安定keyで乱数stre
 - 同じCode Version、Config、RunSeedから同じEvent列を再現する。
 - stable ID、key encoding、PRNG algorithmを実装時に明示する。
 - 無関係な乱数利用追加に対する局所性テストを用意する。
-

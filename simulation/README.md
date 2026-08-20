@@ -4,13 +4,13 @@
 
 ## Directories
 
-- `configs/`: v0.2 default。人口、Need、Utility、行動、戦闘、繁殖、Vitality、Settlement、Order、Invasion、Aura等。
+- `configs/`: v0.2.6 default。人口、Need、Utility、行動、戦闘、繁殖、Vitality、Knowledge、Settlement、Fission、Invasion、Event保持、決定論的実行設定等。
 - `presets/`: 初期状態や実験条件の名前付き組み合わせ。
 - `concepts/`: 概念と困難のデータ定義。
 
 ## Configuration policy
 
-次は安全に実験を重ねるためのBaseline constraintsであり、具体schemaは実装技術決定時に確定する。
+次は安全に実験を重ねるためのBaseline constraintsである。現行の厳格なJSON schemaは `configs/v0-default.json` と `SimulationConfig` が実装し、未知keyを拒否する。
 
 - 設定にはschema versionを持たせる。
 - 実行開始時に検証し、未知のキーや不正値を黙って無視しない。
@@ -28,7 +28,7 @@
 | World | 64×64、InitialPopulation 200、1 tick/day、365 days/year |
 | Action | max 5/day、repeat `EffectiveAction/(EffectiveAction+5)`、second step `Clamp(0.02*EffectiveAction,0,1)` |
 | Utility | Top 3、softmax temperature configurable |
-| Utility effects | Move/Rest/Communication/Attack/Flee/ReproductionのNeed係数、Threat Risk係数 |
+| Utility effects | Move/Communication/Attack/Flee/ReproductionのNeed係数、Threat Risk係数。Restはv0.2.4のPressure式 |
 | Observation | 距離別error 5%/7.5%/10%、Confidence 1.00/0.90/0.80 |
 | Communication confidence | factor `0.50 + 0.03 * Clamp(EffectiveCommunication,0,10)` |
 | Targeted phase | Attack → Reproduction → CommunicationをMove / Flee / Restより先に解決 |
@@ -41,19 +41,21 @@
 | Knowledge (historical v0.15) | Subject + Property 3件FIFO。v0.2.5でPerson / Event / Settlement Beliefへ置換 |
 | Concept | exposure 1.0/0.5/0.25、threshold 100、effective multiplier 1.2 |
 
-Need増減、Utility Effect、Threat Risk、Observation誤差・Confidence、Communication Confidence、Communication変形、Combat、Pursuit、初期分布等の全defaultは各設計文書を正本とする。これらの数値はv0.15 configurableであり、主観境界、Base/Effective分離、即時Dead、TargetAbsent invalidation、順序非依存競合等のBaselineと混同しない。まだコード実装を行わないため、この変更では `default.json` を作らない。
+Need増減、Utility Effect、Threat Risk、Observation誤差・Confidence、Communication Confidence、Communication変形、Combat、Pursuit、初期分布等の全defaultは各設計文書を正本とする。これらの数値はv0.15 configurableであり、主観境界、Base/Effective分離、即時Dead、TargetAbsent invalidation、順序非依存競合等のBaselineと混同しない。現行値は `configs/v0-default.json` に保存する。
 
 Vitality Control Point値は確定Phase形状と連続性等の制約を満たす保守的なv0.15 Config初期値として設定し、Simulation Run後に再調整する。
 
-## v0.2 adopted defaults
+## v0.2.3 adopted defaults
 
-v0.15値は明示変更箇所以外を維持し、次をv0.2 Configへ追加する。
+v0.15値、v0.2の社会境界、v0.2.1のHotspot補正、v0.2.2の出生所属は明示変更箇所以外を維持し、次をv0.2.3 Configとして使う。
 
 | Area | Defaults |
 | --- | --- |
-| Settlement formation | v0.2.1: 90-day Reproduction Success window、5×5、threshold 3、15-day evaluation |
-| Region | v0.2.3: Core radius 2、Influence radius 7、Rest Collision radius 5。既存Influence内Successを除外し、新Coreを既存Influenceと非重複化。default実効Center distance > 9 |
+| Settlement formation | 90-day Reproduction Success window、5×5、threshold 3、15-day evaluation。既存Influence内SuccessとActive Settlement所属者が一人でも参加したSuccessを除外し、新Coreと既存Influenceを非重複化。Config spacing 7、default実効Center distance > 9 |
+| Region | Core radius 2（5×5）、Influence radius 7、Rest Collision radius 5 |
+| Performance | CPU並列度8、人口128以上でObserver / NPC単位の分離可能phaseを並列化。1で直列、0は明示指定時だけ論理CPU数を自動利用 |
 | Affinity | Founder +10、initial resident +7、membership 10、switch margin +5、Stay +0.05/day、Rest +1、Communication +0.5、Reproduction Success +2 |
+| Settlement birth | 両親が同じActive Settlement所属なら場所非依存で通常の親近傍へ出生しMembership 10から開始。片親所属は両親が所属先Influence内にいる場合だけ同Influence出生・所属。異所属は一意なActive Core内だけ同Core出生・所属 |
 | Generation → Order | 90-day window、PopulationCV 0.10、DemographicImbalance 0.20、30 consecutive days |
 | Order benefits | Rest ×1.5、positive Vitality ×2、negative Vitality ×0.5。同一Active Settlement Core内の2名だけReproduction Penalty免除、その他はU_reproduce / U_accept -2 |
 | Relations / pressure | Initial Hostility 30%。v0.2.4で30日Resident / Congestion / Return Pressureと日次正規化Frictionへ置換 |
@@ -61,9 +63,11 @@ v0.15値は明示変更箇所以外を維持し、次をv0.2 Configへ追加す�
 | Dissolution | v0.2.4でWorld Population比を廃止し、90-day Support、25 / 35 Hysteresis、365 LowSupportDays |
 | Concept | Exposure radius 4 with 1/0.5/0.25/0.125、Aura radius 2、Rest -0.10/day、stat ×1.1 |
 
-Advance / Cohesionの具体WeightはConfig / implementation detailだがAdvanceを主とする。Hotspot arbitration、Friction、Aura同種抑制とtemporary MaxHP等は正史の確定境界をConfig defaultで上書きしない。
+Advance / Cohesionの具体WeightはConfig / implementation detailだがAdvanceを主とする。Active Invasion参加者はHome / Foreign Biasを受けず、攻撃側Advanceは敵Core Centerへの接近`×5` / 不変`×1` / 離脱`×0.2`とする。Hotspot arbitration、Friction、Aura同種抑制とtemporary MaxHP等は正史の確定境界をConfig defaultで上書きしない。
 
 ## v0.2.4 adopted defaults
+
+この表はv0.2.4時点の履歴である。Invasion trigger / Mobilization / Defense victoryの現行overrideは下のv0.2.6節を優先する。
 
 | Area | Defaults |
 | --- | --- |
@@ -100,20 +104,28 @@ Advance / Cohesionの具体WeightはConfig / implementation detailだがAdvance�
 
 Knowledge category、field priority、Support / Fission、Invasionの因果境界はConfigで変更しない。v0.2.5 closureはPin Importance threshold 60、7 tracked Person field、Migration completion radius = child Influence radius（現行7）を採用する。汎用Importance式、Event / Settlement Belief容量、Struggle遷移は未決のままである。
 
-## Run metadata
+## v0.2.6 adopted defaults
 
-将来、再現用metadataを保存する場合は最低限次を扱えるようにする。ただしファイル出力自体はv0初期必須要件ではない。
+- Fission hotspotのResident-Days / 現在人口は全Alive NPCを対象にする。
+- Invasion開始時は攻撃Settlementの全Alive affiliated memberを参加させる。同日のRestも除外しない。
+- `mobilizeAllLivingAffiliatedMembers`はtrue固定で、旧Pressure rate / 2.0倍係数は使用しない。
+- 攻撃者不在判定はbase 7日 + Center間Chebyshev距離ごとに1.0日（切上げ）。
+- 攻撃Settlementの開始間cooldownは60日。armed / 低Pressure再武装設定は削除する。
+
+## Implemented configuration and run metadata
+
+`configs/v0-default.json` はschema version 6、ID `v0.2.6-default-1`。観測App Configはschema version 7で、Worldログのflush間隔、diagnostics間隔、automatic advanceのwork sliceとcooldownを設定できる。defaultは2日ごとに15ms休止し、CPU並列度8と組み合わせて旧BIOS環境での持続的な全論理CPU負荷を避ける。日次CSVは毎日記録し、diagnosticsは30日間隔とWorld完了時に記録する。観測Appは各Worldへ完全Config snapshotと次の再現情報を保存する。
 
 ```json
 {
-  "schemaVersion": 1,
+  "schemaVersion": 5,
   "seed": 8147291,
-  "config": "configs/default.json",
-  "preset": "presets/example.json",
-  "ticks": 0,
-  "version": "v0.2.5",
-  "repositoryCommit": "git-commit-hash"
+  "configId": "v0.2.6-default-1",
+  "releaseVersion": "v0.2.6",
+  "repositoryCommit": "git-commit-hash",
+  "repositoryTreeState": "clean",
+  "simulationConfigSha256": "..."
 }
 ```
 
-完全なconfig、初期状態、外部入力列を参照または同梱できるようにする。同じVersion名でも異なるrepositoryCommitのRunを混在させない。保存形式はDraftである。
+`events.jsonl`（wrapper schema 4）、`daily-stats.csv`、`diagnostics.jsonl`（schema 6）はWorld別に保存する。外部Raw Archiveと日次CSVは全日、diagnosticsはschema 7 App Configの間隔と完了時に保存する。Core内のRecent Eventはschema 4 Configのdefault 20,000件へ制限し、Replay fingerprint、Knowledge、日次集計から分離する。Desktopは日次cacheと現在snapshotだけを描画し、Raw Archiveを画面更新時に再走査しない。明示完了時に`completion.json`を最後に確定し、同markerがあるWorldだけをZIPへ圧縮する。強制終了や通常終了で未完了のdirectoryを完了済みと誤認しない。Simulation snapshotの保存・再開とschema migrationは引き続きDraftである。

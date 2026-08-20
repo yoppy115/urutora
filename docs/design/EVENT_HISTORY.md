@@ -60,8 +60,8 @@ Statistics projectionはEventや日末snapshot差分を受けて増分更新す�
 - SaturatedDays、Renewal回数・日、Renewal間隔、Renewal後人口・Pressure。
 - LowSupportDays、P / R / S各成分、Supportが100に達した日。
 - FissionPressureDays、hotspot候補数、不成立理由。
-- 5×5 Resident-Days、現在Unaffiliated数、候補Center。
-- Cell別Resident-Days最大、現在Unaffiliated在住cell選択、中心距離 / seed tie-break、Valid Centerなし、次hotspot評価。
+- 5×5 All Alive NPC Resident-Days、現在Alive NPC数、候補Center。
+- Cell別Resident-Days最大、現在Alive NPC在住cell選択、中心距離 / seed tie-break、Valid Centerなし、次hotspot評価。
 - migrant予定、成立時即時完了、Move / Flee / Tick末完了、死亡・child無効化中断、平均 / 最大日数、完了率、bias解除、親子Settlement、Fission回数。
 - Fission成功日、同日Invasion抑止、hotspotなしによるInvasion移行。
 

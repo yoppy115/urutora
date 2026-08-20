@@ -2,7 +2,7 @@
 
 **Status:** Baseline boundaries / v0.2 default and configurable mechanics
 
-v0.15で変更された個体生態系defaultと処理境界は [`V0_15_ECOLOGY.md`](V0_15_ECOLOGY.md)、v0.2の社会Simulationは [`V0_2_SETTLEMENT_ORDER.md`](V0_2_SETTLEMENT_ORDER.md)、現行v0.2.5 overrideは [`V0_2_5_KNOWLEDGE_FISSION_INVASION.md`](V0_2_5_KNOWLEDGE_FISSION_INVASION.md) を優先する。
+v0.15で変更された個体生態系defaultと処理境界は [`V0_15_ECOLOGY.md`](V0_15_ECOLOGY.md)、v0.2の社会Simulationは [`V0_2_SETTLEMENT_ORDER.md`](V0_2_SETTLEMENT_ORDER.md)、現行overrideは [`V0_2_5_KNOWLEDGE_FISSION_INVASION.md`](V0_2_5_KNOWLEDGE_FISSION_INVASION.md) と [`V0_2_6_FISSION_INVASION_THROUGHPUT.md`](V0_2_6_FISSION_INVASION_THROUGHPUT.md) を優先する。
 
 ## Validation purpose
 
@@ -54,7 +54,7 @@ InitialPopulation 200、64×64 Map、stratified random placementはv0.15でも�
 
 ## v0.2 scope
 
-従来のGrid World、NPC生態系、Concept Landmark、Structured Events、決定論的Core、Desktop Observation Appに加え、World Generation / Order、Settlement生成・所属・社会Bonus、Friction / Hostility、SettlementPressure、Concept Auraを実装対象とする。v0.2.5では三種Knowledge、増分Statistics、累積Support / Renewal、Fission、親子Settlement、持続型Invasionを追加対象とする。
+従来のGrid World、NPC生態系、Concept Landmark、Structured Events、決定論的Core、Desktop Observation Appに加え、World Generation / Order、Settlement生成・所属・社会Bonus、Friction / Hostility、SettlementPressure、Concept Auraを実装対象とする。v0.2.5では三種Knowledge、増分Statistics、累積Support / Renewal、Fission、親子Settlement、持続型Invasionを追加し、v0.2.6ではFission hotspot母集団、Invasion動員・距離連動Defense・cooldownを更新する。
 
 ## Outside v0.2
 

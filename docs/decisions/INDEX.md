@@ -24,8 +24,8 @@ ADRは、重要で後戻りしづらい判断について「なぜそうした�
 | [`ADR-0016`](ADR-0016-generation-settlement-and-order.md) | Accepted | Generation中形成、日末Maintenance、決定論的Hotspot arbitration、人口安定Order |
 | [`ADR-0017`](ADR-0017-settlement-conflict-and-invasion.md) | Accepted | Friction、Unaffiliated保護、同一Core繁殖、Crowding由来Invasionと占領・離脱 |
 | [`ADR-0018`](ADR-0018-concept-aura-social-transmission.md) | Accepted | Concept Auraの社会伝播、同種抑制、一時MaxHP normalization |
-| [`ADR-0019`](ADR-0019-log-retention-and-build-provenance.md) | Accepted | 完了ログ圧縮とclean Git provenanceをRunへ結び付ける |
-| [`ADR-0020`](ADR-0020-deterministic-parallel-read-phases.md) | Accepted | 分離read / planning phaseを決定論的merge付きで並列化する |
+| [`ADR-0019`](ADR-0019-log-retention-and-build-provenance.md) | Accepted | 完了Worldの検証済み圧縮とclean Git provenanceへreleaseを拘束する |
+| [`ADR-0020`](ADR-0020-deterministic-parallel-read-phases.md) | Accepted | Observer / NPC単位の分離可能な読取・計画phaseだけを並列化し、NPC ID順へ決定論的mergeする |
 | [`ADR-0021`](ADR-0021-action-specific-fatigue-and-home-bias.md) | Accepted | Action別疲労、Home Bias、Generation Proto-Orderを採用する |
 | [`ADR-0022`](ADR-0022-local-settlement-support-and-hysteresis.md) | Accepted | 局所SettlementSupportとHysteresisで自然消滅を判定する |
 | [`ADR-0023`](ADR-0023-v024-invasion-stabilization-guardrails.md) | Superseded | v0.2.4の暫定Invasion guardrail。ADR-0024が置換 |
@@ -35,13 +35,14 @@ ADRは、重要で後戻りしづらい判断について「なぜそうした�
 | [`ADR-0027`](ADR-0027-accumulated-support-renewal-and-fission.md) | Accepted | 累積Support、Renewal、Fission先行、直接親子の平時非侵略 |
 | [`ADR-0028`](ADR-0028-invasion-field-rest-and-sustained-victory.md) | Accepted | FieldRest / Retreating、Core前線、継続占領・防衛Victory |
 | [`ADR-0029`](ADR-0029-v025-unresolved-contracts-closure.md) | Accepted | Memorable / Settlement知識、Person eviction、Fission Center、Migration完了、Struggle延期を確定 |
+| [`ADR-0030`](ADR-0030-v026-fission-and-invasion-throughput.md) | Accepted | Fission hotspot全NPC化、距離連動Defense、60日cooldownを採用。動員2倍はADR-0031が置換 |
+| [`ADR-0031`](ADR-0031-v026-all-member-invasion-mobilization.md) | Accepted | Invasion開始時に攻撃Settlementの全Alive affiliated memberを参加させる |
 
 ## Future decisions
 
 次は未決のため、まだAccepted ADRを作らない。
 
 - 永続化形式とschema migration。
-- Desktop UI framework。
 - domain event配送方式とstate sliceの具体API。
 
 ## Workflow
